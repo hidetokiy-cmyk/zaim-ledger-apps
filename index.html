@@ -7204,6 +7204,68 @@
 })();
 </script>
 <script>
+(function () {   // 公開版（HTTPS・PWA）向けの機能：永続ストレージ／画面指定リンク／オフライン表示／追加案内／トークン貼り付け
+  const $ = (id) => document.getElementById(id);
+  const TABS = ["overview", "charts", "statements", "tx"];
+
+  // 1. 永続ストレージ：端末の容量が逼迫しても、キャッシュを勝手に消されにくくする
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) { /* 未対応でも影響なし */ }
+
+  // 2. 画面指定リンク：…/#tx のように開くと、そのタブが開く。タブを切り替えるとURLも追従する
+  const openTab = (name) => { const b = document.querySelector('.tab-btn[data-tab="' + name + '"]'); if (b) b.click(); };
+  const wanted = () => { const h = location.hash.replace(/^#\/?/, ""); return TABS.indexOf(h) >= 0 ? h : null; };
+  (function waitAndOpen(n) {
+    const t = wanted();
+    if (!t) return;
+    const dash = $("dashboardView");
+    if (dash && dash.offsetParent !== null && document.querySelector('.tab-btn[data-tab="' + t + '"]')) { openTab(t); return; }
+    if (n < 40) setTimeout(() => waitAndOpen(n + 1), 250);   // データ読み込みが終わるまで最大10秒待つ
+  })(0);
+  window.addEventListener("hashchange", () => { const t = wanted(); if (t) openTab(t); });
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest && e.target.closest(".tab-btn[data-tab]");
+    if (b) try { history.replaceState(null, "", "#" + b.getAttribute("data-tab")); } catch (e2) { /* ignore */ }
+  });
+
+  // 3. オフライン表示：通信できないときは、保存済みのデータを表示中であることを示す
+  const bar = document.createElement("div");
+  bar.textContent = "オフライン：保存済みのデータを表示しています（最新ではない可能性があります）";
+  bar.style.cssText = "display:none;position:fixed;top:0;left:0;right:0;z-index:95;background:#A23E32;color:#fff;padding:calc(6px + env(safe-area-inset-top)) 12px 6px;font:13px/1.4 sans-serif;text-align:center;";
+  document.body.appendChild(bar);
+  const net = () => { bar.style.display = navigator.onLine ? "none" : "block"; };
+  window.addEventListener("online", net); window.addEventListener("offline", net); net();
+
+  // 4. ホーム画面への追加案内（インストール済みなら出さない）
+  const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  const foot = document.querySelector("#dashboardView .sidebar-foot");
+  const mkBtn = (text, fn) => {
+    const b = document.createElement("button"); b.type = "button"; b.textContent = text; b.addEventListener("click", fn);
+    b.style.cssText = "display:none;width:100%;margin-top:10px;background:transparent;color:var(--sidebar-soft);border:1px solid #565A6C;border-radius:3px;padding:9px 10px;font-size:14px;min-height:40px;cursor:pointer;";
+    if (foot) foot.appendChild(b); return b;
+  };
+  let deferred = null;
+  const installBtn = mkBtn("ホーム画面に追加", async () => { if (!deferred) return; deferred.prompt(); try { await deferred.userChoice; } catch (e) { /* ignore */ } deferred = null; installBtn.style.display = "none"; });
+  window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); deferred = e; if (!standalone) installBtn.style.display = "block"; });
+  window.addEventListener("appinstalled", () => { installBtn.style.display = "none"; });
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  if (ios && !standalone) {
+    const hint = mkBtn("ホーム画面への追加方法", () => alert("Safariの共有ボタン（四角から上向きの矢印）を押し、「ホーム画面に追加」を選んでください。"));
+    hint.style.display = "block";
+  }
+
+  // 5. トークン貼り付けボタン（スマホでの入力を楽にする）
+  const tokenToggle = $("syncTokenToggleBtn"), tokenInput = $("syncTokenInput");
+  if (tokenToggle && tokenInput && navigator.clipboard && navigator.clipboard.readText) {
+    const p = document.createElement("button"); p.type = "button"; p.className = "btn"; p.textContent = "貼り付け";
+    p.addEventListener("click", async () => {
+      try { const t = (await navigator.clipboard.readText()).trim(); if (t) { tokenInput.value = t; tokenInput.dispatchEvent(new Event("input", { bubbles: true })); } }
+      catch (e) { alert("クリップボードを読み取れませんでした。入力欄に直接貼り付けてください。"); }
+    });
+    tokenToggle.parentNode.insertBefore(p, tokenToggle);
+  }
+})();
+</script>
+<script>
 (function () {   // PWA：Service Workerの登録と、新しい版が出たときのお知らせ
   if (!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return;
   navigator.serviceWorker.register("sw.js").then((reg) => {
