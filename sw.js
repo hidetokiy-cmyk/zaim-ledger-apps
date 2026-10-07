@@ -1,6 +1,6 @@
 // 家計元帳 Service Worker
 // 更新するときは VERSION を変える（古いキャッシュは自動で消える）
-const VERSION = "v9";
+const VERSION = "v10";
 const APP = "ledger-app-" + VERSION;
 const FONTS = "ledger-fonts";
 const CORE = ["./", "index.html", "papaparse.min.js", "manifest.webmanifest", "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png", "favicon-32.png"];
