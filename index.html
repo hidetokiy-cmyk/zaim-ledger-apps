@@ -346,6 +346,18 @@
   .delta.down { color: var(--green); background: rgba(46,99,80,0.09); }
   .cash-note { font-size: 13.5px; color: var(--ink-faint); margin-top: 8px; line-height:1.5; }
 
+  .spend-panel { margin-top: 4px; }
+  .spend-row { display: grid; grid-template-columns: 52px minmax(120px, 1fr) minmax(90px, 1.4fr); align-items: center; gap: 12px; padding: 10px 0; }
+  .spend-row + .spend-row { border-top: 1px solid var(--rule); }
+  .spend-label { font-size: 15px; color: var(--ink); }
+  .spend-amt { font-size: 22px; font-weight: 700; line-height: 1.2; }
+  .spend-sub { font-size: 13.5px; color: var(--ink-soft); margin-top: 2px; }
+  .spend-sub.over { color: var(--red); }
+  .spend-range { font-size: 12.5px; color: var(--ink-faint); margin-top: 1px; }
+  .spend-track { height: 10px; border-radius: 6px; background: var(--rule); overflow: hidden; }
+  .spend-fill { height: 100%; border-radius: 6px; background: var(--green); }
+  .spend-fill.warn { background: var(--gold); }
+  .spend-fill.over { background: var(--red); }
   .panel { padding: 20px 22px; margin-bottom: 16px; }
   .panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap:10px; flex-wrap:wrap; }
   .section-title { font-size: 17.5px; }
@@ -881,6 +893,14 @@
 
       <div class="tab-page" id="tabOverview">
 
+      <div class="card panel spend-panel" id="spendPanel">
+        <div class="panel-head" style="margin-bottom:6px;">
+          <div class="section-title serif">使ったお金</div>
+        </div>
+        <div id="spendRows"></div>
+        <div class="cash-note" id="spendNote"></div>
+      </div>
+
       <div class="verdict-card">
         <div class="verdict-label">損益（発生ベース・経済的な収益と費用）</div>
         <div class="verdict-value num serif" id="profitVal">¥0</div>
@@ -1111,7 +1131,7 @@
         <div class="cash-note" id="forecastDataNote" style="margin-bottom:12px;"></div>
         <div class="line-chart" id="forecastChart"></div>
         <div class="cash-note" style="margin-top:14px;">
-          この予測はすべて、実際に現金・預金口座（現金及び現金同等物）が動いた金額だけを対象にしています。収入・変動費は直近<span id="forecastWindowLabel">—</span>ヶ月の実績の移動平均、固定費は「サブスク自動検出」で現在有効と判定されている定期支払い（年払いは次回目安月にのみ計上）から算出しています。カード等の締め日・支払いサイクルは、利用実績と決済実績の日付パターンから自動推定しています（推定できた口座は、カード等で支払っている月次・年払いサブスクを、実際にそのサブスクの利用日を含む決済からピンポイントで固定費側に振り替え、変動費との二重計上を避けます。推定できない口座は、月次サブスクの合計額を決済額の範囲内で充当する近似にとどめます）。さらに、そのサブスク分を差し引いてもなお残るカード等への決済額（保険料の分割払いなど、サブスクとしては検出されない定期的な支払い）についても、口座ごとの過去実績の中央値を継続的な固定費相当とみなし、それを超えた分だけを変動費として扱うことで、カード払いというだけで全額が変動費に埋もれてしまわないようにしています。投資・財務活動は、同じくサブスク自動検出の仕組みで見つかった「毎月の定期投資」だけを将来の見込みに含め、年払いの定期投資やまとまった買い増し・払い出しなど、それ以外の投資・財務活動は見込みの根拠には使いません（実績としては月次実績表に残ります）。上下のブレ幅は、直近実績のばらつき（標準偏差）から先の月ほど広げた目安であり、確率的な保証ではありません。すべて自動計算のみで、手動での除外・調整設定はありません。
+          この予測はすべて、実際に現金・預金口座（現金及び現金同等物）が動いた金額だけを対象にしています。見込み収入は給与のみ（臨時収入・立替金返済・小遣い・振替による入金などは見込みに含めません）で、給与・変動費は直近<span id="forecastWindowLabel">—</span>ヶ月の実績の移動平均、固定費は「サブスク自動検出」で現在有効と判定されている定期支払い（年払いは次回目安月にのみ計上）から算出しています。カード等の締め日・支払いサイクルは、利用実績と決済実績の日付パターンから自動推定しています（推定できた口座は、カード等で支払っている月次・年払いサブスクを、実際にそのサブスクの利用日を含む決済からピンポイントで固定費側に振り替え、変動費との二重計上を避けます。推定できない口座は、月次サブスクの合計額を決済額の範囲内で充当する近似にとどめます）。さらに、そのサブスク分を差し引いてもなお残るカード等への決済額（保険料の分割払いなど、サブスクとしては検出されない定期的な支払い）についても、口座ごとの過去実績の中央値を継続的な固定費相当とみなし、それを超えた分だけを変動費として扱うことで、カード払いというだけで全額が変動費に埋もれてしまわないようにしています。投資・財務活動は、同じくサブスク自動検出の仕組みで見つかった「毎月の定期投資」だけを将来の見込みに含め、年払いの定期投資やまとまった買い増し・払い出しなど、それ以外の投資・財務活動は見込みの根拠には使いません（実績としては月次実績表に残ります）。上下のブレ幅は、直近実績のばらつき（標準偏差）から先の月ほど広げた目安であり、確率的な保証ではありません。すべて自動計算のみで、手動での除外・調整設定はありません。
         </div>
 
         <div class="modal-section-title" style="margin-top:24px;">予測の前提（何をどれだけ見込んでいるか）</div>
@@ -2418,6 +2438,20 @@
   function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
   // 月曜始まりの週の月曜日を返す
   function mondayOf(d) { const dow = d.getDay(); const diff = dow === 0 ? -6 : 1 - dow; return addDays(d, diff); }
+  // 週次の1区間：月曜始まりの1週間を、会計月の区切れ目（毎月25日始まり）でも分割した範囲。
+  // 月をまたぐ週は「月末までの短い週」と「月初からの短い週」の2区間になる。
+  function weekSegmentAt(d) {
+    const day = startOfDay(d), mon = mondayOf(day), cyc = getCycleBounds(day);
+    const wkEnd = addDays(mon, 7);
+    return { start: mon > cyc.start ? mon : cyc.start, end: wkEnd < cyc.end ? wkEnd : cyc.end };
+  }
+  // 基準日を含む週区間から offset 区間ぶん前後へ進めた区間（-1で前の区間、+1で次の区間）
+  function weekSegmentOffset(anchor, offset) {
+    let seg = weekSegmentAt(anchor);
+    for (let i = 0; i < -offset; i++) seg = weekSegmentAt(addDays(seg.start, -1));
+    for (let i = 0; i < offset; i++) seg = weekSegmentAt(seg.end);
+    return seg;
+  }
   const PERIOD_MODE_LABEL = { day: "日次", week: "週次", month: "月次", year: "年次", all: "全期間" };
 
   // 読み込まれている取引データ全体の日付範囲（全期間モード用）
@@ -2458,8 +2492,7 @@
       return { start, end: addDays(start, 1) };
     }
     if (mode === "week") {
-      const start = addDays(mondayOf(a), offset * 7);
-      return { start, end: addDays(start, 7) };
+      return weekSegmentOffset(a, offset);
     }
     if (mode === "year") {
       // 会計年度：1月度〜12月度（毎月25日始まりの会計月ルールに合わせ、1/25前後〜翌1/24前後）
@@ -2485,7 +2518,7 @@
     if (mode === "day") return dayLabel(range.start);
     if (mode === "week") {
       const endIncl = addDays(range.end, -1);
-      return `${range.start.getMonth() + 1}/${range.start.getDate()}〜${endIncl.getMonth() + 1}/${endIncl.getDate()}（月曜始まり）`;
+      return `${range.start.getMonth() + 1}/${range.start.getDate()}〜${endIncl.getMonth() + 1}/${endIncl.getDate()}`;
     }
     if (mode === "year") {
       const endIncl = addDays(range.end, -1);
@@ -2517,11 +2550,19 @@
   // 「前年同期比（YoY%）」を出すためのオフセット。年次モードは1行＝1年なので前期比と重複するため対象外。
   // 日次・週次は「365日前」「52週間前」という近似（うるう年の関係で1〜2日ずれる場合がある）。
   const YOY_OFFSET_UNITS = { day: 365, week: 52, month: 12 };
+  // 前年同期の範囲。週次は区間の数え方が月で変わるため、「52週間（364日）前の日付を含む週区間」で求める
+  function yoyRangeFor(mode, anchor, off) {
+    if (mode === "week") return weekSegmentAt(addDays(periodRangeForMode(mode, anchor, off).start, -364));
+    return periodRangeForMode(mode, anchor, off - YOY_OFFSET_UNITS[mode]);
+  }
   // 短いラベル（比較テーブルの列見出しなどに使う）
   function periodShortLabelForMode(mode, anchor, offset) {
     const range = periodRangeForMode(mode, anchor, offset);
     if (mode === "day") return `${range.start.getMonth() + 1}/${range.start.getDate()}`;
-    if (mode === "week") { const endIncl = addDays(range.end, -1); return `${range.start.getMonth() + 1}/${range.start.getDate()}〜${endIncl.getMonth() + 1}/${endIncl.getDate()}`; }
+    if (mode === "week") {
+      const endIncl = addDays(range.end, -1), nd = Math.round((range.end - range.start) / 86400000);
+      return `${range.start.getMonth() + 1}/${range.start.getDate()}〜${endIncl.getMonth() + 1}/${endIncl.getDate()}` + (nd < 7 ? `（${nd}日）` : "");
+    }
     if (mode === "year") return `${range.start.getFullYear()}年度`;
     return cycleLabel(range.key);
   }
@@ -3498,7 +3539,7 @@
       const accrual = computeAccrualStats(raw, broad);
       let yoyProfit = null;
       if (yoyUnit) {
-        const yoyRange = periodRangeForMode(state.periodMode, state.periodAnchor, off - yoyUnit);
+        const yoyRange = yoyRangeFor(state.periodMode, state.periodAnchor, off);
         yoyProfit = computeAccrualStats(applyCommonFilters(rowsInRange(yoyRange)), broad).profit;
       }
       rows.push({ off, label: periodShortLabelForMode(state.periodMode, state.periodAnchor, off), cashNet, accrual, yoyProfit });
@@ -3530,7 +3571,7 @@
     if (yoyUnit) {
       wrap.appendChild(el("div", { class: "cash-note", style: "margin-top:8px;" }, [
         state.periodMode === "month" ? "「前年同期比」は12ヶ月前の同じ会計月との比較です。" :
-        state.periodMode === "week" ? "「前年同期比」は52週間前との比較です（暦年の1年前とは1〜2日ずれる場合があります）。" :
+        state.periodMode === "week" ? "「前年同期比」は52週間（364日）前の同じ週との比較です（暦年の1年前とは1〜2日ずれる場合があります）。月をまたぐ週は日数が短い（「（3日）」などと表示）ため、前期比・前年同期比は日数の違いの影響を受けます。" :
         "「前年同期比」は365日前との比較です（うるう年の関係で暦の1年前とは1日ずれる場合があります）。",
       ]));
     }
@@ -4263,9 +4304,9 @@
     // 「具体的にどの取引が集計・除外されているか」へドリルダウンするために保持する。
     function bucket(k) {
       if (!map.has(k)) map.set(k, {
-        key: k, income: 0, fixed: 0, variable: 0, investFin: 0,
+        key: k, income: 0, otherIncome: 0, fixed: 0, variable: 0, investFin: 0,
         variableBySubcat: new Map(),
-        incomeRows: [], fixedRows: [], investFinRows: [], variableRowsBySubcat: new Map(),
+        incomeRows: [], otherIncomeRows: [], fixedRows: [], investFinRows: [], variableRowsBySubcat: new Map(),
         settlementByAccount: new Map(), // カード等への決済の口座別・生の金額と取引行（固定費振替の下地。一時利用のみ）
       });
       return map.get(k);
@@ -4285,7 +4326,9 @@
       if (r.type === "income") {
         if (!forecastIsCashAccount(r.toAccount)) continue;
         const b = bucket(mkey);
-        b.income += r.amount; b.incomeRows.push(r);
+        // 見込み収入は「給与」のみ。それ以外の収入は実績として別に記録するだけで、予測には使わない
+        if (r.category === "給与") { b.income += r.amount; b.incomeRows.push(r); }
+        else { b.otherIncome += r.amount; b.otherIncomeRows.push(r); }
       } else if (r.type === "expense") {
         if (!forecastIsCashAccount(r.fromAccount)) continue;
         const b = bucket(mkey);
@@ -4303,7 +4346,7 @@
         if (counterpart && (CF_INVESTMENT_ACCOUNTS.has(counterpart) || CF_FINANCING_ACCOUNTS.has(counterpart))) {
           b.investFin += delta; b.investFinRows.push(r);
         } else if (delta >= 0) {
-          b.income += delta; b.incomeRows.push(r);
+          b.otherIncome += delta; b.otherIncomeRows.push(r);   // 振替・残高調整による入金は給与ではないので予測対象外
         } else {
           const label = counterpart || "（不明）";
           if (!b.settlementByAccount.has(label)) b.settlementByAccount.set(label, []);
@@ -4401,7 +4444,7 @@
     result.windowSize = recentUsable.length;
     result.seasonal = usable.length >= FORECAST_SEASONAL_MIN_MONTHS;
 
-    // 収入・変動費は直近実績の移動平均（＋季節調整）で見込む。投資・財務活動は、生の実績を平均すると
+    // 収入（＝給与のみ）・変動費は直近実績の移動平均（＋季節調整）で見込む。投資・財務活動は、生の実績を平均すると
     // 不定期なまとまった投資・払い出しに引きずられるため、代わりに下の「定期投資自動検出」の結果だけを使う。
     const recentVariable = recentUsable.map((m) => m.variable);
     const recentIncome = recentUsable.map((m) => m.income);
@@ -4710,9 +4753,9 @@
           ]),
         ]),
         el("div", { class: "bal-row" }, [
-          el("span", { class: "name" }, ["収入見込み（月平均）"]),
+          el("span", { class: "name" }, ["給与見込み（月平均）"]),
           el("span", { class: "amt num" }, [
-            forecastDrillLabel(`${YEN(basis.incomeAvg)}（${basis.incomeRows.length}件の実績から算出）`, basis.incomeRows, "収入の実績（予測の根拠）"),
+            forecastDrillLabel(`${YEN(basis.incomeAvg)}（${basis.incomeRows.length}件の実績から算出）`, basis.incomeRows, "給与の実績（予測の根拠）"),
           ]),
         ]),
         el("div", { class: "bal-row" }, [
@@ -4790,13 +4833,14 @@
       monthWrap.appendChild(el("div", { style: "font-size:14.5px;color:var(--ink-soft);" }, ["対象データがありません"]));
     } else {
       const table = el("table", { class: "compare-table" }, [
-        el("thead", null, [el("tr", null, ["会計月", "収入", "固定費", "変動費", "投資・財務"].map((h) => el("th", null, [h])))]),
+        el("thead", null, [el("tr", null, ["会計月", "給与", "その他収入（予測対象外）", "固定費", "変動費", "投資・財務"].map((h) => el("th", null, [h])))]),
         el("tbody", null, forecast.history.map((m) => {
           const monthLabel = cycleLabel(m.key);
           const variableRows = m.variableRowsBySubcat ? Array.from(m.variableRowsBySubcat.values()).flat() : [];
           return el("tr", null, [
             el("td", null, [monthLabel]),
-            el("td", { class: "num" }, [forecastDrillLabel(YEN(m.income), m.incomeRows, `収入（${monthLabel}）`)]),
+            el("td", { class: "num" }, [forecastDrillLabel(YEN(m.income), m.incomeRows, `給与（${monthLabel}）`)]),
+            el("td", { class: "num", style: "color:var(--ink-soft)" }, [forecastDrillLabel(YEN(m.otherIncome), m.otherIncomeRows, `その他収入・予測対象外（${monthLabel}）`)]),
             el("td", { class: "num" }, [forecastDrillLabel(YEN(m.fixed), m.fixedRows, `固定費（${monthLabel}）`)]),
             el("td", { class: "num" }, [forecastDrillLabel(YEN(m.variable), variableRows, `変動費（${monthLabel}）`)]),
             el("td", { class: "num" }, [forecastDrillLabel((m.investFin >= 0 ? "+" : "−") + YEN(Math.abs(m.investFin)), m.investFinRows, `投資・財務活動（${monthLabel}）`)]),
@@ -5295,6 +5339,90 @@
   }
 
   const FREQ_LABEL = { month: "月額", year: "年額" };
+  // ---------- 「使ったお金」ウィジェット（今月・今週・今日の支出と、上限に対する残り） ----------
+  // 概要タブの期間・絞り込みとは無関係に、常に「今日」を基準に表示する。
+  // 集計は損益と同じ（集計除外設定を反映。今日より後の予定取引は含めない）。
+  // 今月＝会計月（給与日の25日始まり）、今週＝月曜始まりの週を会計月の区切れ目で分けた区間、今日＝当日。
+  // 上限は自動計算：
+  //   使える額（利益）＝今月の給与（見込み収入は給与のみ） − 今月これまでに使った額
+  //   1日あたり ＝ （利益 ＋ 今日使った額）÷ 残り日数（今日を含む）
+  //   今日の上限 ＝ 1日あたり ／ 今週の上限 ＝ 週内で今日より前に使った額 ＋ 1日あたり×週の残り日数 ／ 今月の上限 ＝ 今月の給与
+  function sumIn(range, type, cutoff, broad, category) {
+    let sum = 0;
+    for (const r of rowsInRange(range)) {
+      if (r.type !== type || r.date >= cutoff) continue;
+      if (category && r.category !== category) continue;
+      if (isExcludedRow(r, broad)) continue;
+      sum += r.amount;
+    }
+    return sum;
+  }
+  function renderSpendPanel() {
+    const rowsEl = document.getElementById("spendRows"), noteEl = document.getElementById("spendNote");
+    if (!rowsEl) return;
+    const DAY = 86400000, today = startOfDay(new Date()), tomorrow = addDays(today, 1);
+    const md = (d) => `${d.getMonth() + 1}/${d.getDate()}`;
+    const cyc = getCycleBounds(today), week = weekSegmentAt(today);
+    const mRange = { start: cyc.start, end: cyc.end }, dRange = { start: today, end: tomorrow };
+    const revenue = sumIn(mRange, "income", tomorrow, false, "給与");   // 見込み収入は給与のみ
+    const spentM = sumIn(mRange, "expense", tomorrow, false);
+    const spentW = sumIn(week, "expense", tomorrow, false);
+    const spentD = sumIn(dRange, "expense", tomorrow, false);
+    const daysLeftM = Math.max(1, Math.round((cyc.end - today) / DAY));
+    const daysLeftW = Math.max(1, Math.round((week.end - today) / DAY));
+    // 今月まだ支払われていない定期支払い（サブスク自動検出＋手動固定費）の見込みを、先に取り分けておく。
+    // 直近の支払いが今月の開始前で、次回見込み日が今月末までに来るもの（解約済みの可能性があるものは除く）。
+    let reserve = 0, reserveN = 0;
+    try {
+      detectSubscriptions().forEach((sub) => {
+        if (sub.likelyCancelled || !sub.lastDate || sub.lastDate >= cyc.start) return;
+        if (sub.nextExpected >= cyc.end) return;
+        reserve += sub.amount; reserveN++;
+      });
+    } catch (e) { reserve = 0; reserveN = 0; }
+    const perDay = Math.max(0, (revenue - spentM - reserve + spentD) / daysLeftM);
+    const defs = [
+      { label: "今月", spent: spentM, budget: revenue, range: `${md(cyc.start)}〜${md(addDays(cyc.end, -1))}` },
+      { label: "今週", spent: spentW, budget: (spentW - spentD) + perDay * daysLeftW, range: `${md(week.start)}〜${md(addDays(week.end, -1))}` },
+      { label: "今日", spent: spentD, budget: perDay, range: "" },
+    ];
+    rowsEl.innerHTML = "";
+    defs.forEach((d, i) => {
+      const budget = Math.round(d.budget);
+      const ratio = budget > 0 ? d.spent / budget : (d.spent > 0 ? 1 : 0);
+      const cls = ratio >= 1 ? "over" : ratio >= 0.8 ? "warn" : "";
+      const remain = budget - d.spent;
+      const left = [el("div", { class: "spend-amt num" }, [YEN(d.spent)]),
+        el("div", { class: "spend-sub num" + (remain < 0 ? " over" : "") }, [remain >= 0 ? `残 ${YEN(remain)}` : `超過 ${YEN(-remain)}`])];
+      if (d.range) left.push(el("div", { class: "spend-range" }, [d.range]));
+      if (i === 0) left.push(el("div", { class: "spend-range" }, [`残り${daysLeftM}日・1日あたり ${YEN(perDay)}`]));
+      const fill = el("div", { class: "spend-fill " + cls, style: `width:${Math.min(100, Math.round(ratio * 100))}%` });
+      rowsEl.appendChild(el("div", { class: "spend-row" }, [el("div", { class: "spend-label" }, [d.label]), el("div", null, left), el("div", { class: "spend-track" }, [fill])]));
+    });
+    let note = revenue <= 0
+      ? "今月（会計月）の給与がまだ記録されていないため、上限は0円になっています。"
+      : `上限は自動計算です。今月の利益（給与 ${YEN(revenue)} − 使った額 ${YEN(spentM)}` + (reserveN ? ` − 今月まだ支払っていない定期支払いの見込み ${YEN(reserve)}（${reserveN}件）` : "") + ` ＝ ${YEN(revenue - spentM - reserve)}）を、残り${daysLeftM}日で按分しています。`;
+    // データの鮮度：今日の取引がまだ取り込まれていない可能性を知らせる
+    const lastTx = latestActualDate();
+    const ago = Math.round((today - lastTx) / DAY);
+    note += `\n最新の取引: ${md(lastTx)}` + (ago <= 0 ? "（今日）" : `（${ago}日前）`) + (ago > 0 ? "。今日の支出はまだ反映されていない可能性があります。" : "");
+    noteEl.textContent = note;
+    noteEl.style.whiteSpace = "pre-line";
+  }
+
+  // アプリを開いたまま日付が変わった場合（PWAを翌日に開き直したときなど）、基準日が昨日のままにならないよう更新する
+  let lastSeenDay = startOfDay(new Date()).getTime();
+  function refreshIfDayChanged() {
+    const now = startOfDay(new Date()).getTime();
+    if (now === lastSeenDay) return;
+    const prev = lastSeenDay; lastSeenDay = now;
+    if (!state.transactions) return;
+    if (startOfDay(state.periodAnchor).getTime() === prev) state.periodAnchor = new Date(now);   // 「今日」を見ていた場合だけ追従
+    try { render(); } catch (e) { console.error(e); }
+  }
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") refreshIfDayChanged(); });
+  setInterval(refreshIfDayChanged, 60000);
+
   function renderSubscriptionPanel() {
     const listEl = document.getElementById("subscriptionList");
     const metaEl = document.getElementById("subscriptionMonthlyTotal");
@@ -5574,6 +5702,7 @@
     document.getElementById("fileMeta").textContent = `${state.fileName}\n${state.transactions.length}件の取引` + (state.csvParseWarning ? `\n⚠ ${state.csvParseWarning}` : "");
 
     renderPeriodControls();
+    try { renderSpendPanel(); } catch (e) { console.error("使ったお金の表示に失敗", e); }
     renderPeriodCompareTable();
     renderFilterChip();
 
@@ -6356,17 +6485,16 @@
     const range = periodRangeForMode(mode, anchor, 0);
     const DAY = 86400000, md = (d) => `${d.getMonth() + 1}/${d.getDate()}`;
     if (mode === "month") {
-      const n = Math.max(1, Math.ceil((range.end - range.start) / (7 * DAY)));
-      const labels = Array.from({ length: n }, (_, i) => {
-        const s = addDays(range.start, i * 7);
-        let e = addDays(s, 6); const last = addDays(range.end, -1); if (e > last) e = last;
-        return { label: `第${i + 1}週`, sub: `${md(s)}〜${md(e)}` };
-      });
-      return { title: "週別の支出（カテゴリ別）", labels, idx: (r) => Math.min(n - 1, Math.max(0, Math.floor((startOfDay(r.date) - range.start) / (7 * DAY)))) };
+      const segs = [];
+      for (let sg = weekSegmentAt(range.start); sg.start < range.end; sg = weekSegmentAt(sg.end)) segs.push(sg);
+      const n = Math.max(1, segs.length);
+      const labels = segs.map((sg, i) => ({ label: `第${i + 1}週`, sub: `${md(sg.start)}〜${md(addDays(sg.end, -1))}` }));
+      return { title: "週別の支出（カテゴリ別）", labels, idx: (r) => { const d = startOfDay(r.date); const i = segs.findIndex((sg) => d >= sg.start && d < sg.end); return i < 0 ? n - 1 : i; } };
     }
     if (mode === "week") {
-      const labels = Array.from({ length: 7 }, (_, i) => { const d = addDays(range.start, i); return { label: WEEKDAYS[d.getDay()], sub: md(d) }; });
-      return { title: "日別の支出（カテゴリ別）", labels, idx: (r) => Math.min(6, Math.max(0, Math.round((startOfDay(r.date) - range.start) / DAY))) };
+      const nd = Math.max(1, Math.round((range.end - range.start) / DAY));   // 月の区切れで短くなる週は7日未満
+      const labels = Array.from({ length: nd }, (_, i) => { const d = addDays(range.start, i); return { label: WEEKDAYS[d.getDay()], sub: md(d) }; });
+      return { title: "日別の支出（カテゴリ別）", labels, idx: (r) => Math.min(nd - 1, Math.max(0, Math.round((startOfDay(r.date) - range.start) / DAY))) };
     }
     if (mode === "year") {
       const Y = Number(range.key);
@@ -6512,7 +6640,7 @@
       for (let off = 0; off > -count; off--) {
         const raw = applyCommonFilters(rowsInRange(periodRangeForMode(mode, state.periodAnchor, off)));
         const a = computeAccrualStats(raw, broad);
-        const y = yoyUnit ? computeAccrualStats(applyCommonFilters(rowsInRange(periodRangeForMode(mode, state.periodAnchor, off - yoyUnit))), broad).profit : null;
+        const y = yoyUnit ? computeAccrualStats(applyCommonFilters(rowsInRange(yoyRangeFor(mode, state.periodAnchor, off))), broad).profit : null;
         cr.push({ off, label: periodShortLabelForMode(mode, state.periodAnchor, off), a, y, cash: computeCashAccountNetChange(raw) });
       }
       const hd = ["期間", "収益", "費用", "損益", "前期比"]; if (yoyUnit) hd.push("前年同期比"); hd.push("現金増減");
