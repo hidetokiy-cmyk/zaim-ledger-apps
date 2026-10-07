@@ -69,9 +69,9 @@
   .num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
   button, input, select { font-family: inherit; }
 
-  .shell { display: flex; min-height: 100vh; }
+  .shell { display: flex; min-height: 100vh; min-height: 100dvh; }
   .sidebar { width: var(--sidebar-w); flex-shrink: 0; background: var(--sidebar); color: var(--sidebar-soft);
-    display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+    display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; height: 100dvh; overflow-y: auto; }
   .sidebar-brand { padding: 22px 22px 16px; border-bottom: 1px solid rgba(255,255,255,0.08); display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
   .sidebar-brand .title { color: var(--paper-raised); font-size: 25.5px; letter-spacing: .02em; }
   .sidebar-brand .sub { font-size: 14px; margin-top: 3px; color: #8D90A1; }
@@ -139,7 +139,7 @@
     .main { padding: 22px 18px 48px; }
   }
 
-  .upload-shell { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  .upload-shell { min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: 24px; }
   .upload-box { max-width: 480px; width: 100%; }
   .upload-brand { text-align: center; margin-bottom: 22px; }
   .upload-brand .title { font-size: 33.5px; }
@@ -661,7 +661,7 @@
   @media (max-height: 500px) and (orientation: landscape) and (pointer: coarse) {
     :root { --sidebar-w: 232px; }
     .shell { flex-direction: row; }
-    .sidebar { width: calc(var(--sidebar-w) + env(safe-area-inset-left)); height: 100vh; position: sticky; top: 0; flex-direction: column;
+    .sidebar { width: calc(var(--sidebar-w) + env(safe-area-inset-left)); height: 100vh; height: 100dvh; position: sticky; top: 0; flex-direction: column;
       overflow-x: hidden; overflow-y: auto; padding-left: env(safe-area-inset-left); }
     .sidebar-brand { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.08); padding: 12px 14px 10px; }
     .sidebar-section { width: auto; flex-shrink: 0; padding: 10px 14px 2px; }
@@ -1771,6 +1771,15 @@
     if (renamedByApply || rowsRenamed) scheduleCloudSave();
   }
 
+  // GitHub APIへの通信：タイムアウト（既定15秒）を付け、GETはブラウザのHTTPキャッシュ（最大60秒）で古い内容が返らないようにする
+  function ghFetch(url, opts, ms) {
+    const o = { ...(opts || {}) };
+    if (!o.method || o.method === "GET") o.cache = "no-cache";
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), ms || 15000);
+    return fetch(url, { ...o, signal: ac.signal }).finally(() => clearTimeout(timer));
+  }
+
   function ghHeaders() {
     return {
       "Authorization": "Bearer " + cloudSync.token,
@@ -1784,7 +1793,7 @@
   // rawメディアタイプで取得する：Contents APIのJSON形式は1MBを超えると content が空になるため
   // （zaim-export.csv は期間が延びるほど大きくなる）。rawなら100MBまで本文を取得できる。
   async function fetchRepoFile(path) {
-    const res = await fetch(`https://api.github.com/repos/${cloudSync.repo}/contents/${path}`, {
+    const res = await ghFetch(`https://api.github.com/repos/${cloudSync.repo}/contents/${path}`, {
       headers: { ...ghHeaders(), "Accept": "application/vnd.github.raw+json" },
     });
     if (!res.ok) return null;
@@ -1804,7 +1813,7 @@
     // リポジトリ直下の一覧で各ファイルのshaを取り、前回から変わった年だけ取得し直す（端末のIndexedDBに年別で保持）
     const shas = {};
     try {
-      const lr = await fetch(`https://api.github.com/repos/${cloudSync.repo}/contents/`, { headers: ghHeaders() });
+      const lr = await ghFetch(`https://api.github.com/repos/${cloudSync.repo}/contents/`, { headers: ghHeaders() });
       if (lr.ok) (await lr.json()).forEach((x) => { if (x && x.type === "file") shas[x.name] = x.sha; });
     } catch (e) { /* 一覧が取れなければ全件取得に戻る */ }
     const parts = await Promise.all(files.map(async (f) => {
@@ -1830,7 +1839,7 @@
     if (!cloudSync.repo || !cloudSync.token) { if (!silent) setSyncStatus("リポジトリとトークンを入力してください。", true); return; }
     if (!silent) setSyncStatus("取得中…");
     try {
-      const res = await fetch(`https://api.github.com/repos/${cloudSync.repo}/contents/${SYNC_PATH}`, { headers: ghHeaders() });
+      const res = await ghFetch(`https://api.github.com/repos/${cloudSync.repo}/contents/${SYNC_PATH}`, { headers: ghHeaders() });
       if (res.status === 404) {
         cloudSync.sha = null;
         setSyncStatus("まだ保存されたデータがありません（このリポジトリでは初回）。");
@@ -1903,7 +1912,7 @@
         content: utf8ToBase64(JSON.stringify(obj, null, 2)),
       };
       if (cloudSync.sha) body.sha = cloudSync.sha;
-      const res = await fetch(`https://api.github.com/repos/${cloudSync.repo}/contents/${SYNC_PATH}`, {
+      const res = await ghFetch(`https://api.github.com/repos/${cloudSync.repo}/contents/${SYNC_PATH}`, {
         method: "PUT", headers: ghHeaders(), body: JSON.stringify(body),
       });
       if (!res.ok) {
@@ -1918,7 +1927,7 @@
             content: utf8ToBase64(JSON.stringify(merged, null, 2)),
             sha: remoteFull.sha,
           };
-          const retryRes = await fetch(`https://api.github.com/repos/${cloudSync.repo}/contents/${SYNC_PATH}`, {
+          const retryRes = await ghFetch(`https://api.github.com/repos/${cloudSync.repo}/contents/${SYNC_PATH}`, {
             method: "PUT", headers: ghHeaders(), body: JSON.stringify(retryBody),
           });
           if (!retryRes.ok) { setSyncStatus(`保存に失敗しました（${retryRes.status}）。`, true); return; }
@@ -1950,7 +1959,7 @@
 
   // 保存が競合（409/422）した際、リモートの現在の内容を取得する（shaだけでなく中身も必要なため）。
   async function fetchCloudSettingsFull() {
-    const res = await fetch(`https://api.github.com/repos/${cloudSync.repo}/contents/${SYNC_PATH}`, { headers: ghHeaders() });
+    const res = await ghFetch(`https://api.github.com/repos/${cloudSync.repo}/contents/${SYNC_PATH}`, { headers: ghHeaders() });
     if (!res.ok) return null;
     const data = await res.json();
     return { obj: JSON.parse(base64ToUtf8(data.content)), sha: data.sha };
@@ -6918,6 +6927,7 @@
       const out = fn(t.objectStore("kv"));
       t.oncomplete = () => res(out && out.result);
       t.onerror = () => rej(t.error);
+      t.onabort = () => rej(t.error || new Error("IndexedDB transaction aborted"));
     }));
     return { get: (k) => tx("readonly", (st) => st.get(k)), set: (k, v) => tx("readwrite", (st) => st.put(v, k)), del: (k) => tx("readwrite", (st) => st.delete(k)) };
   })();
@@ -7153,6 +7163,7 @@
     if (state.transactions) revealFallbackIfEmpty();
     showUnlockOverlay();
   } else if (cloudSync.repo && cloudSync.token) {
+    if (state.transactions) revealFallbackIfEmpty();   // 保存済みのデータがあれば先に表示し、最新の取得は裏で行う
     fetchCloudSettings(true).finally(revealFallbackIfEmpty);
   } else {
     revealFallbackIfEmpty();
@@ -7269,6 +7280,8 @@
 (function () {   // PWA：Service Workerの登録と、新しい版が出たときのお知らせ
   if (!("serviceWorker" in navigator) || !/^https?:$/.test(location.protocol)) return;
   navigator.serviceWorker.register("sw.js").then((reg) => {
+    // ホーム画面から開いたまま長く使っても新しい版に気づけるよう、アプリに戻ったときに更新を確認する
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") reg.update().catch(() => {}); });
     const ask = (w) => {
       const t = document.createElement("div");
       t.textContent = "新しい版があります。タップして更新";
@@ -7283,7 +7296,8 @@
     });
   }).catch(() => {});
   let reloaded = false;
-  navigator.serviceWorker.addEventListener("controllerchange", () => { if (!reloaded) { reloaded = true; location.reload(); } });
+  const hadController = !!navigator.serviceWorker.controller;   // 初回インストール時はリロードしない
+  navigator.serviceWorker.addEventListener("controllerchange", () => { if (hadController && !reloaded) { reloaded = true; location.reload(); } });
 })();
 </script>
 </body>
