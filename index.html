@@ -75,6 +75,9 @@
   .sidebar-brand { padding: 22px 22px 16px; border-bottom: 1px solid rgba(255,255,255,0.08); display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
   .sidebar-brand .title { color: var(--paper-raised); font-size: 25.5px; letter-spacing: .02em; }
   .sidebar-brand .sub { font-size: 14px; margin-top: 3px; color: #8D90A1; }
+  .sidebar-brand .sync-badge { font-size: 12px; margin-top: 5px; color: #8D90A1; line-height: 1.4; }
+  .sidebar-brand .sync-badge.err { color: #E8A27A; }
+  .sidebar-brand .sync-badge:empty { display: none; }
   .gear-btn { background:none; border:1px solid #565A6C; color:var(--sidebar-soft); width:28px; height:28px; border-radius:4px; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
   .gear-btn:hover { border-color: var(--paper-raised); color: var(--paper-raised); }
 
@@ -699,7 +702,9 @@
 <script>
   // ダークモード設定をCSS適用前になるべく早く反映し、明→暗の一瞬のちらつき（FOUC）を防ぐ
   try {
-    if (localStorage.getItem("zaimLedgerTheme") === "dark") document.documentElement.setAttribute("data-theme", "dark");
+    // 手動で選んだ設定（dark/light）を優先。未選択のときだけOSの設定（ダーク）に合わせる
+    var _t = localStorage.getItem("zaimLedgerTheme");
+    if (_t === "dark" || (_t === null && window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches)) document.documentElement.setAttribute("data-theme", "dark");
   } catch (e) {}
 </script>
 
@@ -732,6 +737,7 @@
       <div>
         <div class="title serif">家計元帳</div>
         <div class="sub">Zaim CSVビューア</div>
+        <div class="sync-badge" id="syncBadge" role="status" aria-live="polite"></div>
       </div>
       <div style="display:flex; gap:0; flex-shrink:0;">
       <button id="themeToggleBtn" class="gear-btn" title="ダークモード切替" aria-label="ダークモード切替" aria-pressed="false" style="margin-right:6px;">
@@ -1553,6 +1559,50 @@
     el2.style.color = isError ? "var(--red)" : "var(--ink-soft)";
   }
 
+  // ---------- 最終同期の表示 ----------
+  // 成功した時刻を端末に残し、サイドバーに「最終同期: ○分前」を出す。失敗したときは理由も出す（古いデータを見ていると気づけるように）。
+  const SYNC_TS_KEY = "zaimLedgerLastSync";
+  let lastSyncAt = 0, lastSyncErr = "";
+  try { lastSyncAt = Number(localStorage.getItem(SYNC_TS_KEY)) || 0; } catch (e) {}
+  function relTime(ms) {
+    const d = Math.max(0, Date.now() - ms);
+    if (d < 60e3) return "たった今";
+    if (d < 3600e3) return Math.floor(d / 60e3) + "分前";
+    if (d < 86400e3) return Math.floor(d / 3600e3) + "時間前";
+    return Math.floor(d / 86400e3) + "日前";
+  }
+  function syncFailReason(err, status) {
+    if (status) {
+      if (status === 401) return "認証エラー（トークンを確認）";
+      if (status === 403) return "権限不足またはアクセス制限";
+      if (status === 404) return "リポジトリが見つかりません";
+      if (status === 409 || status === 422) return "他端末との競合";
+      if (status >= 500) return "GitHub側の障害";
+      return "エラー（" + status + "）";
+    }
+    if (err && err.name === "AbortError") return "タイムアウト";
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return "オフライン";
+    return "通信エラー";
+  }
+  function renderSyncBadge() {
+    const el2 = document.getElementById("syncBadge");
+    if (!el2) return;
+    if (!cloudSync || !cloudSync.repo) { el2.textContent = ""; el2.title = ""; el2.classList.remove("err"); return; }
+    const last = lastSyncAt ? "最終同期: " + relTime(lastSyncAt) : "未同期";
+    el2.classList.toggle("err", !!lastSyncErr);
+    el2.textContent = lastSyncErr ? "同期失敗: " + lastSyncErr + (lastSyncAt ? "（" + last + "）" : "") : last;
+    el2.title = lastSyncAt ? new Date(lastSyncAt).toLocaleString("ja-JP") : "";
+  }
+  function markSyncOk() {
+    lastSyncAt = Date.now(); lastSyncErr = "";
+    try { localStorage.setItem(SYNC_TS_KEY, String(lastSyncAt)); } catch (e) {}
+    renderSyncBadge();
+  }
+  function markSyncFail(err, status) { lastSyncErr = syncFailReason(err, status); renderSyncBadge(); }
+  setTimeout(renderSyncBadge, 0);
+  setInterval(renderSyncBadge, 60000);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") renderSyncBadge(); });
+
   // ---------- GitHubトークンの保存 ----------
   // enc: PBKDF2(SHA-256)で導出した鍵によるAES-GCMで暗号化してlocalStorageへ。パスフレーズは保存しない。
   // session: sessionStorageのみ（タブを閉じると消える）。 plain: 従来どおり平文（既存ユーザーの互換用）。
@@ -1843,9 +1893,10 @@
       if (res.status === 404) {
         cloudSync.sha = null;
         setSyncStatus("まだ保存されたデータがありません（このリポジトリでは初回）。");
+        markSyncOk();
         return;
       }
-      if (!res.ok) { setSyncStatus(`取得に失敗しました（${res.status}）。リポジトリ名・トークンを確認してください。`, true); return; }
+      if (!res.ok) { markSyncFail(null, res.status); setSyncStatus(`取得に失敗しました（${res.status}）。リポジトリ名・トークンを確認してください。`, true); return; }
       const data = await res.json();
       cloudSync.sha = data.sha;
       const obj = JSON.parse(base64ToUtf8(data.content));
@@ -1894,8 +1945,10 @@
           } catch (e) { /* 失敗時は次回のfetchCloudSettingsで再試行される */ }
         }
       }
+      markSyncOk();
       setSyncStatus(`取得しました（保存日時: ${obj.updatedAt ? new Date(obj.updatedAt).toLocaleString("ja-JP") : "不明"}）`);
     } catch (e) {
+      markSyncFail(e);
       setSyncStatus("通信エラーで取得できませんでした。", true);
     }
   }
@@ -1920,7 +1973,7 @@
           // 競合: 他端末が自分より先に保存していた。中身も取得し、前回同期時点（baseObj）を基準に
           // 3-way mergeしてから保存し直す（自分の変更でリモートの変更を単純に上書きしない）。
           const remoteFull = await fetchCloudSettingsFull();
-          if (!remoteFull) { setSyncStatus("保存に失敗しました（競合の解消中に取得エラー）。", true); return; }
+          if (!remoteFull) { markSyncFail(null, res.status); setSyncStatus("保存に失敗しました（競合の解消中に取得エラー）。", true); return; }
           const { merged, conflicts } = mergeCloudObjects(cloudSync.baseObj, obj, remoteFull.obj);
           const retryBody = {
             message: "merge settings " + merged.updatedAt,
@@ -1930,17 +1983,19 @@
           const retryRes = await ghFetch(`https://api.github.com/repos/${cloudSync.repo}/contents/${SYNC_PATH}`, {
             method: "PUT", headers: ghHeaders(), body: JSON.stringify(retryBody),
           });
-          if (!retryRes.ok) { setSyncStatus(`保存に失敗しました（${retryRes.status}）。`, true); return; }
+          if (!retryRes.ok) { markSyncFail(null, retryRes.status); setSyncStatus(`保存に失敗しました（${retryRes.status}）。`, true); return; }
           const retryData = await retryRes.json();
           cloudSync.sha = retryData.content.sha;
           cloudSync.baseObj = merged;
           // マージ結果をこの端末の表示にも反映する（そうしないと次回保存時のbase判定がずれる）
           applyCloudObject(merged);
+          markSyncOk();
           setSyncStatus(conflicts.length
             ? `他端末との変更を統合して保存しました（${new Date().toLocaleString("ja-JP")}／要確認: ${conflicts.join("、")}）`
             : `他端末との変更を統合して保存しました（${new Date().toLocaleString("ja-JP")}）`);
           return;
         } else {
+          markSyncFail(null, res.status);
           setSyncStatus(`保存に失敗しました（${res.status}）。リポジトリ名・トークンを確認してください。`, true);
           return;
         }
@@ -1949,8 +2004,10 @@
         cloudSync.sha = data.content.sha;
         cloudSync.baseObj = obj;
       }
+      markSyncOk();
       setSyncStatus(`保存しました（${new Date().toLocaleString("ja-JP")}）`);
     } catch (e) {
+      markSyncFail(e);
       setSyncStatus("通信エラーで保存できませんでした。", true);
     } finally {
       cloudSync.saving = false;
@@ -6190,6 +6247,19 @@
     applyThemeIcons(!isDark);
     render(); // カテゴリ色は描画時にcatColor()でCSS変数から解決した具体的な色コードとして書き出しているため、テーマ切替時は再描画しないと反映されない
   });
+
+  // 手動で選んでいない場合のみ、OSの表示設定の切り替え（昼夜の自動切替など）に追従する
+  if (window.matchMedia) {
+    const mqDark = matchMedia("(prefers-color-scheme: dark)");
+    const onOsTheme = (ev) => {
+      let st = null; try { st = localStorage.getItem("zaimLedgerTheme"); } catch (e) {}
+      if (st !== null) return;
+      if (ev.matches) document.documentElement.setAttribute("data-theme", "dark"); else document.documentElement.removeAttribute("data-theme");
+      applyThemeIcons(ev.matches);
+      render();
+    };
+    if (mqDark.addEventListener) mqDark.addEventListener("change", onOsTheme);
+  }
 
   function openSettingsModal() {
     refreshSettingsLists();
