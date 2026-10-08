@@ -5470,16 +5470,27 @@ function svgEl(tag, attrs) {
   // 試算ページ→元帳：試算結果（寄附上限額・残り枠・納税/還付額）を localStorage と戻りリンクのハッシュで受け取る
   const TAX_HANDOFF_KEY = "ledger.taxHandoff", TAX_RESULT_KEY = "ledger.taxResult";
   const SHAKAI_SUBS = new Set(["健康保険", "年金保険", "雇用保険"]);
+  const PAYROLL_SHAKAI_RE = /健康保険|厚生年金|雇用保険|介護保険|子育|支援金/;
 
   // 暦年ごとに一度の走査で集計する。除外口座・除外カテゴリなど画面表示用の絞り込みは、税務の事実とは関係がないため適用しない。
   function computeTaxYearTotals() {
     const kw = (settings.furusatoKeyword || "").trim();
     const years = {};
-    const get = (y) => years[y] || (years[y] = { med: 0, medN: 0, don: 0, donN: 0, net: 0, shakai: 0, wh: 0, res: 0 });
+    const get = (y) => years[y] || (years[y] = { med: 0, medN: 0, don: 0, donN: 0, gross: 0, net: 0, shakai: 0, wh: 0, res: 0, shakaiX: 0, whX: 0, resX: 0 });
     for (const r of state.transactions || []) {
+      if (r.aggSetting === "exclude") continue;   // Zaimで「集計に含めない」にした取引は税務集計にも含めない（「年の集計にのみ含める」は年間集計なので対象）
       const y = r.date.getFullYear();
       if (r.type === "income") {
-        if (r.category === "給与") get(y).net += r.amount;
+        // 給与は「手取りの振込」と「社会保険料・源泉所得税などの天引き分」を同じ給与カテゴリの収入行に分けて記録している前提。
+        // 全行の合計が額面（支払金額）、天引き行はお店・品目・メモの文言で判定する。
+        if (r.category === "給与") {
+          const g = get(y), txt = [r.store, r.item, r.memo].filter(Boolean).join(" ");
+          g.gross += r.amount;
+          if (PAYROLL_SHAKAI_RE.test(txt)) g.shakai += r.amount;
+          else if (/所得税/.test(txt)) g.wh += r.amount;
+          else if (/住民税/.test(txt)) g.res += r.amount;
+          else g.net += r.amount;
+        }
         continue;
       }
       if (r.type !== "expense") continue;
@@ -5487,10 +5498,19 @@ function svgEl(tag, attrs) {
       if (r.category === "医療・保険") { g.med += r.amount; g.medN++; }
       if (kw && [r.category, r.subCategory, r.store, r.item, r.memo].some((f) => f && f.includes(kw))) { g.don += r.amount; g.donN++; }
       if (r.category === "税金") {
-        if (SHAKAI_SUBS.has(r.subCategory)) g.shakai += r.amount;
-        else if (r.subCategory === "所得税") g.wh += r.amount;
-        else if (r.subCategory === "住民税") g.res += r.amount;
+        // 社会保険料は「その月分」を翌月の給与で徴収するため、支出側の日付（○月分）を1か月後にずらして年を判定する（12月分は翌年の支払い扱い）
+        if (SHAKAI_SUBS.has(r.subCategory)) get(new Date(r.date.getFullYear(), r.date.getMonth() + 1, 1).getFullYear()).shakaiX += r.amount;
+        else if (r.subCategory === "所得税") g.whX += r.amount;
+        else if (r.subCategory === "住民税") g.resX += r.amount;
       }
+    }
+    // 給与行から拾えなかった項目だけ、「税金」カテゴリの支出で補う（二重計上を避ける）
+    for (const y of Object.keys(years)) {
+      const g = years[y];
+      if (!g.shakai) g.shakai = g.shakaiX;
+      if (!g.wh) g.wh = g.whX;
+      if (!g.res) g.res = g.resX;
+      delete g.shakaiX; delete g.whX; delete g.resX;
     }
     return years;
   }
@@ -5514,7 +5534,7 @@ function svgEl(tag, attrs) {
     if (!document.getElementById("taxSummaryPanel")) return;
     const year = state.periodAnchor.getFullYear();
     const years = computeTaxYearTotals();
-    const t = years[year] || { med: 0, medN: 0, don: 0, donN: 0, net: 0, shakai: 0, wh: 0, res: 0 };
+    const t = years[year] || { med: 0, medN: 0, don: 0, donN: 0, gross: 0, net: 0, shakai: 0, wh: 0, res: 0 };
     document.getElementById("taxSummaryYear").textContent = String(year);
     document.getElementById("medicalExpenseVal").textContent = YEN(t.med);
     document.getElementById("medicalExpenseNote").textContent = `「医療・保険」カテゴリの支出 ${t.medN}件`;
@@ -5535,9 +5555,10 @@ function svgEl(tag, attrs) {
     }
 
     const parts = [];
-    if (t.net) parts.push(`給与の手取り合計 ${YEN(t.net)}`);
-    if (t.shakai) parts.push(`社会保険料（税金カテゴリ） ${YEN(t.shakai)}`);
-    if (t.wh) parts.push(`所得税 ${YEN(t.wh)}`);
+    if (t.gross) parts.push(`給与の支払額（額面） ${YEN(t.gross)}`);
+    if (t.net) parts.push(`うち手取り（振込） ${YEN(t.net)}`);
+    if (t.shakai) parts.push(`社会保険料 ${YEN(t.shakai)}`);
+    if (t.wh) parts.push(`源泉所得税 ${YEN(t.wh)}`);
     if (t.res) parts.push(`住民税 ${YEN(t.res)}`);
     document.getElementById("taxRefNote").textContent = parts.length ? `参考（試算ページへ引き継ぐ値）：${parts.join(" ／ ")}` : "";
 
