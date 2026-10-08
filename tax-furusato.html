@@ -40,16 +40,16 @@ button.sm:hover{border-color:var(--ink)}button.pri{background:var(--accent);bord
 </style></head><body>
 <div class="topbar"><a class="back" href="index.html">← 家計元帳</a><span>確定申告・ふるさと納税の試算</span></div>
 <header><h1>令和8年分 所得税及び復興特別所得税の確定申告書 第一表（計算部分）</h1>
-<p>国税庁「令和8年分の確定申告書（案）」の第一表の項目番号に沿った計算シミュレーション＋ふるさと納税の寄附上限額｜給与所得者向け｜入力例は仮の値です</p></header>
+<p>国税庁「令和8年分の確定申告書（案）」の第一表の項目番号に沿った計算シミュレーション＋ふるさと納税の寄附上限額｜給与所得者向け</p></header>
 <main><div>
 <section class="in" id="hand"><h2>家計元帳の集計（<span id="hy"></span>年）</h2><div id="hbody"></div></section>
 <section class="in"><h2>収入</h2>
-<label>給与の収入金額（支払金額）<input id="sal" inputmode="numeric" value="2827704"></label>
+<label>給与の収入金額（支払金額）<input id="sal" inputmode="numeric"></label>
 <label>源泉徴収税額（所得税＋復興税）㊾<input id="wh" inputmode="numeric"></label>
 <label>給与所得控除後の金額（源泉徴収票の値。空欄なら速算式で計算）<input id="ninsal" inputmode="numeric"></label>
 <label>雑所得（その他）の所得金額⑨<input id="mi" inputmode="numeric"></label></section>
 <section class="in"><h2>所得から差し引かれる金額</h2>
-<label>社会保険料⑬<input id="shakai" inputmode="numeric" value="369903"></label>
+<label>社会保険料⑬<input id="shakai" inputmode="numeric"></label>
 <label>小規模企業共済・iDeCo掛金⑭<input id="kyosai" inputmode="numeric"></label>
 <label>生命保険料（新）一般／介護医療／個人年金 年間支払額⑮</label>
 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px"><input id="l1" inputmode="numeric" placeholder="一般"><input id="l2" inputmode="numeric" placeholder="介護医療"><input id="l3" inputmode="numeric" placeholder="個人年金"></div>
@@ -139,15 +139,15 @@ document.querySelectorAll('input,select').forEach(e=>e.addEventListener('input',
 /* ===== 家計元帳との連携 =====
    取込：家計元帳のボタンで開くと（localStorage とリンクのハッシュの両方で）暦年ごとの集計値が渡される
    送信：「この試算を家計元帳に送る」で、寄附上限額・残り枠・納税/還付額を localStorage と戻りリンクのハッシュで返す */
-const HAND_KEY='ledger.taxHandoff',RES_KEY='ledger.taxResult',SAMPLE_SAL='2827704';
+const HAND_KEY='ledger.taxHandoff',RES_KEY='ledger.taxResult';
 const readHand=()=>{try{const m=location.hash.match(/[#&]d=([^&]+)/);if(m)return JSON.parse(decodeURIComponent(m[1]))}catch(e){}try{return JSON.parse(localStorage.getItem(HAND_KEY)||'null')}catch(e){}return null};
 const setVal=(id,x)=>{$(id).value=String(Math.round(x));calc()};
 function initHand(){
 const H=readHand(),box=$('hbody'),y=H&&H.years&&H.years[TAX_YEAR];$('hy').textContent=TAX_YEAR;
 if(!y){box.innerHTML='<div class="note" style="margin:0">家計元帳の「税務関連の年間集計」にあるボタンから開くと、'+TAX_YEAR+'年分の集計値をここに取り込めます。</div>';return}
-const at=H.at?new Date(H.at):null,items=[['ふるさと納税の寄附額','don',y.don,'キーワードに一致した支出の合計（㉙）'],['医療費の支払額','med',y.med,'「医療・保険」カテゴリ全体です。保険料などが含まれる場合は実際の医療費に直してください（㉘）'],['社会保険料','shakai',y.shakai,'「税金」の健康保険・年金保険・雇用保険の合計（⑬）。源泉徴収票の値があればそちらを優先'],['源泉所得税','wh',y.wh,'「税金」の所得税の合計（㊾）。復興特別所得税を含む源泉徴収票の値があればそちらを優先']].filter(r=>r[2]>0);
+const at=H.at?new Date(H.at):null,items=[['給与の収入金額（額面）','sal',y.gross,'給与カテゴリの全行の合計（手取り＋天引き分）。通勤手当などの非課税分を含むため、源泉徴収票の支払金額があればそちらを優先（㋔）'],['ふるさと納税の寄附額','don',y.don,'キーワードに一致した支出の合計（㉙）'],['医療費の支払額','med',y.med,'「医療・保険」カテゴリ全体です。保険料などが含まれる場合は実際の医療費に直してください（㉘）'],['社会保険料','shakai',y.shakai,'給与の天引き行（健康保険・厚生年金・雇用保険・子育て支援金）の合計（⑬）。源泉徴収票の値があればそちらを優先'],['源泉所得税','wh',y.wh,'給与の天引き行（所得税・源泉所得税）の合計（㊾）。源泉徴収票の値があればそちらを優先']].filter(r=>r[2]>0);
 let h='<table class="h">'+items.map(r=>'<tr><td>'+r[0]+'<div class="note" style="margin:0">'+r[3]+'</div></td><td class="v">'+Y(r[2])+'</td><td><button class="sm" data-t="'+r[1]+'" data-v="'+r[2]+'">反映</button></td></tr>').join('');
-if(y.net>0)h+='<tr><td>給与の手取り合計<div class="note" style="margin:0">参考表示のみ。支払金額（額面）は源泉徴収票の値を入力してください</div></td><td class="v">'+Y(y.net)+'</td><td></td></tr>';
+if(y.net>0)h+='<tr><td>うち手取り（振込）<div class="note" style="margin:0">参考表示のみ</div></td><td class="v">'+Y(y.net)+'</td><td></td></tr>';
 h+='</table>'+(items.length?'<button class="sm pri" id="applyAll" type="button">すべて反映</button> ':'')+'<span class="note">'+(at&&!isNaN(at)?(at.getMonth()+1)+'/'+at.getDate()+'時点の集計':'')+'</span>';
 box.innerHTML=h;
 box.querySelectorAll('button[data-t]').forEach(b=>b.addEventListener('click',()=>setVal(b.dataset.t,+b.dataset.v)));
@@ -157,7 +157,7 @@ if(/[#&]from=ledger/.test(location.hash)&&!$('don').value.trim()&&y.don>0)setVal
 initHand();
 function sendResult(){
 if(!LAST)return;
-if($('sal').value.trim()===SAMPLE_SAL&&!confirm('給与の収入金額が入力例の値のままです。このまま家計元帳に送りますか？'))return;
+if(!$('sal').value.trim()){$('sendMsg').textContent='給与の収入金額を入力してから送ってください。';return}
 const o={year:TAX_YEAR,limit:LAST.Dmax,donation:LAST.D,remaining:Math.max(0,LAST.Dmax-LAST.D),balance:LAST.d,savedAt:new Date().toISOString()};
 try{localStorage.setItem(RES_KEY,JSON.stringify(o))}catch(e){}
 const href='index.html#taxres='+encodeURIComponent(JSON.stringify(o));
