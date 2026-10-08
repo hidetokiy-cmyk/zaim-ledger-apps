@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>令和8年分 確定申告書 第一表（計算部分）</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Zen+Old+Mincho:wght@700&display=swap">
+<style>
+:root{--bg:#eef1f4;--panel:#fff;--ink:#1c2733;--sub:#5c6b7a;--line:#8a97a4;--soft:#e4ecf4;--accent:#1f4e79;--pay:#b4361f;--ref:#1d7a4f;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12181e;--panel:#1b242d;--ink:#e6ebf0;--sub:#9aa8b6;--line:#5b6a78;--soft:#23313f;--accent:#7fb2e5;--pay:#f08a73;--ref:#6fd0a0}}
+:root[data-theme="dark"]{--bg:#12181e;--panel:#1b242d;--ink:#e6ebf0;--sub:#9aa8b6;--line:#5b6a78;--soft:#23313f;--accent:#7fb2e5;--pay:#f08a73;--ref:#6fd0a0}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.6 "Noto Sans JP",system-ui,sans-serif}
+header{max-width:1180px;margin:auto;padding:24px 18px 6px}h1{font:700 22px/1.3 "Zen Old Mincho",serif;margin:0 0 4px}header p{margin:0;color:var(--sub);font-size:12.5px}
+main{max-width:1180px;margin:auto;padding:10px 18px 40px;display:grid;grid-template-columns:340px 1fr;gap:16px;align-items:start}
+@media (max-width:900px){main{grid-template-columns:1fr}}
+section.in{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px 14px;margin-bottom:12px}
+h2{font-size:13.5px;margin:0 0 8px;color:var(--accent)}
+label{display:block;font-size:12px;color:var(--sub);margin-bottom:7px}
+input,select{width:100%;margin-top:2px;padding:6px 8px;font:inherit;font-size:16px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:4px}
+.form{background:var(--panel);border:2px solid var(--ink);padding:10px}
+.ttl{text-align:center;font:700 16px "Zen Old Mincho",serif;border-bottom:2px solid var(--ink);padding-bottom:6px;margin-bottom:8px}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media (max-width:700px){.cols{grid-template-columns:1fr}}
+table{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:8px}
+th{background:var(--soft);border:1px solid var(--line);padding:3px 6px;text-align:left;font-size:12px}
+td{border:1px solid var(--line);padding:3px 6px}
+td.mk{width:34px;text-align:center;color:var(--sub);white-space:nowrap}
+td.v{text-align:right;font-variant-numeric:tabular-nums;font-weight:500;white-space:nowrap;min-width:92px}
+tr.t td{background:var(--soft);font-weight:700}
+.res{padding:10px 12px;border:2px solid var(--ink);margin-top:6px;display:flex;justify-content:space-between;align-items:baseline;font-weight:700}
+.res b{font:700 22px "Zen Old Mincho",serif}.pay b{color:var(--pay)}.ref b{color:var(--ref)}
+.note{font-size:11.5px;color:var(--sub);line-height:1.6;margin-top:8px}
+</style></head><body>
+<header><h1>令和8年分 所得税及び復興特別所得税の確定申告書 第一表（計算部分）</h1>
+<p>国税庁「令和8年分の確定申告書（案）」の第一表の項目番号に沿った計算シミュレーション＋ふるさと納税の寄附上限額｜給与所得者向け｜入力例は仮の値です</p></header>
+<main><div>
+<section class="in"><h2>収入</h2>
+<label>給与の収入金額（支払金額）<input id="sal" inputmode="numeric" value="2827704"></label>
+<label>源泉徴収税額（所得税＋復興税）㊾<input id="wh" inputmode="numeric"></label>
+<label>給与所得控除後の金額（源泉徴収票の値。空欄なら速算式で計算）<input id="ninsal" inputmode="numeric"></label>
+<label>雑所得（その他）の所得金額⑨<input id="mi" inputmode="numeric"></label></section>
+<section class="in"><h2>所得から差し引かれる金額</h2>
+<label>社会保険料⑬<input id="shakai" inputmode="numeric" value="369903"></label>
+<label>小規模企業共済・iDeCo掛金⑭<input id="kyosai" inputmode="numeric"></label>
+<label>生命保険料（新）一般／介護医療／個人年金 年間支払額⑮</label>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px"><input id="l1" inputmode="numeric" placeholder="一般"><input id="l2" inputmode="numeric" placeholder="介護医療"><input id="l3" inputmode="numeric" placeholder="個人年金"></div>
+<label style="margin-top:7px">地震保険料 年間支払額⑯<input id="quake" inputmode="numeric"></label>
+<label>本人区分⑰〜⑳<select id="self"><option value="0">該当なし</option><option value="1">ひとり親</option><option value="2">寡婦</option><option value="3">勤労学生</option></select></label>
+<label>障害者の人数：一般／特別／同居特別⑲⑳</label>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px"><input id="d1" inputmode="numeric" placeholder="一般"><input id="d2" inputmode="numeric" placeholder="特別"><input id="d3" inputmode="numeric" placeholder="同居特別"></div>
+<label style="margin-top:7px">配偶者控除㉑㉒<select id="sp"><option value="0">なし</option><option value="1">控除対象配偶者（所得62万円以下）</option><option value="2">老人控除対象配偶者</option></select></label>
+<label>配偶者特別控除の額（手入力）㉑㉒<input id="spx" inputmode="numeric"></label>
+<label>扶養：一般／特定／老人／同居老親の人数㉓</label>
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px"><input id="f1" inputmode="numeric" placeholder="一般"><input id="f2" inputmode="numeric" placeholder="特定"><input id="f3" inputmode="numeric" placeholder="老人"><input id="f4" inputmode="numeric" placeholder="同居"></div>
+<label style="margin-top:7px">特定親族特別控除の額（手入力）㉔<input id="tok" inputmode="numeric"></label>
+<label>配偶者特別・特定親族特別控除の住民税の額（手入力・上限額の計算用）<input id="sr" inputmode="numeric"></label>
+<label>医療費の支払額／補填額㉘</label>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><input id="med" inputmode="numeric" placeholder="支払額"><input id="medins" inputmode="numeric" placeholder="補填額"></div>
+<label style="margin-top:7px">ふるさと納税の寄附額（今年の合計）㉙<input id="don" inputmode="numeric"></label>
+<label>ふるさと納税の手続き<select id="fm"><option value="0">確定申告（㉙に反映）</option><option value="1">ワンストップ特例（㉙に含めない）</option></select></label></section>
+<section class="in"><h2>税額控除・納付済み</h2>
+<label>住宅借入金等特別控除額㉞<input id="house" inputmode="numeric"></label>
+<label>予定納税額（第1期＋第2期）51<input id="pre" inputmode="numeric"></label></section>
+</div>
+<div class="form"><div class="ttl">令和８年分の所得税及び復興特別所得税の確定申告書　第一表（計算部分）</div>
+<div class="cols"><div id="L"></div><div id="R"></div></div>
+<div id="out"></div>
+<div id="fz"></div>
+<p class="note">・様式は令和8年分確定申告書（案）に準拠（令和9年1月以降使用可、変更の可能性あり）。氏名・住所・個人番号などの記載欄、第二表、住民税・事業税の項目は含みません。<br>・給与所得控除の最低保障額は74万円、基礎控除は合計所得金額に応じて最大104万円（令和8・9年分の特例）。<br>・㉜は速算表、㉛は千円未満切捨て、申告納税額は100円未満切捨て（納付の場合）。<br>・ふるさと納税の実質負担額は、所得税の課税所得を千円未満で切り捨てる影響で、上限額以内でも2,000円から数十円〜数百円（所得税率が高いほど大きい）上下することがあります。<br>・ふるさと納税をワンストップ特例で行う場合は、㉙には含めません。確定申告で行う場合のみ入力してください。<br>・公的年金・事業・不動産・配当・譲渡所得、雑損控除、配当控除、外国税額控除などは未対応です。</p></div></main>
+<script>
+const $=i=>document.getElementById(i),v=i=>{const x=parseInt(String($(i).value).replace(/[^\d-]/g,''),10);return isNaN(x)?0:x};
+const Y=x=>(x<0?'△':'')+Math.abs(Math.round(x)).toLocaleString('ja-JP'),F=(x,u)=>Math.floor(x/u)*u;
+const kd=s=>s<=2200000?Math.min(s,740000):s<=3600000?s*.3+80000:s<=6600000?s*.2+440000:s<=8500000?s*.1+1100000:1950000;
+const tax=k=>{for(const[m,r,d]of[[1950000,.05,0],[3300000,.1,97500],[6950000,.2,427500],[9000000,.23,636000],[18000000,.33,1536000],[40000000,.4,2796000],[Infinity,.45,4796000]])if(k<=m)return Math.floor(k*r-d)};
+const bt=t=>t<=4890000?1040000:t<=6550000?670000:t<=23500000?620000:t<=24000000?480000:t<=24500000?320000:t<=25000000?160000:0;
+const lt=p=>p<=20000?p:p<=40000?p/2+10000:p<=80000?p/4+20000:40000;
+const tb=(t,rows)=>'<table><tr><th colspan="3">'+t+'</th></tr>'+rows.map(r=>'<tr'+(r[3]?' class="t"':'')+'><td>'+r[0]+'</td><td class="mk">'+r[1]+'</td><td class="v">'+(typeof r[2]=='string'?r[2]:Y(r[2]))+'</td></tr>').join('')+'</table>';
+function calc(){
+const s=v('sal'),n6=$('ninsal').value.trim()?v('ninsal'):Math.floor(s-kd(s));
+const n9=v('mi'),n10=n9,n12=n6+n10,base=Math.max(0,n12);
+const T=n12<=9000000?0:n12<=9500000?1:n12<=10000000?2:3,sp=+$('sp').value;
+const n17=+$('self').value&&+$('self').value<3&&n12<=5000000?(+$('self').value==1?350000:270000):0;
+const n19=(+$('self').value==3?270000:0)+v('d1')*270000+v('d2')*400000+v('d3')*750000;
+const n21=(sp&&T<3?(sp==1?[380,260,130]:[480,320,160])[T]*1e3:0)+v('spx');
+const n23=v('f1')*38e4+v('f2')*63e4+v('f3')*48e4+v('f4')*58e4,n24=v('tok'),n25=bt(n12);
+const n15=Math.min(120000,lt(v('l1'))+lt(v('l2'))+lt(v('l3'))),n16=Math.min(50000,v('quake'));
+const n26=v('shakai')+v('kyosai')+n15+n16+n17+n19+n21+n23+n24+n25;
+const n28=Math.min(2000000,Math.max(0,v('med')-v('medins')-Math.min(100000,base*.05)));
+const donF=$('fm').value=='0'?v('don'):0,n29=Math.max(0,Math.min(donF,base*.4)-2000),n30=n26+n28+n29;
+const n31=Math.max(0,F(base-n30,1000)),n32=tax(n31),n34=Math.min(v('house'),n32);
+const n42=Math.max(0,n32-n34),n44=n42,n45=Math.floor(n44*.021),n46=n44+n45,n49=v('wh');
+const raw=n46-n49,n50=raw>0?F(raw,100):raw,n51=v('pre'),d=n50-n51;
+$('L').innerHTML=
+tb('収入金額等',[['給与','㋔',s],['雑（その他）','㋗',n9]])+
+tb('所得金額等',[['給与','⑥',n6],['雑（その他）','⑨',n9],['⑦から⑨までの計','⑩',n10],['合計（①から⑥までの計＋⑩＋⑪）','⑫',n12,1]])+
+tb('所得から差し引かれる金額',[['社会保険料','⑬',v('shakai')],['小規模企業共済等掛金','⑭',v('kyosai')],['生命保険料','⑮',n15],['地震保険料','⑯',n16],['寡婦・ひとり親','⑰⑱',n17],['勤労学生、障害者','⑲⑳',n19],['配偶者（特別）','㉑㉒',n21],['扶養','㉓',n23],['特定親族特別','㉔',n24],['基礎','㉕',n25],['⑬から㉕までの計','㉖',n26,1],['雑損','㉗',0],['医療費','㉘',n28],['寄附金','㉙',n29],['合計（㉖＋㉗＋㉘＋㉙）','㉚',n30,1]]);
+$('R').innerHTML=
+tb('税金の計算',[['課税される所得金額（⑫−㉚）','㉛',n31,1],['上の㉛に対する税額','㉜',n32],['配当控除','㉝',0],['（特定増改築等）住宅借入金等特別控除','㉞',n34],['政党等寄附金等特別控除','㉟',0],['差引所得税額','㊷',n42,1],['災害減免額','㊸',0],['再差引所得税額（基準所得税額）（㊷−㊸）','㊹',n44],['復興特別所得税額（㊹×2.1%）','㊺',n45],['所得税及び復興特別所得税の額（㊹＋㊺）','㊻',n46,1],['外国税額控除等','㊼㊽',0],['源泉徴収税額','㊾',n49],['申告納税額（㊻−㊼−㊽−㊾）','㊿',n50,1],['予定納税額（第1期分・第2期分）','51',n51]]);
+
+const lr=p=>p<=12000?p:p<=32000?p/2+6000:p<=56000?p/4+14000:28000,br=t=>t<=24000000?430000:t<=24500000?290000:t<=25000000?150000:0;
+const rt=k=>k<=1950000?.05:k<=3300000?.1:k<=6950000?.2:k<=9000000?.23:k<=18000000?.33:k<=40000000?.4:.45;
+const spR=sp&&T<3?(sp==1?[330,220,110]:[380,260,130])[T]*1e3:0,sf=+$('self').value;
+const sfR=sf==3?260000:sf&&sf<3&&n12<=5000000?(sf==1?300000:260000):0;
+const pR=spR+sfR+v('f1')*33e4+v('f2')*45e4+v('f3')*38e4+v('f4')*45e4+v('d1')*26e4+v('d2')*30e4+v('d3')*53e4+v('sr'),pT=n17+n19+n21+n23+n24;
+const lifeR=Math.min(70000,lr(v('l1'))+lr(v('l2'))+lr(v('l3'))),qR=Math.min(25000,v('quake')/2),kR=br(n12);
+const DR=v('shakai')+v('kyosai')+n28+lifeR+qR+kR+pR,kr=Math.max(0,F(base-DR,1000));
+const P=(kR?50000:0)+(pT-pR),adj=!kR?0:kr<=2e6?Math.min(kr,P)*.05:Math.max(2500,(P-(kr-2e6))*.05);
+const sho=Math.max(0,kr*.1-adj),ref=Math.max(0,kr-P-Math.max(0,n25-480000)),r=rt(ref),srate=.9-r*1.021;
+const Dmax=sho>0?Math.min(Math.floor(.2*sho/srate+2000),Math.floor(base*.3)):0,D=v('don');
+const kt0=Math.max(0,F(base-n26-n28,1000)),ktD=Math.max(0,F(base-n26-n28-Math.max(0,D-2000),1000)),hl=Math.min(v('house'),tax(kt0));
+const sav=D>2000?(Math.max(0,tax(kt0)-hl)-Math.max(0,tax(ktD)-hl))*1.021:0;
+const basic=Math.max(0,Math.min(D,base*.3)-2000)*.1,spec=Math.min(Math.max(0,D-2000)*srate,.2*sho),net=D>2000?D-sav-basic-spec:0;
+const warn=D>Dmax?'<div class="note" style="color:var(--pay)">寄附額が上限額を超えています。超過分の約'+Y(D-Dmax)+'円は自己負担になります。</div>':'';
+const one=$('fm').value=='1',spec1=spec*.9/srate,netO=D>2000?D-basic-spec1:0;
+const resT=one?basic+spec1:basic+spec,incT=one?0:sav,tot=resT+incT,
+rf=D>2000?'<table><tr><th colspan="4">税金の控除額と還付時期の目安（寄附予定額 '+Y(D)+' 円・'+(one?'ワンストップ特例申請':'確定申告')+'）</th></tr><tr><td colspan="4" style="font-weight:700">あなたは '+Y(tot)+' 円税金が軽減されます（自己負担額は '+Y(D-tot)+' 円）</td></tr><tr><th>控除対象税金</th><th>控除額</th><th>還付時期</th><th>還付方法</th></tr><tr><td>住民税</td><td class="v">'+Y(resT)+' 円<br><span style="font-weight:400;font-size:11.5px">（月々 '+Y(Math.round(resT/12))+' 円）</span></td><td>2027年6月～2028年5月</td><td>住民税より控除</td></tr>'+(one?'':'<tr><td>所得税</td><td class="v">'+Y(incT)+' 円</td><td>確定申告後おおむね1か月から1か月半程度</td><td>振り込み</td></tr>')+'</table>':'<div class="note">寄附額を入力すると、税金の控除額と還付時期の目安を表示します。</div>';
+$('fz').innerHTML='<div style="margin-top:12px">'+tb('ふるさと納税 寄附上限額の目安（様式外・住民税の計算を含む）',[['住民税の課税総所得金額','',kr],['所得割額（10%、調整控除 '+Y(adj)+' 円控除後）','',sho],['所得税率の判定','',(r*100)+'%'],['特例控除の上限（所得割×20%）','',.2*sho],['寄附上限額（自己負担2,000円）','',Dmax,1],['今年の残り枠（上限額−寄附額）','',Math.max(0,Dmax-D)]])+(D>2000?tb('寄附額 '+Y(D)+' 円の場合の検算（'+(one?'ワンストップ特例':'確定申告')+'）',[['住民税 基本分（10%）','',basic],['住民税 特例分'+(one?'（申告特例分を含む）':''),'',one?spec1:spec],['所得税の軽減額','',one?0:sav],['実質負担額','',one?netO:net,1]]):'')+rf+warn+'</div>';
+$('out').innerHTML='<div class="res '+(d>0?'pay':d<0?'ref':'')+'"><span>'+(d<0?'53　還付される税金（㊿−51）':'52　第3期分の税額　納める税金（㊿−51）')+'</span><b>'+Y(Math.abs(d))+' 円</b></div>';
+}
+document.querySelectorAll('input,select').forEach(e=>e.addEventListener('input',calc));calc();
+</script></body></html>
