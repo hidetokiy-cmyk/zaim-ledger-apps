@@ -145,7 +145,7 @@ const setVal=(id,x)=>{$(id).value=String(Math.round(x));calc()};
 function initHand(){
 const H=readHand(),box=$('hbody'),y=H&&H.years&&H.years[TAX_YEAR];$('hy').textContent=TAX_YEAR;
 if(!y){box.innerHTML='<div class="note" style="margin:0">家計元帳の「税務関連の年間集計」にあるボタンから開くと、'+TAX_YEAR+'年分の集計値をここに取り込めます。</div>';return}
-const at=H.at?new Date(H.at):null,items=[['給与の収入金額（額面）','sal',y.gross,'給与カテゴリの全行の合計（手取り＋天引き分）。通勤手当などの非課税分を含むため、源泉徴収票の支払金額があればそちらを優先（㋔）'],['ふるさと納税の寄附額','don',y.don,'キーワードに一致した支出の合計（㉙）'],['医療費の支払額','med',y.med,'「医療・保険」カテゴリ全体です。保険料などが含まれる場合は実際の医療費に直してください（㉘）'],['社会保険料','shakai',y.shakai,'給与の天引き行（健康保険・厚生年金・雇用保険・子育て支援金）の合計（⑬）。源泉徴収票の値があればそちらを優先'],['源泉所得税','wh',y.wh,'給与の天引き行（所得税・源泉所得税）の合計（㊾）。源泉徴収票の値があればそちらを優先']].filter(r=>r[2]>0);
+const at=H.at?new Date(H.at):null,items=[['給与の収入金額（額面）','sal',y.gross,'給与カテゴリの全行の合計（手取り＋天引き分）。通勤手当などの非課税分を含むため、源泉徴収票の支払金額があればそちらを優先（㋔）'],['ふるさと納税の寄附額','don',y.don,'キーワードに一致した支出の合計（㉙）'],['医療費の支払額','med',y.med,'「医療・保険」カテゴリ全体です。保険料などが含まれる場合は実際の医療費に直してください（㉘）'],['社会保険料','shakai',y.shakai,'給与の天引き行（健康保険・厚生年金・雇用保険・子育て支援金）＋自分で払った国民年金などの合計（⑬）。控除証明書・源泉徴収票の値があればそちらを優先'],['源泉所得税','wh',y.wh,'給与の天引き行（所得税・源泉所得税）の合計（㊾）。源泉徴収票の値があればそちらを優先']].filter(r=>r[2]>0);
 let h='<table class="h">'+items.map(r=>'<tr><td>'+r[0]+'<div class="note" style="margin:0">'+r[3]+'</div></td><td class="v">'+Y(r[2])+'</td><td><button class="sm" data-t="'+r[1]+'" data-v="'+r[2]+'">反映</button></td></tr>').join('');
 if(y.net>0)h+='<tr><td>うち手取り（振込）<div class="note" style="margin:0">参考表示のみ</div></td><td class="v">'+Y(y.net)+'</td><td></td></tr>';
 h+='</table>'+(items.length?'<button class="sm pri" id="applyAll" type="button">すべて反映</button> ':'')+'<span class="note">'+(at&&!isNaN(at)?(at.getMonth()+1)+'/'+at.getDate()+'時点の集計':'')+'</span>';

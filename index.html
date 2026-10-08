@@ -5476,7 +5476,7 @@ function svgEl(tag, attrs) {
   function computeTaxYearTotals() {
     const kw = (settings.furusatoKeyword || "").trim();
     const years = {};
-    const get = (y) => years[y] || (years[y] = { med: 0, medN: 0, don: 0, donN: 0, gross: 0, net: 0, shakai: 0, wh: 0, res: 0, shakaiX: 0, whX: 0, resX: 0 });
+    const get = (y) => years[y] || (years[y] = { med: 0, medN: 0, don: 0, donN: 0, gross: 0, net: 0, shakai: 0, wh: 0, res: 0, shakaiX: 0, shakaiSelf: 0, whX: 0, resX: 0 });
     for (const r of state.transactions || []) {
       if (r.aggSetting === "exclude") continue;   // Zaimで「集計に含めない」にした取引は税務集計にも含めない（「年の集計にのみ含める」は年間集計なので対象）
       const y = r.date.getFullYear();
@@ -5499,18 +5499,23 @@ function svgEl(tag, attrs) {
       if (kw && [r.category, r.subCategory, r.store, r.item, r.memo].some((f) => f && f.includes(kw))) { g.don += r.amount; g.donN++; }
       if (r.category === "税金") {
         // 社会保険料は「その月分」を翌月の給与で徴収するため、支出側の日付（○月分）を1か月後にずらして年を判定する（12月分は翌年の支払い扱い）
-        if (SHAKAI_SUBS.has(r.subCategory)) get(new Date(r.date.getFullYear(), r.date.getMonth() + 1, 1).getFullYear()).shakaiX += r.amount;
+        if (SHAKAI_SUBS.has(r.subCategory)) {
+          // 国民年金・国民健康保険など、給与天引きではなく自分で払った社会保険料は、実際の支払日の年にそのまま計上する（給与の天引き行には現れないため）
+          if (/国民/.test([r.store, r.item, r.memo].filter(Boolean).join(" "))) g.shakaiSelf += r.amount;
+          else get(new Date(r.date.getFullYear(), r.date.getMonth() + 1, 1).getFullYear()).shakaiX += r.amount;
+        }
         else if (r.subCategory === "所得税") g.whX += r.amount;
         else if (r.subCategory === "住民税") g.resX += r.amount;
       }
     }
-    // 給与行から拾えなかった項目だけ、「税金」カテゴリの支出で補う（二重計上を避ける）
+    // 社会保険料＝給与の天引き行（無ければ「税金」カテゴリの支出を翌月ずらしで代用）＋自分で払った国民年金など。
+    // 所得税・住民税は、給与行から拾えなかった場合だけ「税金」カテゴリの支出で補う（天引き分は両方に記録されていて二重計上になるため）
     for (const y of Object.keys(years)) {
       const g = years[y];
-      if (!g.shakai) g.shakai = g.shakaiX;
+      g.shakai = (g.shakai || g.shakaiX) + g.shakaiSelf;
       if (!g.wh) g.wh = g.whX;
       if (!g.res) g.res = g.resX;
-      delete g.shakaiX; delete g.whX; delete g.resX;
+      delete g.shakaiX; delete g.shakaiSelf; delete g.whX; delete g.resX;
     }
     return years;
   }
