@@ -1,9 +1,9 @@
 // 家計元帳 Service Worker
 // 更新するときは VERSION を変える（古いキャッシュは自動で消える）
-const VERSION = "v11";
+const VERSION = "v9";
 const APP = "ledger-app-" + VERSION;
 const FONTS = "ledger-fonts";
-const CORE = ["./", "index.html", "papaparse.min.js", "manifest.webmanifest", "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png", "favicon-32.png"];
+const CORE = ["./", "index.html", "tax-furusato.html", "papaparse.min.js", "manifest.webmanifest", "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png", "favicon-32.png"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(APP).then((c) => c.addAll(CORE)));   // 待機状態で止め、画面の「更新」タップで有効化する

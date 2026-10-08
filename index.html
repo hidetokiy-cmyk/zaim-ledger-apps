@@ -21,7 +21,6 @@
     --paper-raised: #FBFAF5;
     --sidebar: #23283A;
     --sidebar-soft: #C7C4B8;
-    --sidebar-ink: #FBFAF5; /* サイドバー（常に濃色）上の明るい文字色。ダークモードでも変えない */
     --ink: #23283A;
     --ink-rgb: 35,40,58;
     --ink-soft: #63677A;
@@ -45,7 +44,6 @@
   /* ダークモード：紙面（セピア調）の代わりに濃紺〜グレー系の配色に切り替える。
      サイドバーはもともと濃色なので変更なし。カテゴリ色・赤/緑/金は明度を上げてコントラストを確保。 */
   html[data-theme="dark"] {
-    color-scheme: dark;
     --paper: #1B1E29;
     --paper-raised: #262A38;
     --ink: #E4E3DC;
@@ -75,40 +73,39 @@
   .sidebar { width: var(--sidebar-w); flex-shrink: 0; background: var(--sidebar); color: var(--sidebar-soft);
     display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; height: 100dvh; overflow-y: auto; }
   .sidebar-brand { padding: 22px 22px 16px; border-bottom: 1px solid rgba(255,255,255,0.08); display:flex; align-items:flex-start; justify-content:space-between; gap:8px; }
-  .sidebar-brand .title { color: var(--sidebar-ink); font-size: 25.5px; letter-spacing: .02em; }
+  .sidebar-brand .title { color: var(--paper-raised); font-size: 25.5px; letter-spacing: .02em; }
   .sidebar-brand .sub { font-size: 14px; margin-top: 3px; color: #8D90A1; }
   .sidebar-brand .sync-badge { font-size: 12px; margin-top: 5px; color: #8D90A1; line-height: 1.4; }
   .sidebar-brand .sync-badge.err { color: #E8A27A; }
   .sidebar-brand .sync-badge:empty { display: none; }
   .gear-btn { background:none; border:1px solid #565A6C; color:var(--sidebar-soft); width:28px; height:28px; border-radius:4px; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
-  .gear-btn:hover { border-color: var(--sidebar-ink); color: var(--sidebar-ink); }
+  .gear-btn:hover { border-color: var(--paper-raised); color: var(--paper-raised); }
 
   .sidebar-section { padding: 16px 22px 4px; }
   .sidebar-section-label { font-size: 13.5px; letter-spacing: .06em; color: #767A8C; margin-bottom: 9px; display:flex; align-items:center; justify-content:space-between; }
   .level-toggle { display:flex; gap:2px; background:rgba(255,255,255,0.06); border-radius:4px; padding:2px; }
-  .level-toggle { flex-shrink:0; }
-  .level-toggle button { flex:1 1 auto; background:none; border:none; color:#8D90A1; font-size:13.5px; padding:4px 8px; cursor:pointer; border-radius:3px; white-space:nowrap; }
-  .level-toggle button.active { background: rgba(255,255,255,0.16); color: var(--sidebar-ink); }
+  .level-toggle button { flex:1; background:none; border:none; color:#8D90A1; font-size:13.5px; padding:4px 6px; cursor:pointer; border-radius:3px; }
+  .level-toggle button.active { background: rgba(255,255,255,0.16); color: var(--paper-raised); }
   .period-nav { display: flex; align-items: center; gap: 6px; }
   .period-nav-btn { background: rgba(255,255,255,0.06); border: none; color: var(--sidebar-soft); width: 26px; height: 26px; border-radius: 4px; cursor: pointer; font-size: 15px; flex-shrink: 0; }
-  .period-nav-btn:hover { background: rgba(255,255,255,0.14); color: var(--sidebar-ink); }
-  .period-date-input { color-scheme: dark; flex: 1; min-width: 0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: var(--sidebar-ink); border-radius: 4px; padding: 5px 6px; font-size: 13.5px; }
-  .period-current-label { margin-top: 8px; font-size: 14.5px; color: var(--sidebar-ink); line-height: 1.4; }
+  .period-nav-btn:hover { background: rgba(255,255,255,0.14); color: var(--paper-raised); }
+  .period-date-input { flex: 1; min-width: 0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: var(--paper-raised); border-radius: 4px; padding: 5px 6px; font-size: 13.5px; }
+  .period-current-label { margin-top: 8px; font-size: 14.5px; color: var(--paper-raised); line-height: 1.4; }
   .period-current-label .tag { display: inline-block; font-size: 11.5px; color: var(--sidebar-soft); border: 1px solid rgba(255,255,255,0.2); border-radius: 3px; padding: 1px 5px; margin-right: 6px; }
   .period-strip { display: flex; gap: 6px; overflow-x: auto; margin-top: 10px; padding-bottom: 3px; scrollbar-width: thin; }
   .period-strip::-webkit-scrollbar { height: 5px; }
   .period-strip::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
   .period-chip { flex-shrink: 0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: var(--sidebar-soft);
     font-size: 12.5px; padding: 5px 10px; border-radius: 999px; cursor: pointer; white-space: nowrap; transition: background .12s, color .12s; }
-  .period-chip:hover { background: rgba(255,255,255,0.14); color: var(--sidebar-ink); }
-  .period-chip.current { background: var(--sidebar-ink); color: var(--sidebar); border-color: var(--sidebar-ink); font-weight: 600; }
+  .period-chip:hover { background: rgba(255,255,255,0.14); color: var(--paper-raised); }
+  .period-chip.current { background: var(--paper-raised); color: var(--sidebar); border-color: var(--paper-raised); font-weight: 600; }
 
   .side-period { display: flex; flex-direction: column; gap: 2px; padding: 0 12px; }
   .side-btn { display: flex; align-items: center; justify-content: space-between; background: transparent; border: none;
     color: var(--sidebar-soft); padding: 8px 10px; font-size: 16px; text-align: left; cursor: pointer; border-radius: 3px;
     transition: background .12s, color .12s; }
-  .side-btn:hover { background: rgba(255,255,255,0.06); color: var(--sidebar-ink); }
-  .side-btn.active { background: rgba(255,255,255,0.12); color: var(--sidebar-ink); }
+  .side-btn:hover { background: rgba(255,255,255,0.06); color: var(--paper-raised); }
+  .side-btn.active { background: rgba(255,255,255,0.12); color: var(--paper-raised); }
   .side-btn .val { font-size: 13.5px; color: #8D90A1; }
   .cycle-select { width: calc(100% - 24px); margin: 6px 12px 0; background: rgba(255,255,255,0.06); border: 1px solid #565A6C;
     color: var(--sidebar-soft); font-size: 14.5px; padding: 6px 8px; border-radius: 3px; }
@@ -117,7 +114,7 @@
   .cat-nav-row { display: flex; align-items: center; gap: 9px; padding: 7px 10px; border-radius: 3px; cursor: pointer;
     font-size: 15.5px; color: var(--sidebar-soft); transition: background .12s; }
   .cat-nav-row:hover { background: rgba(255,255,255,0.06); }
-  .cat-nav-row.active { background: rgba(255,255,255,0.14); color: var(--sidebar-ink); }
+  .cat-nav-row.active { background: rgba(255,255,255,0.14); color: var(--paper-raised); }
   .cat-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
   .cat-nav-row .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cat-nav-row .amt { font-size: 13.5px; color: #8D90A1; flex-shrink: 0; }
@@ -126,7 +123,7 @@
   .side-file { font-size: 14px; color: #8D90A1; margin-bottom: 10px; line-height: 1.6; word-break: break-all; white-space:pre-line; }
   .btn-sidebar { width: 100%; background: transparent; border: 1px solid #565A6C; color: var(--sidebar-soft);
     font-size: 15.5px; padding: 7px 10px; cursor: pointer; border-radius: 3px; }
-  .btn-sidebar:hover { border-color: var(--sidebar-ink); color: var(--sidebar-ink); }
+  .btn-sidebar:hover { border-color: var(--paper-raised); color: var(--paper-raised); }
 
   .main { flex: 1; min-width: 0; padding: 30px 34px 60px;
     background-image: repeating-linear-gradient(to bottom, transparent, transparent 33px, rgba(var(--ink-rgb),0.04) 34px);
@@ -160,7 +157,6 @@
   .hidden { display: none !important; }
 
   .page-head { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 14px; margin-bottom: 18px; }
-  html[data-theme="dark"] .tab-bar { border-bottom-color: var(--rule-strong); }
   .search-wrap { position: relative; }
   .adv-search-panel { position: absolute; top: 100%; right: 0; margin-top: 8px; background: var(--paper-raised);
     border: 1px solid var(--rule-strong); border-radius: 8px; padding: 14px; width: 360px; max-width: calc(100vw - 24px); max-height: 75vh; overflow-y: auto; z-index: 20;
@@ -665,14 +661,14 @@
     .period-chip button { background: transparent; border: none; color: inherit; font-family: inherit; min-height: 44px; cursor: pointer; }
     .period-chip .pc-step { width: 48px; font-size: 22px; }
     .period-chip .pc-label { flex: 1; min-width: 0; font-size: 16px; padding: 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      border-left: 1px solid #565A6C; border-right: 1px solid #565A6C; color: var(--sidebar-ink); }
+      border-left: 1px solid #565A6C; border-right: 1px solid #565A6C; color: var(--paper-raised); }
     .sidebar > .period-section { display: none; }
     body.psheet-open .psheet-backdrop { display: block; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 55; }
     body.psheet-open .sidebar > .period-section { display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; width: auto;
       background: var(--sidebar); max-height: 78vh; overflow-y: auto; border-radius: 14px 14px 0 0;
       padding: 14px 16px calc(16px + env(safe-area-inset-bottom)); box-shadow: 0 -8px 24px rgba(0,0,0,.35); }
     body.psheet-open .psheet-close { display: block; width: 100%; margin-top: 12px; min-height: 44px; background: rgba(255,255,255,0.12);
-      color: var(--sidebar-ink); border: none; border-radius: 3px; font-size: 16px; cursor: pointer; }
+      color: var(--paper-raised); border: none; border-radius: 3px; font-size: 16px; cursor: pointer; }
     body.psheet-open { overflow: hidden; }
   }
 
@@ -769,10 +765,10 @@
     <div class="sidebar-section">
       <div class="sidebar-section-label">期間</div>
       <div class="level-toggle" id="periodModeToggle" style="margin-bottom:8px;">
-        <button data-mode="day">日</button>
-        <button data-mode="week">週</button>
-        <button data-mode="month">月</button>
-        <button data-mode="year">年</button>
+        <button data-mode="day">日ごと</button>
+        <button data-mode="week">週ごと</button>
+        <button data-mode="month">月ごと</button>
+        <button data-mode="year">年ごと</button>
         <button data-mode="all">全期間</button>
       </div>
       <div class="period-nav" id="periodNav">
@@ -797,6 +793,7 @@
 
     <div class="sidebar-foot">
       <div class="side-file" id="fileMeta"></div>
+      <a class="btn-sidebar" id="taxLinkSide" href="tax-furusato.html" style="display:block;text-align:center;text-decoration:none;box-sizing:border-box;">確定申告・ふるさと納税 ↗</a>
     </div>
   </div>
 
@@ -810,7 +807,7 @@
         </div>
         <div class="search-wrap" id="searchWrap">
           <div style="display:flex; gap:6px; align-items:center;">
-            <input id="searchInput" type="text" placeholder="カテゴリ・お店・メモで検索" title="スペース区切りで複数語を検索できます" style="width:280px; max-width:100%; min-width:0;">
+            <input id="searchInput" type="text" placeholder="カテゴリ・お店・メモで検索（スペース区切りで複数語）">
             <button id="advSearchToggleBtn" class="btn" type="button" title="詳細検索" aria-label="詳細検索" aria-expanded="false">詳細▾</button>
           </div>
           <div class="adv-search-panel hidden" id="advSearchPanel">
@@ -948,7 +945,10 @@
       </div>
 
       <div class="card panel" id="taxSummaryPanel" style="margin-top:18px;">
-        <div class="panel-head"><div class="section-title serif">税務関連の年間集計（<span id="taxSummaryYear"></span>年）</div></div>
+        <div class="panel-head">
+          <div class="section-title serif">税務関連の年間集計（<span id="taxSummaryYear"></span>年）</div>
+          <a class="btn" id="taxOpenBtn" href="tax-furusato.html" style="text-decoration:none;">確定申告・ふるさと納税の試算を開く ↗</a>
+        </div>
         <div class="summary-grid">
           <div class="card summary-card" style="background:rgba(var(--ink-rgb),0.02);">
             <div class="summary-label">医療費（医療費控除の目安）</div>
@@ -964,9 +964,17 @@
             </div>
             <div class="cash-note" id="furusatoNote"></div>
           </div>
+          <div class="card summary-card" style="background:rgba(var(--ink-rgb),0.02);">
+            <div class="summary-label">ふるさと納税の寄附上限額（試算）</div>
+            <div class="summary-value-row">
+              <div class="summary-value num serif" id="furusatoLimitVal">—</div>
+            </div>
+            <div class="cash-note" id="furusatoLimitNote"></div>
+          </div>
         </div>
+        <div class="cash-note" id="taxRefNote" style="margin-top:10px;"></div>
         <div class="cash-note" style="margin-top:4px;">
-          表示中の期間が属する暦年（1〜12月）を対象に集計した参考値です（実際の控除額・限度額の計算は行っていません）。ふるさと納税の判定キーワードは設定＞税務集計で変更できます。
+          表示中の期間が属する暦年（1〜12月）を対象に集計した参考値です。税額・控除額・寄附上限額の計算は、税制改正に合わせて単独で更新できるよう別ファイル（確定申告・ふるさと納税の試算ページ）に分けてあり、上のボタンで開くとこの集計値を引き継げます。ふるさと納税の判定キーワードは設定＞税務集計で変更できます。
         </div>
       </div>
 
@@ -1351,7 +1359,7 @@
       <div class="field-group settings-pane hidden" data-pane="tax">
         <div class="modal-section-title">税務関連の年間集計設定</div>
         <div class="field-hint" style="margin-top:8px;">
-          概要タブに、選択中の期間が属する暦年（1〜12月）を対象とした医療費控除・ふるさと納税の年間集計を参考表示します。医療費は「医療・保険」カテゴリの支出合計、ふるさと納税は下記キーワードに一致する支出の合計です（実際の控除額・限度額の計算までは行いません）。
+          概要タブに、選択中の期間が属する暦年（1〜12月）を対象とした医療費控除・ふるさと納税の年間集計を参考表示します。医療費は「医療・保険」カテゴリの支出合計、ふるさと納税は下記キーワードに一致する支出の合計です。控除額・寄附上限額の計算は別ファイルの試算ページで行い、ここの集計値が引き継がれます。
         </div>
         <label class="field-label" style="margin-top:10px;" for="furusatoKeywordInput">ふるさと納税の判定キーワード</label>
         <input type="text" id="furusatoKeywordInput" placeholder="例: ふるさと納税" value="ふるさと納税">
@@ -1532,6 +1540,7 @@
   const settings = {
     prepaidAccounts: [],
     ignoreKeywords: [],
+    furusatoKeyword: "ふるさと納税",   // 税務集計：ふるさと納税として合計する支出の判定キーワード
     excludedAccounts: new Set(),
     excludedCategories: new Set(),
     accountBalanceOverride: new Map(),
@@ -1747,6 +1756,7 @@
       v: 1,
       prepaidAccounts: settings.prepaidAccounts,
       ignoreKeywords: settings.ignoreKeywords,
+      furusatoKeyword: settings.furusatoKeyword,
       excludedAccounts: Array.from(settings.excludedAccounts),
       excludedCategories: Array.from(settings.excludedCategories),
       accountBalanceOverride: Object.fromEntries(settings.accountBalanceOverride),
@@ -1808,6 +1818,7 @@
     if (!obj || typeof obj !== "object") return;
     settings.prepaidAccounts = Array.isArray(obj.prepaidAccounts) ? obj.prepaidAccounts : [];
     settings.ignoreKeywords = Array.isArray(obj.ignoreKeywords) ? obj.ignoreKeywords : [];
+    settings.furusatoKeyword = typeof obj.furusatoKeyword === "string" && obj.furusatoKeyword.trim() ? obj.furusatoKeyword.trim() : "ふるさと納税";
     settings.excludedAccounts = new Set(obj.excludedAccounts || []);
     settings.excludedCategories = new Set(obj.excludedCategories || []);
     settings.accountBalanceOverride = new Map(Object.entries(obj.accountBalanceOverride || {}));
@@ -1834,6 +1845,7 @@
 
     document.getElementById("prepaidAccountsInput").value = settings.prepaidAccounts.join(", ");
     document.getElementById("ignoreKeywordsInput").value = settings.ignoreKeywords.join(", ");
+    document.getElementById("furusatoKeywordInput").value = settings.furusatoKeyword;
     refreshAccountsPane();
     document.querySelectorAll("#balancePatternToggle button").forEach((b) => b.classList.toggle("active", Number(b.dataset.pattern) === state.balancePattern));
 
@@ -2108,7 +2120,7 @@
     merged.manualFixedCosts = mergeMapField(base, local, remote, "manualFixedCosts", conflicts);
     merged.accountMeta = mergeMapField(base, local, remote, "accountMeta", conflicts);
     merged.accountRenames = mergeMapField(base, local, remote, "accountRenames", conflicts);
-    ["accountBalanceInited", "accountBalanceAsOfDate", "balancePattern", "securitiesScrapeInfo", "zaimScrapeInfo",
+    ["accountBalanceInited", "accountBalanceAsOfDate", "balancePattern", "furusatoKeyword", "securitiesScrapeInfo", "zaimScrapeInfo",
       "pendingZaimImport", "pendingZaimCsv", "zaimCsvSyncedAt", "pendingSecuritiesImport", "accountMetaInited", "syncHeartbeat"]
       .forEach((key) => { merged[key] = mergeScalarField(base, local, remote, key, conflicts); });
     merged.v = remote.v || local.v || 1;
@@ -4866,28 +4878,7 @@
   }
 
   const SVG_NS = "http://www.w3.org/2000/svg";
-  // 横軸ラベルの間引き幅を、ラベルの文字数と1点あたりの横幅から決める（重なり防止）
-function calcLabelStride(labels, step) {
-  const maxLen = labels.reduce((m, l) => Math.max(m, String(l == null ? "" : l).length), 1);
-  const need = maxLen * 11 + 12;
-  return Math.max(1, Math.ceil(need / Math.max(1, step)));
-}
-// 最終ラベルは必ず出す。直前のラベルと近すぎるときは直前側を省く
-function showAxisLabel(i, n, stride) {
-  if (i === n - 1) return true;
-  return i % stride === 0 && (n - 1 - i) >= stride * 0.7;
-}
-// 端のラベルがSVGの外にはみ出さないよう、位置と揃え方を調整する
-function axisLabelPos(xv, lab, w) {
-  const str = String(lab == null ? "" : lab);
-  let est = 0;
-  for (const ch of str) est += ch.charCodeAt(0) > 255 ? 11 : 6.3;
-  const half = est / 2;
-  if (xv + half > w - 2) return { x: w - 2, "text-anchor": "end" };
-  if (xv - half < 2) return { x: 2, "text-anchor": "start" };
-  return { x: xv, "text-anchor": "middle" };
-}
-function svgEl(tag, attrs) {
+  function svgEl(tag, attrs) {
     const e = document.createElementNS(SVG_NS, tag);
     if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
     return e;
@@ -5031,10 +5022,10 @@ function svgEl(tag, attrs) {
     // 縦軸線
     svg.appendChild(svgEl("line", { x1: padL, x2: padL, y1: padT, y2: padT + plotH, stroke: "var(--chart-grid-strong)", "stroke-width": 1 }));
     // 横軸ラベル（多すぎる場合は間引く）
-    const labelStride = calcLabelStride(labels, plotW / Math.max(1, n - 1));
+    const labelStride = n > 14 ? Math.ceil(n / 10) : 1;
     labels.forEach((lab, i) => {
-      if (!showAxisLabel(i, n, labelStride)) return;
-      const t = svgEl("text", Object.assign({ y: h - 10, "font-size": 11, fill: "var(--ink-soft)" }, axisLabelPos(x(i), lab, w)));
+      if (i % labelStride !== 0 && i !== n - 1) return;
+      const t = svgEl("text", { x: x(i), y: h - 10, "text-anchor": "middle", "font-size": 11, fill: "var(--ink-soft)" });
       t.textContent = lab;
       svg.appendChild(t);
     });
@@ -5116,10 +5107,10 @@ function svgEl(tag, attrs) {
       svg.appendChild(t);
     }
     svg.appendChild(svgEl("line", { x1: padL, x2: padL, y1: padT, y2: padT + plotH, stroke: "var(--chart-grid-strong)", "stroke-width": 1 }));
-    const labelStride = calcLabelStride(labels, plotW / Math.max(1, n - 1));
+    const labelStride = n > 14 ? Math.ceil(n / 10) : 1;
     labels.forEach((lab, i) => {
-      if (!showAxisLabel(i, n, labelStride)) return;
-      const t = svgEl("text", Object.assign({ y: h - 10, "font-size": 11, fill: "var(--ink-soft)" }, axisLabelPos(x(i), lab, w)));
+      if (i % labelStride !== 0 && i !== n - 1) return;
+      const t = svgEl("text", { x: x(i), y: h - 10, "text-anchor": "middle", "font-size": 11, fill: "var(--ink-soft)" });
       t.textContent = lab;
       svg.appendChild(t);
     });
@@ -5309,7 +5300,7 @@ function svgEl(tag, attrs) {
     }
     svg.appendChild(svgEl("line", { x1: padL, x2: padL, y1: padT, y2: padT + plotH, stroke: "var(--chart-grid-strong)", "stroke-width": 1 }));
 
-    const labelStride = calcLabelStride(labels, plotW / Math.max(1, n));
+    const labelStride = n > 14 ? Math.ceil(n / 10) : 1;
     const zeroY = y(0);
     const bars = [];
     values.forEach((v, i) => {
@@ -5319,8 +5310,8 @@ function svgEl(tag, attrs) {
       const rect = svgEl("rect", { x: cx - barW / 2, y: barY, width: barW, height: barH, fill: opts.color || "var(--gold)" });
       svg.appendChild(rect);
       bars.push(rect);
-      if (showAxisLabel(i, n, labelStride)) {
-        const t = svgEl("text", Object.assign({ y: h - 10, "font-size": 11, fill: "var(--ink-soft)" }, axisLabelPos(cx, labels[i], w)));
+      if (i % labelStride === 0 || i === n - 1) {
+        const t = svgEl("text", { x: cx, y: h - 10, "text-anchor": "middle", "font-size": 11, fill: "var(--ink-soft)" });
         t.textContent = labels[i];
         svg.appendChild(t);
       }
@@ -5447,6 +5438,92 @@ function svgEl(tag, attrs) {
   }
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") refreshIfDayChanged(); });
   setInterval(refreshIfDayChanged, 60000);
+
+  // ---------- 税務連携（確定申告・ふるさと納税の試算ページ tax-furusato.html との受け渡し） ----------
+  // 税制改正で計算式が変わっても、この元帳側は触らずに済むよう、税額の計算は別ファイルに分けている。
+  // 元帳→試算ページ：暦年ごとの集計値（寄附額・医療費・社会保険料・源泉所得税など）を localStorage とリンクのハッシュで渡す
+  // 試算ページ→元帳：試算結果（寄附上限額・残り枠・納税/還付額）を localStorage と戻りリンクのハッシュで受け取る
+  const TAX_HANDOFF_KEY = "ledger.taxHandoff", TAX_RESULT_KEY = "ledger.taxResult";
+  const SHAKAI_SUBS = new Set(["健康保険", "年金保険", "雇用保険"]);
+
+  // 暦年ごとに一度の走査で集計する。除外口座・除外カテゴリなど画面表示用の絞り込みは、税務の事実とは関係がないため適用しない。
+  function computeTaxYearTotals() {
+    const kw = (settings.furusatoKeyword || "").trim();
+    const years = {};
+    const get = (y) => years[y] || (years[y] = { med: 0, medN: 0, don: 0, donN: 0, net: 0, shakai: 0, wh: 0, res: 0 });
+    for (const r of state.transactions || []) {
+      const y = r.date.getFullYear();
+      if (r.type === "income") {
+        if (r.category === "給与") get(y).net += r.amount;
+        continue;
+      }
+      if (r.type !== "expense") continue;
+      const g = get(y);
+      if (r.category === "医療・保険") { g.med += r.amount; g.medN++; }
+      if (kw && [r.category, r.subCategory, r.store, r.item, r.memo].some((f) => f && f.includes(kw))) { g.don += r.amount; g.donN++; }
+      if (r.category === "税金") {
+        if (SHAKAI_SUBS.has(r.subCategory)) g.shakai += r.amount;
+        else if (r.subCategory === "所得税") g.wh += r.amount;
+        else if (r.subCategory === "住民税") g.res += r.amount;
+      }
+    }
+    return years;
+  }
+
+  function readTaxResult() {
+    try { return JSON.parse(localStorage.getItem(TAX_RESULT_KEY) || "null"); } catch (e) { return null; }
+  }
+
+  // 試算ページから「#taxres=…」付きのリンクで戻ってきた場合の受け取り（file:// 等で localStorage が共有されない環境向け）
+  function importTaxResultFromHash() {
+    const m = location.hash.match(/[#&]taxres=([^&]+)/);
+    if (!m) return;
+    try {
+      const o = JSON.parse(decodeURIComponent(m[1]));
+      if (o && typeof o.year === "number") localStorage.setItem(TAX_RESULT_KEY, JSON.stringify(o));
+    } catch (e) { /* 壊れたリンクは無視 */ }
+    try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { /* ignore */ }
+  }
+
+  function renderTaxSummary() {
+    if (!document.getElementById("taxSummaryPanel")) return;
+    const year = state.periodAnchor.getFullYear();
+    const years = computeTaxYearTotals();
+    const t = years[year] || { med: 0, medN: 0, don: 0, donN: 0, net: 0, shakai: 0, wh: 0, res: 0 };
+    document.getElementById("taxSummaryYear").textContent = String(year);
+    document.getElementById("medicalExpenseVal").textContent = YEN(t.med);
+    document.getElementById("medicalExpenseNote").textContent = `「医療・保険」カテゴリの支出 ${t.medN}件`;
+    document.getElementById("furusatoVal").textContent = YEN(t.don);
+    document.getElementById("furusatoNote").textContent = `「${settings.furusatoKeyword}」に一致する支出 ${t.donN}件`;
+
+    // 試算ページで保存された結果（対象年が同じときだけ表示）
+    const res = readTaxResult(), limVal = document.getElementById("furusatoLimitVal"), limNote = document.getElementById("furusatoLimitNote");
+    if (res && res.year === year && typeof res.limit === "number") {
+      limVal.textContent = YEN(res.limit);
+      const remain = res.limit - t.don;
+      const when = res.savedAt ? new Date(res.savedAt) : null;
+      const whenText = when && !isNaN(when) ? `${when.getMonth() + 1}/${when.getDate()}時点の入力で試算` : "試算ページの入力で試算";
+      limNote.textContent = (remain >= 0 ? `実績との差し引きで残り枠は ${YEN(remain)}` : `実績が上限を ${YEN(-remain)} 超えています`) + `（${whenText}）`;
+    } else {
+      limVal.textContent = "—";
+      limNote.textContent = res && res.year !== year ? `保存済みの試算は${res.year}年分です。この年の試算は試算ページで行えます` : "試算ページで「この試算を家計元帳に送る」を押すと表示されます";
+    }
+
+    const parts = [];
+    if (t.net) parts.push(`給与の手取り合計 ${YEN(t.net)}`);
+    if (t.shakai) parts.push(`社会保険料（税金カテゴリ） ${YEN(t.shakai)}`);
+    if (t.wh) parts.push(`所得税 ${YEN(t.wh)}`);
+    if (t.res) parts.push(`住民税 ${YEN(t.res)}`);
+    document.getElementById("taxRefNote").textContent = parts.length ? `参考（試算ページへ引き継ぐ値）：${parts.join(" ／ ")}` : "";
+
+    // 試算ページへ渡す内容を最新にしておく（全暦年分。ハッシュでも渡すので、localStorageを共有しない環境でも使える）
+    const payload = { v: 1, at: new Date().toISOString(), years };
+    const json = JSON.stringify(payload);
+    try { localStorage.setItem(TAX_HANDOFF_KEY, json); } catch (e) { /* 保存できなくてもハッシュ経由で渡せる */ }
+    const href = "tax-furusato.html#from=ledger&d=" + encodeURIComponent(json);
+    ["taxOpenBtn", "taxLinkSide"].forEach((id) => { const a = document.getElementById(id); if (a) a.setAttribute("href", href); });
+  }
+  importTaxResultFromHash();
 
   function renderSubscriptionPanel() {
     const listEl = document.getElementById("subscriptionList");
@@ -5750,6 +5827,7 @@ function svgEl(tag, attrs) {
     renderAssetsHistoryChart();
     renderTrendChart();
     renderSubscriptionPanel();
+    try { renderTaxSummary(); } catch (e) { console.error("税務集計の表示に失敗", e); }
     renderTxList(getTxRows(filtered).slice().reverse()); // 最新の取引が先頭に来るようにする
   }
 
@@ -6824,6 +6902,11 @@ function svgEl(tag, attrs) {
   document.getElementById("ignoreKeywordsInput").addEventListener("input", (e) => {
     settings.ignoreKeywords = e.target.value.split(",").map((s) => s.trim()).filter(Boolean);
     reapplyIgnoreKeywords();
+    scheduleCloudSave();
+  });
+  document.getElementById("furusatoKeywordInput").addEventListener("input", (e) => {
+    settings.furusatoKeyword = e.target.value.trim() || "ふるさと納税";
+    try { renderTaxSummary(); } catch (err) { console.error("税務集計の表示に失敗", err); }
     scheduleCloudSave();
   });
 

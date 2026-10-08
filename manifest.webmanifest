@@ -77,6 +77,18 @@
           "type": "image/png"
         }
       ]
+    },
+    {
+      "name": "確定申告・ふるさと納税",
+      "short_name": "確定申告",
+      "url": "./tax-furusato.html",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     }
   ]
 }
