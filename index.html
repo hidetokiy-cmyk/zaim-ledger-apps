@@ -776,6 +776,14 @@
     .summary-card:active { transform: none; }
     .panel:hover { box-shadow: 0 1px 2px rgba(var(--ink-rgb), .06), 0 10px 22px -16px rgba(var(--ink-rgb), .28); }
   }
+
+  /* ---------- スワイプでのタブ移動：横方向に、少し奥行きを付けてスライド ---------- */
+  .tab-page.tab-enter.dir-next { transform: perspective(1400px) translate3d(60px,0,-90px) rotateY(-9deg); }
+  .tab-page.tab-enter.dir-prev { transform: perspective(1400px) translate3d(-60px,0,-90px) rotateY(9deg); }
+  .tab-page.dir-next, .tab-page.dir-prev { transition: opacity .3s ease, transform .45s cubic-bezier(.2,.8,.2,1); }
+  @media (prefers-reduced-motion: reduce) {
+    .tab-page.tab-enter.dir-next, .tab-page.tab-enter.dir-prev { transform: none; }
+  }
 </style>
 </head>
 <body>
@@ -6963,7 +6971,7 @@ function svgEl(tag, attrs) {
   let drilledIn = false;   // 明細などへ潜った状態。戻るときは手前から出てくる
   function showPageWithFade(elId, dir) {
     const page = document.getElementById(elId);
-    page.classList.remove("hidden", "dir-in", "dir-out", "from-point");
+    page.classList.remove("hidden", "dir-in", "dir-out", "dir-next", "dir-prev", "from-point");
     page.style.transformOrigin = "";
     if (dir) page.classList.add("dir-" + dir);
     let fromPoint = false;
@@ -6976,8 +6984,8 @@ function svgEl(tag, attrs) {
     page.classList.add("tab-enter");
     void page.offsetWidth; // reflow
     page.classList.remove("tab-enter");
-    setTimeout(() => { page.classList.remove("dir-in", "dir-out", "from-point"); page.style.transformOrigin = ""; }, 800);
-    if (!fromPoint) staggerDepth(page);
+    setTimeout(() => { page.classList.remove("dir-in", "dir-out", "dir-next", "dir-prev", "from-point"); page.style.transformOrigin = ""; }, 800);
+    if (!fromPoint && dir !== "next" && dir !== "prev") staggerDepth(page);
   }
 
   function activateTab(target, dir) {
@@ -6989,7 +6997,6 @@ function svgEl(tag, attrs) {
     });
   }
 
-  // 財務三表タブ内のサブタブ（B/S・P/L・C/F・財務指標）切り替え
   // 概要カードがポインタに追従して傾く（マウス操作時のみ）
   (function initTilt() {
     if (!window.matchMedia || !matchMedia("(hover: hover) and (pointer: fine)").matches || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -7011,6 +7018,7 @@ function svgEl(tag, attrs) {
     document.addEventListener("pointerleave", () => { if (cur) { cur.classList.remove("tilting"); cur = null; } }, true);
   })();
 
+  // 財務三表タブ内のサブタブ（B/S・P/L・C/F・財務指標）切り替え
   function activateStatementsSubTab(target) {
     state.statementsSubTab = target;
     document.querySelectorAll("#statementsSubTab .substab-btn").forEach((b) => b.classList.toggle("active", b.dataset.substab === target));
@@ -7092,15 +7100,57 @@ function svgEl(tag, attrs) {
     render();
   }
 
+  let pendingTabDir = null;   // スワイプ由来の遷移方向（"next" | "prev"）
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       if (btn.dataset.tab !== "tx") { state.txFilter = null; state.txPeriod = null; } // 明細タブ以外への遷移で絞り込みを解除
       const back = drilledIn && btn.dataset.tab !== "tx";
       drilledIn = false;
-      activateTab(btn.dataset.tab, back ? "out" : null);
+      activateTab(btn.dataset.tab, pendingTabDir || (back ? "out" : null));
+      pendingTabDir = null;
       render();
     });
   });
+
+  // スマホ：左右スワイプでタブを切り替える
+  (function initSwipeTabs() {
+    if (!("ontouchstart" in window)) return;
+    let t0 = null;
+    function blocked(el) {
+      for (let n = el; n && n !== document.body; n = n.parentElement) {
+        const tag = n.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || tag === "svg") return true;
+        if (n.scrollWidth > n.clientWidth + 2) {
+          const ox = getComputedStyle(n).overflowX;
+          if (ox === "auto" || ox === "scroll") return true;   // 横スクロールする表などは邪魔しない
+        }
+      }
+      return false;
+    }
+    document.addEventListener("touchstart", (e) => {
+      t0 = null;
+      if (e.touches.length !== 1) return;
+      if (document.querySelector(".modal-overlay:not(.hidden)")) return;
+      const t = e.touches[0];
+      if (t.clientX < 24 || t.clientX > window.innerWidth - 24) return;   // 端はOSの戻る操作に譲る
+      if (blocked(e.target)) return;
+      t0 = { x: t.clientX, y: t.clientY, time: performance.now() };
+    }, { passive: true });
+    document.addEventListener("touchend", (e) => {
+      if (!t0) return;
+      const t = e.changedTouches[0];
+      const dx = t.clientX - t0.x, dy = t.clientY - t0.y, dt = performance.now() - t0.time;
+      t0 = null;
+      if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.8 || dt > 700) return;
+      const tabs = Array.from(document.querySelectorAll(".tab-btn")).filter((b) => b.offsetParent !== null);
+      const cur = tabs.findIndex((b) => b.classList.contains("active"));
+      const next = cur + (dx < 0 ? 1 : -1);
+      if (cur < 0 || next < 0 || next >= tabs.length) return;
+      pendingTabDir = dx < 0 ? "next" : "prev";
+      tabs[next].click();
+      window.scrollTo({ top: 0 });
+    }, { passive: true });
+  })();
 
   loadSyncConfig();
 
