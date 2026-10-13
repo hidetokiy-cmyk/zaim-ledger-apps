@@ -319,8 +319,8 @@
     .tab-btn svg { display: block; width: 19px; height: 19px; }
   }
   .tab-page.hidden { display: none !important; }
-  .tab-page, .substab-page { transition: opacity .15s ease, transform .15s ease; opacity: 1; transform: translateY(0); }
-  .tab-page.tab-enter, .substab-page.tab-enter { opacity: 0; transform: translateY(4px); }
+  .tab-page, .substab-page { transition: opacity .38s ease, transform .5s cubic-bezier(.2,.8,.2,1); opacity: 1; transform: perspective(1400px) translate3d(0,0,0) rotateX(0deg); transform-origin: 50% 0; }
+  .tab-page.tab-enter, .substab-page.tab-enter { opacity: 0; transform: perspective(1400px) translate3d(0,14px,-90px) rotateX(-7deg); transition: none; }
 
   .verdict-card { background: var(--paper-raised); border: 1px solid var(--rule); border-left: 4px solid var(--ink);
     padding: 22px 26px; margin-bottom: 14px; }
@@ -736,6 +736,29 @@
   #cmdList .x-cmd { display: flex; justify-content: space-between; gap: 10px; padding: 9px 12px; cursor: pointer; border-radius: 4px; }
   #cmdList .x-cmd.sel { background: rgba(var(--ink-rgb), 0.09); }
   #cmdList .x-cmd small { color: var(--ink-faint); white-space: nowrap; }
+
+  /* ---------- 奥行きのあるモーション ---------- */
+  @keyframes depthIn { from { opacity: 0; transform: perspective(1000px) translate3d(0,22px,-60px) rotateX(-9deg); } to { opacity: 1; transform: perspective(1000px) translate3d(0,0,0) rotateX(0deg); } }
+  @keyframes depthPop { from { opacity: 0; transform: perspective(1000px) translate3d(0,18px,-120px) rotateX(10deg) scale(.96); } to { opacity: 1; transform: perspective(1000px) translate3d(0,0,0) rotateX(0deg) scale(1); } }
+  .depth-in { animation: depthIn .6s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 55ms); transform-origin: 50% 0; }
+  .modal-overlay:not(.hidden) .modal { animation: depthPop .42s cubic-bezier(.2,.8,.2,1) both; }
+  #cmdOverlay:not(.hidden) > * { animation: depthPop .32s cubic-bezier(.2,.8,.2,1) both; }
+  .summary-card { position: relative; transform-style: preserve-3d; transition: transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s ease; will-change: transform; }
+  .summary-card::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .25s ease;
+    background: radial-gradient(240px circle at var(--mx, 50%) var(--my, 50%), rgba(var(--ink-rgb), 0.07), transparent 65%); }
+  @media (hover: hover) and (pointer: fine) {
+    .summary-card.tilting { transform: perspective(800px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateZ(14px); box-shadow: 0 14px 30px -12px rgba(var(--ink-rgb), 0.28); transition: transform .08s linear, box-shadow .25s ease; }
+    .summary-card.tilting::after { opacity: 1; }
+  }
+  .btn, .tab-btn, .substab-btn, .tx-row { transition-property: background, color, border-color, transform; }
+  .btn:active, .tab-btn:active, .substab-btn:active { transform: perspective(500px) translateZ(-14px) scale(.97); transition-duration: .06s; }
+  .tx-row:active { transform: perspective(700px) translateZ(-10px) rotateX(2deg); }
+  @media (prefers-reduced-motion: reduce) {
+    .tab-page, .substab-page { transition: opacity .15s ease; transform: none; }
+    .tab-page.tab-enter, .substab-page.tab-enter { transform: none; }
+    .depth-in, .modal-overlay:not(.hidden) .modal, #cmdOverlay:not(.hidden) > * { animation: none; }
+    .summary-card.tilting { transform: none; }
+  }
 </style>
 </head>
 <body>
@@ -7155,12 +7178,21 @@ function svgEl(tag, attrs) {
   });
 
   // 表示するページに軽いフェード+わずかな移動を付ける（display:noneから戻す瞬間に一度リフローを挟む必要がある）
+  // 表示した画面のカードを奥から順に立ち上げる（transformとopacityのみ）
+  function staggerDepth(page) {
+    const cards = Array.from(page.querySelectorAll(".panel, .summary-card, .card.panel")).filter((c) => c.offsetParent !== null).slice(0, 14);
+    cards.forEach((c, i) => { c.classList.remove("depth-in"); c.style.setProperty("--i", String(i)); });
+    void page.offsetWidth;
+    cards.forEach((c) => c.classList.add("depth-in"));
+    setTimeout(() => cards.forEach((c) => c.classList.remove("depth-in")), 900 + cards.length * 55);
+  }
   function showPageWithFade(elId) {
     const page = document.getElementById(elId);
     page.classList.remove("hidden");
     page.classList.add("tab-enter");
     void page.offsetWidth; // reflow
     page.classList.remove("tab-enter");
+    staggerDepth(page);
   }
 
   function activateTab(target) {
@@ -7173,6 +7205,27 @@ function svgEl(tag, attrs) {
   }
 
   // 財務三表タブ内のサブタブ（B/S・P/L・C/F・財務指標）切り替え
+  // 概要カードがポインタに追従して傾く（マウス操作時のみ）
+  (function initTilt() {
+    if (!window.matchMedia || !matchMedia("(hover: hover) and (pointer: fine)").matches || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let cur = null;
+    document.addEventListener("pointermove", (e) => {
+      if (e.pointerType !== "mouse") return;
+      const card = e.target.closest ? e.target.closest(".summary-card") : null;
+      if (cur && cur !== card) { cur.classList.remove("tilting"); cur.style.removeProperty("--rx"); cur.style.removeProperty("--ry"); }
+      cur = card;
+      if (!card) return;
+      const r = card.getBoundingClientRect();
+      const px = (e.clientX - r.left) / r.width, py = (e.clientY - r.top) / r.height;
+      card.classList.add("tilting");
+      card.style.setProperty("--ry", ((px - 0.5) * 10).toFixed(2) + "deg");
+      card.style.setProperty("--rx", ((0.5 - py) * 8).toFixed(2) + "deg");
+      card.style.setProperty("--mx", (px * 100).toFixed(1) + "%");
+      card.style.setProperty("--my", (py * 100).toFixed(1) + "%");
+    }, { passive: true });
+    document.addEventListener("pointerleave", () => { if (cur) { cur.classList.remove("tilting"); cur = null; } }, true);
+  })();
+
   function activateStatementsSubTab(target) {
     state.statementsSubTab = target;
     document.querySelectorAll("#statementsSubTab .substab-btn").forEach((b) => b.classList.toggle("active", b.dataset.substab === target));
