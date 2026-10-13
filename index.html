@@ -752,6 +752,30 @@
     .depth-in, .modal-overlay:not(.hidden) .modal, #cmdOverlay:not(.hidden) > * { animation: none; }
     .summary-card.tilting { transform: none; }
   }
+
+  /* ---------- 階層に合わせた奥行き（潜る＝奥へ、戻る＝手前から） ---------- */
+  .tab-page.tab-enter.dir-in { transform: perspective(1400px) translate3d(0,0,-220px) scale(.92); }
+  .tab-page.tab-enter.dir-in.from-point { transform: perspective(1400px) translate3d(0,0,-260px) scale(.45); }
+  .tab-page.tab-enter.dir-out { transform: perspective(1400px) translate3d(0,0,100px) scale(1.04); }
+  .tab-page.dir-in, .tab-page.dir-out { transition: opacity .4s ease, transform .6s cubic-bezier(.2,.8,.2,1); }
+  /* ---------- 層の高さ（影の段階） ---------- */
+  .panel, .summary-card { box-shadow: 0 1px 2px rgba(var(--ink-rgb), .06), 0 10px 22px -16px rgba(var(--ink-rgb), .28); }
+  .tab-btn.active { position: relative; z-index: 1; box-shadow: 0 -6px 12px -8px rgba(var(--ink-rgb), .3); }
+  .modal { box-shadow: 0 32px 64px -24px rgba(0,0,0,.5), 0 10px 20px -10px rgba(0,0,0,.3); }
+  .modal-overlay { -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
+  @media (hover: hover) and (pointer: fine) {
+    .panel { transition: box-shadow .3s ease; }
+    .panel:hover { box-shadow: 0 2px 4px rgba(var(--ink-rgb), .08), 0 18px 34px -18px rgba(var(--ink-rgb), .34); }
+  }
+  /* タッチ操作：傾きの代わりに、押した分だけ奥へ沈む */
+  @media (hover: none) {
+    .summary-card:active { transform: perspective(600px) translateZ(-12px) scale(.985); transition-duration: .08s; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .tab-page.tab-enter.dir-in, .tab-page.tab-enter.dir-in.from-point, .tab-page.tab-enter.dir-out { transform: none; }
+    .summary-card:active { transform: none; }
+    .panel:hover { box-shadow: 0 1px 2px rgba(var(--ink-rgb), .06), 0 10px 22px -16px rgba(var(--ink-rgb), .28); }
+  }
 </style>
 </head>
 <body>
@@ -5258,7 +5282,8 @@ function svgEl(tag, attrs) {
     state.txFilter = null;
     state.txPeriod = { mode, anchor: +anchor, start: range.start, end: range.end, label: periodLabelForMode(mode, anchor, off), key: key || null };
     state.page = 0;
-    activateTab("tx");
+    drilledIn = true;
+    activateTab("tx", "in");
     render();
   }
 
@@ -6932,20 +6957,34 @@ function svgEl(tag, attrs) {
     cards.forEach((c) => c.classList.add("depth-in"));
     setTimeout(() => cards.forEach((c) => c.classList.remove("depth-in")), 900 + cards.length * 55);
   }
-  function showPageWithFade(elId) {
+  // 直前に押した位置（グラフの点など）。深く潜るときに、その点から画面が広がるように使う
+  let lastPointer = null;
+  document.addEventListener("pointerdown", (e) => { lastPointer = { x: e.clientX, y: e.clientY, t: performance.now() }; }, true);
+  let drilledIn = false;   // 明細などへ潜った状態。戻るときは手前から出てくる
+  function showPageWithFade(elId, dir) {
     const page = document.getElementById(elId);
-    page.classList.remove("hidden");
+    page.classList.remove("hidden", "dir-in", "dir-out", "from-point");
+    page.style.transformOrigin = "";
+    if (dir) page.classList.add("dir-" + dir);
+    let fromPoint = false;
+    if (dir === "in" && lastPointer && performance.now() - lastPointer.t < 1500) {
+      const r = page.getBoundingClientRect();
+      page.style.transformOrigin = `${lastPointer.x - r.left}px ${lastPointer.y - r.top}px`;
+      page.classList.add("from-point");
+      fromPoint = true;
+    }
     page.classList.add("tab-enter");
     void page.offsetWidth; // reflow
     page.classList.remove("tab-enter");
-    staggerDepth(page);
+    setTimeout(() => { page.classList.remove("dir-in", "dir-out", "from-point"); page.style.transformOrigin = ""; }, 800);
+    if (!fromPoint) staggerDepth(page);
   }
 
-  function activateTab(target) {
+  function activateTab(target, dir) {
     document.querySelectorAll(".tab-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === target));
     ["overview", "charts", "statements", "tx"].forEach((t) => {
       const id = "tab" + t.charAt(0).toUpperCase() + t.slice(1);
-      if (t === target) showPageWithFade(id);
+      if (t === target) showPageWithFade(id, dir);
       else document.getElementById(id).classList.add("hidden");
     });
   }
@@ -6997,7 +7036,8 @@ function svgEl(tag, attrs) {
     else if (store) state.txFilter = { mode: "store", value: store, label: label || store };
     else state.txFilter = null;
     state.page = 0;
-    activateTab("tx");
+    drilledIn = true;
+    activateTab("tx", "in");
     render();
   }
 
@@ -7020,7 +7060,8 @@ function svgEl(tag, attrs) {
     state.periodMode = "all";
     state.txFilter = { mode: "rows", rows: (rows || []).slice(), label };
     state.page = 0;
-    activateTab("tx");
+    drilledIn = true;
+    activateTab("tx", "in");
     render();
   }
 
@@ -7046,14 +7087,17 @@ function svgEl(tag, attrs) {
     const searchEl = document.getElementById("searchInput");
     if (searchEl) searchEl.value = state.search;
     state.page = 0;
-    activateTab("tx");
+    drilledIn = true;
+    activateTab("tx", "in");
     render();
   }
 
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       if (btn.dataset.tab !== "tx") { state.txFilter = null; state.txPeriod = null; } // 明細タブ以外への遷移で絞り込みを解除
-      activateTab(btn.dataset.tab);
+      const back = drilledIn && btn.dataset.tab !== "tx";
+      drilledIn = false;
+      activateTab(btn.dataset.tab, back ? "out" : null);
       render();
     });
   });
@@ -7746,7 +7790,7 @@ function svgEl(tag, attrs) {
     if (q.trim()) out.push({ label: "取引を検索：「" + q.trim() + "」", hint: "検索", run: () => {
       state.txFilter = null; state.txPeriod = null; state.categoryFilter = null; state.search = q.trim(); state.page = 0;
       const s = document.getElementById("searchInput"); if (s) s.value = state.search;
-      activateTab("tx"); render();
+      drilledIn = true; activateTab("tx", "in"); render();
     } });
     return out;
   }
