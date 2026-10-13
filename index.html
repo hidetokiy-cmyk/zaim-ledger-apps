@@ -971,7 +971,6 @@
           <div class="sub-meta" id="healthScore"></div>
         </div>
         <div id="healthBody"></div>
-        <div class="cash-note">選択中の月より前の直近6か月（データのある月）から算出した目安です。貯蓄率・固定費比率の詳細は「財務三表」の財務指標にあります。基準値は一般的な家計の目安で、状況によって適切な水準は異なります。</div>
       </div>
 
       <div class="card panel" id="anomalyPanel" style="margin-top:18px;">
@@ -980,7 +979,6 @@
           <div class="sub-meta" id="anomalyMeta"></div>
         </div>
         <div id="anomalyBody"></div>
-        <div class="cash-note">選択中の会計月について、過去の同じカテゴリの月平均より目立って多い支出と、これまで利用のなかったお店での高額支出（1万円以上）を拾います。期間の粒度・検索条件には影響されません。</div>
       </div>
 
       <div class="card panel" id="monthCheckPanel" style="margin-top:18px;">
@@ -989,16 +987,12 @@
           <div class="sub-meta" id="monthCheckMeta"></div>
         </div>
         <div id="monthCheckBody"></div>
-        <div class="cash-note">選択中の会計月について、月次の締め前に確認したい項目をまとめています。修正が必要な場合はZaim側で行ってください（このアプリは取引を編集しません）。</div>
       </div>
 
       <div class="card panel" id="subscriptionPanel" style="margin-top:18px;">
         <div class="panel-head">
           <div class="section-title serif">定期支払い（サブスク）検出</div>
           <div class="sub-meta" id="subscriptionMonthlyTotal"></div>
-        </div>
-        <div class="cash-note" style="margin-bottom:10px;">
-          同じお店・カテゴリでおおむね月次／年次の間隔で3回以上繰り返されている支出を自動検出した参考値です（期間の絞り込みに関わらず、データが更新・変更されるたびに全期間の取引から都度再計算されます。固定・キャッシュされた結果ではありません）。誤検出や見落としが起こり得るほか、自動検出の条件に合わない支払い（間隔が不規則、実績がまだ3回未満など）は手動でも登録できます（設定＞固定費（手動））。
         </div>
         <div id="subscriptionList"></div>
       </div>
@@ -1032,9 +1026,6 @@
           </div>
         </div>
         <div class="cash-note" id="taxRefNote" style="margin-top:10px;"></div>
-        <div class="cash-note" style="margin-top:4px;">
-          表示中の期間が属する暦年（1〜12月）を対象に集計した参考値です。税額・控除額・寄附上限額の計算は、税制改正に合わせて単独で更新できるよう別ファイル（確定申告・ふるさと納税の試算ページ）に分けてあり、上のボタンで開くとこの集計値を引き継げます。ふるさと納税の判定キーワードは設定＞税務集計で変更できます。
-        </div>
       </div>
 
       </div>
@@ -1085,7 +1076,6 @@
         <div class="cash-note" id="simStartNote" style="margin:0 0 8px;"></div>
         <div class="line-chart" id="simChart"></div>
         <div id="simResult" style="margin-top:10px;font-size:15px;line-height:1.7;"></div>
-        <div class="cash-note">現在の純資産を出発点に、毎月一定額を積み立てた場合の概算です。積立額の初期値は直近6か月の平均損益です。将来の運用成績を保証するものではなく、税・手数料・物価変動は考慮していません。入力値はこの端末に保存されます。</div>
       </div>
 
       <div class="card panel">
@@ -1134,9 +1124,6 @@
           <summary id="reconcileSummary" style="cursor:pointer;font-size:14px;"></summary>
           <div id="reconcileBody" style="margin-top:8px;"></div>
         </details>
-        <div class="cash-note" style="margin-top:14px;">
-          ①〜③は普段の口座管理用の分類、④は前払・預け金も資産計上する正式な貸借対照表の分類です。「純資産」はどの表示でも同じ金額になります。
-        </div>
       </div>
       </div>
 
@@ -1160,9 +1147,6 @@
           <span>当期純利益</span>
           <span class="num" id="plNetVal"></span>
         </div>
-        <div class="cash-note" style="margin-top:10px;">
-          左サイドバーで選択中の期間が対象。発生ベース（概要タブの「損益」と同じ集計）を勘定科目別に財務諸表の型で表示しています。
-        </div>
       </div>
       </div>
 
@@ -1173,9 +1157,6 @@
           <div class="bal-asof" id="cfPeriodLabel"></div>
         </div>
         <div id="cfRows"></div>
-        <div class="cash-note" style="margin-top:10px;">
-          「現金及び現金同等物」は現金・pay類・電子マネー・預金口座の合計（カード・投資資産・前払・預け金は含みません）。運用資産との資金移動は投資活動、借入金の増減は財務活動、それ以外は営業活動に区分（年次集計のみ設定の取引も、実際に現金が動いた月の営業活動に含めます）。除外設定の対象取引は区分集計に含めないため「差異（除外取引等）」に、それでも残る差異は「その他（残高の復元誤差・端数等）」にまとめています。
-        </div>
       </div>
       </div>
 
@@ -1189,21 +1170,15 @@
           <div class="card summary-card">
             <div class="summary-label">貯蓄率</div>
             <div class="summary-value-row"><div class="summary-value num serif" id="ratioSavingsVal">—</div></div>
-            <div class="cash-note" style="margin-top:6px;">選択中の期間の収益に対する、当期純利益（貯蓄額）の割合。</div>
           </div>
           <div class="card summary-card">
             <div class="summary-label">固定費比率</div>
             <div class="summary-value-row"><div class="summary-value num serif" id="ratioFixedVal">—</div></div>
-            <div class="cash-note" style="margin-top:6px;">直近12ヶ月の平均月間収益に対する、サブスク自動検出（解約済みを除く）の月換算合計の割合。</div>
           </div>
           <div class="card summary-card">
             <div class="summary-label">流動比率</div>
             <div class="summary-value-row"><div class="summary-value num serif" id="ratioCurrentVal">—</div></div>
-            <div class="cash-note" style="margin-top:6px;">選択中の期間の期末時点の現金及び預金に対する、クレジットカード等未払金・未払費用・借入金の割合。</div>
           </div>
-        </div>
-        <div class="cash-note" style="margin-top:14px;">
-          いずれも企業会計の指標を家計向けに簡略化した目安です。固定費比率は「サブスク自動検出」で見つかった定期支払いのみを対象とするため、口座振替の家賃・保険料などがカテゴリの都合で検出されていない場合は反映されません。
         </div>
       </div>
       </div>
@@ -1220,7 +1195,6 @@
         </div>
         <label class="x-inline"><input type="checkbox" id="journalInclExcluded"> 集計対象外の取引も含める</label>
         <div class="x-wrap" id="journalBody"></div>
-        <div class="cash-note">Zaimの取引を複式簿記の仕訳に直して表示します（支出＝借方：費用／貸方：支払元口座、収入＝借方：入金先口座／貸方：収益、振替＝借方：入金先／貸方：出金元）。マイナス金額の取引は借方・貸方を入れ替えます。残高調整は仕訳に含めません。対象は画面で選択中の期間・検索条件の取引です。勘定名をクリックすると取引明細に絞り込みます。</div>
       </div>
       </div>
 
@@ -1232,16 +1206,11 @@
         </div>
         <div class="cash-note" id="forecastDataNote" style="margin-bottom:12px;"></div>
         <div class="line-chart" id="forecastChart"></div>
-        <div class="cash-note" style="margin-top:14px;">
-          この予測はすべて、実際に現金・預金口座（現金及び現金同等物）が動いた金額だけを対象にしています。見込み収入は給与のみ（臨時収入・立替金返済・小遣い・振替による入金などは見込みに含めません）で、給与・変動費は直近<span id="forecastWindowLabel">—</span>ヶ月の実績の移動平均、固定費は「サブスク自動検出」で現在有効と判定されている定期支払い（年払いは次回目安月にのみ計上）から算出しています。カード等の締め日・支払いサイクルは、利用実績と決済実績の日付パターンから自動推定しています（推定できた口座は、カード等で支払っている月次・年払いサブスクを、実際にそのサブスクの利用日を含む決済からピンポイントで固定費側に振り替え、変動費との二重計上を避けます。推定できない口座は、月次サブスクの合計額を決済額の範囲内で充当する近似にとどめます）。さらに、そのサブスク分を差し引いてもなお残るカード等への決済額（保険料の分割払いなど、サブスクとしては検出されない定期的な支払い）についても、口座ごとの過去実績の中央値を継続的な固定費相当とみなし、それを超えた分だけを変動費として扱うことで、カード払いというだけで全額が変動費に埋もれてしまわないようにしています。投資・財務活動は、同じくサブスク自動検出の仕組みで見つかった「毎月の定期投資」だけを将来の見込みに含め、年払いの定期投資やまとまった買い増し・払い出しなど、それ以外の投資・財務活動は見込みの根拠には使いません（実績としては月次実績表に残ります）。上下のブレ幅は、直近実績のばらつき（標準偏差）から先の月ほど広げた目安であり、確率的な保証ではありません。すべて自動計算のみで、手動での除外・調整設定はありません。
-        </div>
 
-        <div class="modal-section-title" style="margin-top:24px;">予測の前提（何をどれだけ見込んでいるか）</div>
-        <div class="cash-note">各項目の金額をクリックすると、その根拠となった実際の取引明細を確認できます。</div>
+        <div class="modal-section-title" style="margin-top:24px;">予測の前提</div>
         <div id="forecastBasisBox" style="margin-top:8px;"></div>
 
         <div class="modal-section-title" style="margin-top:24px;">月次実績</div>
-        <div class="cash-note">各セルの金額をクリックすると、その月・その内訳に該当する取引明細を確認できます。</div>
         <div id="forecastMonthTable" style="margin-top:8px; overflow-x:auto;"></div>
       </div>
       </div>
@@ -1631,6 +1600,7 @@
     balancePattern: 2,
     statementsSubTab: "bs",    // 財務三表タブ内のサブタブ: 'bs' | 'pl' | 'cf' | 'ratios' | 'forecast' | 'journal'
     assetsHistoryHidden: new Set(),   // 資産構成の推移グラフで非表示にしたグループ名
+    txPeriod: null,            // グラフの点から開いた期間の明細（基準日は動かさない）{ mode, anchor, start, end, label, key }
     txFilter: null,            // 財務諸表等からのドリルダウン用 { mode: 'account'|'category', value, label } または資金繰り予測からの { mode: 'rows', rows, label }
     csvParseWarning: null,     // CSV取込時に一部行を除外した場合の注記
   };
@@ -3682,13 +3652,6 @@
     }));
     const table = el("table", { class: "compare-table" }, [el("thead", null, [headRow]), tbody]);
     wrap.appendChild(table);
-    if (yoyUnit) {
-      wrap.appendChild(el("div", { class: "cash-note", style: "margin-top:8px;" }, [
-        state.periodMode === "month" ? "「前年同期比」は12ヶ月前の同じ会計月との比較です。" :
-        state.periodMode === "week" ? "「前年同期比」は52週間（364日）前の同じ週との比較です（暦年の1年前とは1〜2日ずれる場合があります）。月をまたぐ週は日数が短い（「（3日）」などと表示）ため、前期比・前年同期比は日数の違いの影響を受けます。" :
-        "「前年同期比」は365日前との比較です（うるう年の関係で暦の1年前とは1日ずれる場合があります）。",
-      ]));
-    }
   }
 
   // 現在絞り込み中の条件（カテゴリー・検索）があれば注記を付与する
@@ -3889,12 +3852,12 @@
                  : `残高の突合：${list.length}口座すべてZaim残高と一致しています`;
     const body = document.getElementById("reconcileBody");
     body.textContent = "";
-    const note = document.createElement("div");
-    note.className = "cash-note";
-    note.textContent = `Zaim残高の取得日（${cutoff}）までの取引から計算した残高との差です（差異＝取引からの計算値${showVoid ? "＋不存在取消分" : ""} − Zaim残高）。取引の欠落・重複・カテゴリや口座の付け間違い、Zaim側での過去取引の編集などの確認材料として、0に揃えずそのまま表示しています。残高とCSVの取得時刻がずれている場合も差が出ます。` +
-      (showVoid ? "「不存在取消」の取引は、他の集計では無視していますがZaimの口座残高には反映されているため、突合では別の列に分けて加えています。" : "") +
-      (skipped.length ? `残高が「-」表示、または前払費用・預け金のような簿外的な勘定は、Zaimの残高が実際の残高を表さないため対象外にしています（${skipped.map((b) => b.name).join("、")}）。` : "");
-    body.appendChild(note);
+    if (skipped.length) {
+      const note = document.createElement("div");
+      note.className = "cash-note";
+      note.textContent = `対象外：${skipped.map((b) => b.name).join("、")}`;
+      body.appendChild(note);
+    }
     const table = document.createElement("table");
     table.style.cssText = "width:100%;border-collapse:collapse;font-size:13.5px;margin-top:8px;";
     const heads = showVoid ? ["口座", "Zaim残高", "取引から計算", "不存在取消分", "差異"] : ["口座", "Zaim残高", "取引から計算", "差異"];
@@ -3939,7 +3902,7 @@
       box.appendChild(l1);
       if (c.afterCount) {
         const l2 = document.createElement("div");
-        l2.textContent = `・Zaim残高の取得日（${cutoff}）より後の日付の取引：${c.afterCount}件（合計 ${(c.afterFlow > 0 ? "+" : "")}${YEN(c.afterFlow)}）。Zaimの残高に先日付の取引が含まれていると、その分が差異になります。`;
+        l2.textContent = `・Zaim残高の取得日（${cutoff}）より後の取引：${c.afterCount}件（合計 ${(c.afterFlow > 0 ? "+" : "")}${YEN(c.afterFlow)}）`;
         box.appendChild(l2);
       }
       body.appendChild(box);
@@ -4839,15 +4802,14 @@
       ], { valueFormatter: (v) => YEN(v), axisValueFormatter: YEN_COMPACT });
     }
 
-    document.getElementById("forecastWindowLabel").textContent = forecast.windowSize || "—";
-
+    
     const usedCount = forecast.usableCount;
     if (usedCount < 2) {
-      noteEl.textContent = "実績データがまだ足りません（会計月が2ヶ月以上必要です）。";
+      noteEl.textContent = "実績データが足りません（会計月が2ヶ月以上必要）";
     } else if (forecast.seasonal) {
-      noteEl.textContent = `${usedCount}ヶ月分の実績があるため、直近${forecast.windowSize}ヶ月の移動平均に加え、前年同月の実績も半分の重みで加味した予測に切り替わっています。`;
+      noteEl.textContent = `実績${usedCount}ヶ月分・直近${forecast.windowSize}ヶ月の移動平均＋前年同月`;
     } else {
-      noteEl.textContent = `実績はまだ${usedCount}ヶ月分（うち直近${forecast.windowSize}ヶ月の移動平均を使用）と少なく、精度は低めです。${FORECAST_SEASONAL_MIN_MONTHS}ヶ月以上蓄積すると、前年同月の実績も加味した予測に自動的に切り替わります。`;
+      noteEl.textContent = `実績${usedCount}ヶ月分・直近${forecast.windowSize}ヶ月の移動平均（精度は低め）`;
     }
 
     // ---- 予測の前提（根拠）パネル：何をどれだけ見込んでいるかを金額・件数つきで明示する ----
@@ -4922,9 +4884,6 @@
         });
       }
       if (nonCashSubs.length > 0) {
-        fixedGroup.appendChild(el("div", { class: "cash-note", style: "margin-top:8px;" }, [
-          `「非現金勘定」の${nonCashSubs.length}件（${nonCashSubs.map((s) => s.label).join("・")}）はカード引落・口座振替払いですが、実際のカード等決済額の中から該当分を自動的に固定費側へ振り替え、変動費との二重計上を避けています。`,
-        ]));
         const cycleAccounts = Array.from(new Set(nonCashSubs.map((s) => s.account).filter(Boolean)));
         const cycleSummaries = cycleAccounts.map((a) => ({ account: a, cycle: getCardBillingCycle(a) })).filter((x) => x.cycle);
         if (cycleSummaries.length > 0) {
@@ -5377,12 +5336,15 @@ function svgEl(tag, attrs) {
     ], { valueFormatter: (v) => YEN(v), axisValueFormatter: YEN_COMPACT, onPointClick: (i) => jumpToPeriodIndex(i, count), exportName: `${PERIOD_MODE_LABEL[state.periodMode]}推移_損益` });
   }
 
-  // トレンドグラフの点をクリックした際、その点が表す期間に基準日を移動する共通処理
-  function jumpToPeriodIndex(i, count) {
+  // トレンドグラフの点をクリックした際、基準日は動かさず、その点が表す期間の明細だけを取引明細タブに開く
+  function jumpToPeriodIndex(i, count, key) {
     const off = i - (count - 1);
-    if (off === 0) return;
-    state.periodAnchor = periodRangeForMode(state.periodMode, state.periodAnchor, off).start;
+    const mode = state.periodMode, anchor = state.periodAnchor;
+    const range = periodRangeForMode(mode, anchor, off);
+    state.txFilter = null;
+    state.txPeriod = { mode, anchor: +anchor, start: range.start, end: range.end, label: periodLabelForMode(mode, anchor, off), key: key || null };
     state.page = 0;
+    activateTab("tx");
     render();
   }
 
@@ -5470,7 +5432,7 @@ function svgEl(tag, attrs) {
     if (data.length === 0) { chart.innerHTML = ""; chart.appendChild(emptyState("データがありません")); return; }
     // 選択中の粒度（日次／週次／月次／年次）で、直近N期分の費用合計を比較する用途なので、
     // 増減の傾き自体より「その期間いくらか」を見やすい棒グラフが適切。0円の期間も省かず表示する。
-    renderBarChartSVG(chart, data.map((d) => d.label), data.map((d) => d.amount), { color: trendColor, valueFormatter: (v) => YEN(v), axisValueFormatter: YEN_COMPACT, onPointClick: (i) => jumpToPeriodIndex(i, count), exportName: `勘定科目別推移_${state.trendKey}` });
+    renderBarChartSVG(chart, data.map((d) => d.label), data.map((d) => d.amount), { color: trendColor, valueFormatter: (v) => YEN(v), axisValueFormatter: YEN_COMPACT, onPointClick: (i) => jumpToPeriodIndex(i, count, state.trendKey), exportName: `勘定科目別推移_${state.trendKey}` });
   }
 
   const FREQ_LABEL = { month: "月額", year: "年額" };
@@ -5534,13 +5496,12 @@ function svgEl(tag, attrs) {
       const fill = el("div", { class: "spend-fill " + cls, style: `width:${Math.min(100, Math.round(ratio * 100))}%` });
       rowsEl.appendChild(el("div", { class: "spend-row" }, [el("div", { class: "spend-label" }, [d.label]), el("div", null, left), el("div", { class: "spend-track" }, [fill])]));
     });
-    let note = revenue <= 0
-      ? "今月（会計月）の給与がまだ記録されていないため、上限は0円になっています。"
-      : `上限は自動計算です。今月の利益（給与 ${YEN(revenue)} − 使った額 ${YEN(spentM)}` + (reserveN ? ` − 今月まだ支払っていない定期支払いの見込み ${YEN(reserve)}（${reserveN}件）` : "") + ` ＝ ${YEN(revenue - spentM - reserve)}）を、残り${daysLeftM}日で按分しています。`;
-    // データの鮮度：今日の取引がまだ取り込まれていない可能性を知らせる
     const lastTx = latestActualDate();
     const ago = Math.round((today - lastTx) / DAY);
-    note += `\n最新の取引: ${md(lastTx)}` + (ago <= 0 ? "（今日）" : `（${ago}日前）`) + (ago > 0 ? "。今日の支出はまだ反映されていない可能性があります。" : "");
+    const notes = [];
+    if (revenue <= 0) notes.push("今月の給与が未記録のため上限は0円");
+    if (ago > 0) notes.push(`最新の取引 ${md(lastTx)}（${ago}日前）`);
+    let note = notes.join("\n");
     noteEl.textContent = note;
     noteEl.style.whiteSpace = "pre-line";
   }
@@ -5650,7 +5611,7 @@ function svgEl(tag, attrs) {
       limNote.textContent = (remain >= 0 ? `実績との差し引きで残り枠は ${YEN(remain)}` : `実績が上限を ${YEN(-remain)} 超えています`) + `（${whenText}）`;
     } else {
       limVal.textContent = "—";
-      limNote.textContent = res && res.year !== year ? `保存済みの試算は${res.year}年分です。この年の試算は試算ページで行えます` : "試算ページで「この試算を家計元帳に送る」を押すと表示されます";
+      limNote.textContent = res && res.year !== year ? `保存済みの試算は${res.year}年分` : "";
     }
 
     const parts = [];
@@ -5826,6 +5787,13 @@ function svgEl(tag, attrs) {
   function renderTxList(rows) {
     const chipWrap = document.getElementById("txFilterChip");
     chipWrap.innerHTML = "";
+    const tpChip = activeTxPeriod();
+    if (tpChip) {
+      chipWrap.appendChild(el("span", { class: "active-filter-chip" }, [
+        document.createTextNode(tpChip.label + (tpChip.key ? "：" + tpChip.key : "")),
+        el("button", { onclick: () => { state.txPeriod = null; state.page = 0; render(); } }, ["×"]),
+      ]));
+    }
     if (state.txFilter) {
       chipWrap.appendChild(el("span", { class: "active-filter-chip" }, [
         document.createTextNode((state.txFilter.mode === "account" ? "口座：" : state.txFilter.mode === "rows" ? "資金繰り予測：" : state.txFilter.mode === "store" ? "お店：" : "科目：") + state.txFilter.label),
@@ -5851,8 +5819,7 @@ function svgEl(tag, attrs) {
       sumEl.appendChild(item("収入合計", inc));
       sumEl.appendChild(item("支出合計", exp));
       sumEl.appendChild(item("差額（収入−支出）", diff, diff < 0 ? "negative" : ""));
-      if (excludedN > 0) sumEl.appendChild(el("div", { class: "note" }, [`集計から除外する設定の取引${excludedN}件は合計に含めていません。振替も含みません。`]));
-      else sumEl.appendChild(el("div", { class: "note" }, ["振替は含みません。"]));
+      if (excludedN > 0) sumEl.appendChild(el("div", { class: "note" }, [`集計除外 ${excludedN}件`]));
     }
     const wrap = document.getElementById("txList");
     wrap.innerHTML = "";
@@ -5938,13 +5905,9 @@ function svgEl(tag, attrs) {
     const cashNet = computeCashAccountNetChange(filtered);
     const diff = accrualStats.profit - cashNet;
     const reconcileEl = document.getElementById("reconcileNote");
-    if (Math.abs(diff) >= 1) {
-      reconcileEl.textContent = diff > 0
-        ? `実際の現金・預金の増減は ${YEN(cashNet)}（損益より ${YEN(diff)} 少ない＝カード等の未決済費用が現金支出としてまだ出ていません）`
-        : `実際の現金・預金の増減は ${YEN(cashNet)}（損益より ${YEN(-diff)} 多い＝過去の未決済費用の決済や前払いなど、タイミングの差によるものです）`;
-    } else {
-      reconcileEl.textContent = `実際の現金・預金の増減も ${YEN(cashNet)} で、損益とほぼ一致しています`;
-    }
+    reconcileEl.textContent = Math.abs(diff) >= 1
+      ? `現金・預金の増減 ${cashNet < 0 ? "−" : ""}${YEN(Math.abs(cashNet))}（損益との差 ${diff < 0 ? "−" : ""}${YEN(Math.abs(diff))}）`
+      : "";
 
     document.getElementById("fileMeta").textContent = `${state.fileName}\n${state.transactions.length}件の取引` + (state.csvParseWarning ? `\n⚠ ${state.csvParseWarning}` : "");
 
@@ -5978,14 +5941,21 @@ function svgEl(tag, attrs) {
   }
 
   // 取引明細タブ用：通常のフィルタ済み一覧に、財務諸表等からのドリルダウン条件を追加適用する
+  function activeTxPeriod() {
+    const tp = state.txPeriod;
+    return tp && tp.mode === state.periodMode && tp.anchor === +state.periodAnchor ? tp : null;
+  }
   function getTxRows(filtered) {
+    const tp = activeTxPeriod();
+    if (tp) {
+      filtered = applyCommonFilters(rowsInRange({ start: tp.start, end: tp.end }));
+      if (tp.key) filtered = filtered.filter((r) => breakdownKeyForRow(r, state.filterLevel) === tp.key);
+    }
     if (!state.txFilter) return filtered;
     if (state.txFilter.mode === "account") {
       return filtered.filter((r) => r.fromAccount === state.txFilter.value || r.toAccount === state.txFilter.value);
     }
     if (state.txFilter.mode === "rows") {
-      // 資金繰り予測など、単純なカテゴリ/口座の一致では表せない条件（除外設定・サブスク判定込み）
-      // からのドリルダウン用：対象取引そのものの参照を直接絞り込み条件として使う
       const set = new Set(state.txFilter.rows);
       return filtered.filter((r) => set.has(r));
     }
@@ -6877,7 +6847,6 @@ function svgEl(tag, attrs) {
           el("tr", { class: "sub" }, [el("td", {}, ["収支"]), ...netB.map((v) => el("td", { class: "num " + (v < 0 ? "neg" : "") }, [v === 0 ? "" : (v < 0 ? "−" : "") + NUM(Math.abs(v))])), el("td", { class: "num " + (stats.profit < 0 ? "neg" : "") }, [SGN(stats.profit)])]),
         ]),
       ]));
-      wrap.appendChild(el("div", { class: "note" }, ["集計から除外する設定の取引は含めていません。振替は含みません。"]));
     }
 
     const brk = (node) => { if (wrap.children.length > 1) node.classList.add("pb"); return node; };
@@ -6905,7 +6874,6 @@ function svgEl(tag, attrs) {
           return el("tr", { class: r.off === 0 ? "sub" : "" }, cells);
         })),
       ]));
-      wrap.appendChild(el("div", { class: "note" }, ["損益は発生ベース。前期比＝直前の期間との損益の増減率、現金増減＝現金・預金口座の正味増減。"]));
     }
     // グラフ（画面のSVG／円グラフをそのまま複製）
     if (o.charts) {
@@ -7219,6 +7187,7 @@ function svgEl(tag, attrs) {
   // 財務諸表・口座残高・カテゴリ内訳など、勘定科目/カテゴリ＋金額を表示している箇所から
   // クリックひとつで「取引明細」タブの該当取引一覧へドリルダウンするための共通ヘルパー
   function jumpToTx({ account, category, store, label } = {}) {
+    state.txPeriod = null;
     state.categoryFilter = null;
     state.search = "";
     state.amountMin = null; state.amountMax = null; state.adv = emptyAdv();
@@ -7243,6 +7212,7 @@ function svgEl(tag, attrs) {
   // 集計対象がそもそも期間フィルタに関係なく全期間の実績であるため（期間を絞ったままだと
   // 対象取引が表示範囲外になり得る）。
   function jumpToForecastRows(rows, label) {
+    state.txPeriod = null;
     state.categoryFilter = null;
     state.search = "";
     state.amountMin = null; state.amountMax = null; state.adv = emptyAdv();
@@ -7269,6 +7239,7 @@ function svgEl(tag, attrs) {
     document.getElementById("settingsOverlay").classList.add("hidden");
     state.categoryFilter = null;
     state.txFilter = null;
+    state.txPeriod = null;
     state.amountMin = null; state.amountMax = null; state.adv = emptyAdv();
     state.periodMode = "day";
     state.periodAnchor = startOfDay(sample.date);
@@ -7282,7 +7253,7 @@ function svgEl(tag, attrs) {
 
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
-      if (btn.dataset.tab !== "tx") state.txFilter = null; // 明細タブ以外への遷移で絞り込みを解除
+      if (btn.dataset.tab !== "tx") { state.txFilter = null; state.txPeriod = null; } // 明細タブ以外への遷移で絞り込みを解除
       activateTab(btn.dataset.tab);
       render();
     });
@@ -7667,15 +7638,15 @@ function svgEl(tag, attrs) {
       const bs = computeBalanceSheet(startOfDay(new Date()));
       const cash = (bs.assetGroups.find((g) => g.name === BS_PLACEMENT_LABEL.cash) || { subtotal: 0 }).subtotal;
       const months = cash / avgCost;
-      items.push({ label: "生活防衛資金", value: (months < 0 ? "−" : "") + Math.abs(months).toFixed(1) + "か月分", level: months >= 6 ? "good" : months >= 3 ? "ok" : "warn", note: `現金及び預金 ${YEN(cash)} ÷ 月平均の費用 ${YEN(avgCost)}（目安：6か月分以上）` });
+      items.push({ label: "生活防衛資金", value: (months < 0 ? "−" : "") + Math.abs(months).toFixed(1) + "か月分", level: months >= 6 ? "good" : months >= 3 ? "ok" : "warn", note: `現金及び預金 ${YEN(cash)} ÷ 月平均の費用 ${YEN(avgCost)}` });
       const cv = (xStd(costs) / avgCost) * 100;
-      items.push({ label: "支出の安定度", value: "月ごとに±" + cv.toFixed(0) + "%", level: cv <= 15 ? "good" : cv <= 30 ? "ok" : "warn", note: "月々の費用のばらつき（標準偏差÷平均。小さいほど安定。目安：15%以内で良好）" });
+      items.push({ label: "支出の安定度", value: "月ごとに±" + cv.toFixed(0) + "%", level: cv <= 15 ? "good" : cv <= 30 ? "ok" : "warn", note: "" });
     }
     const revMonths = ms.filter((m) => m.revenue > 0);
     if (revMonths.length > 0) {
       const monthlyFixed = detectSubscriptions().filter((s) => !s.likelyCancelled).reduce((s, x) => s + x.monthlyEquivalent, 0);
       const ratio = (monthlyFixed / (rev / revMonths.length)) * 100;
-      items.push({ label: "固定費比率", value: ratio.toFixed(1) + "%", level: ratio <= 30 ? "good" : ratio <= 50 ? "ok" : "warn", note: `定期支払いの月換算 ${YEN(monthlyFixed)} ÷ 月平均の収益（目安：30%以内で良好）` });
+      items.push({ label: "固定費比率", value: ratio.toFixed(1) + "%", level: ratio <= 30 ? "good" : ratio <= 50 ? "ok" : "warn", note: `定期支払いの月換算 ${YEN(monthlyFixed)} ÷ 月平均の収益` });
     }
     if (items.length === 0) { scoreEl.textContent = ""; host.appendChild(emptyState("診断できる項目がありません")); return; }
     const goodN = items.filter((i) => i.level === "good").length;
@@ -7683,7 +7654,7 @@ function svgEl(tag, attrs) {
     items.forEach((it) => {
       const [t, c] = xLevels[it.level];
       host.appendChild(el("div", { class: "sub-row" }, [
-        el("div", null, [el("div", { class: "sub-name" }, [it.label]), el("div", { class: "sub-meta-line" }, [it.note])]),
+        el("div", null, [el("div", { class: "sub-name" }, [it.label]), it.note ? el("div", { class: "sub-meta-line" }, [it.note]) : null]),
         el("div", { class: "num amt", style: "text-align:right;white-space:nowrap;" }, [it.value, el("span", { class: "x-chip", style: `color:${c};border-color:${c}` }, [t])]),
       ]));
     });
@@ -7772,34 +7743,34 @@ function svgEl(tag, attrs) {
       act: unc.length ? ["明細を見る", () => { toMonth(); jumpToTx({ category: "未分類" }); }] : null });
 
     const dups = detectDuplicateTransactions().filter((g) => g.sample.date >= range.start && g.sample.date < range.end);
-    checks.push({ status: dups.length ? "warn" : "ok", title: "重複の疑いがある取引", detail: dups.length ? `${dups.length}組（日付・金額・お店などが完全に一致）` : "ありません",
+    checks.push({ status: dups.length ? "warn" : "ok", title: "重複の疑いがある取引", detail: dups.length ? `${dups.length}組` : "ありません",
       act: dups.length ? ["確認する", () => jumpToDuplicateGroup(dups[0].sample)] : null });
 
     const unk = rows.filter((r) => (r.type === "income" || r.type === "expense") && r.account === "不明");
-    checks.push({ status: unk.length ? "warn" : "ok", title: "口座が空欄の取引", detail: unk.length ? `${unk.length}件（残高の計算に反映されません）` : "ありません" });
+    checks.push({ status: unk.length ? "warn" : "ok", title: "口座が空欄の取引", detail: unk.length ? `${unk.length}件` : "ありません" });
 
     const adj = rows.filter((r) => r.type === "balance");
     const adjSum = adj.reduce((s, r) => s + Math.abs(r.amount), 0);
-    checks.push({ status: adj.length === 0 ? "ok" : adjSum >= 10000 ? "warn" : "info", title: "残高調整", detail: adj.length ? `${adj.length}件（絶対値の合計 ${YEN(adjSum)}）。記録漏れや入力ミスで残高がずれた可能性があります` : "ありません" });
+    checks.push({ status: adj.length === 0 ? "ok" : adjSum >= 10000 ? "warn" : "info", title: "残高調整", detail: adj.length ? `${adj.length}件（絶対値の合計 ${YEN(adjSum)}）` : "ありません" });
 
     const outl = rows.filter((r) => r.type === "expense" && !isExcludedRow(r, false) && isOutlierRow(r));
-    checks.push({ status: outl.length ? "info" : "ok", title: "高額・異常値の支出", detail: outl.length ? `${outl.length}件（同じカテゴリの中央値の2.5倍以上）。取引明細の警告表示で確認できます` : "ありません" });
+    checks.push({ status: outl.length ? "info" : "ok", title: "高額・異常値の支出", detail: outl.length ? `${outl.length}件` : "ありません" });
 
     const fut = rows.filter((r) => isFutureRow(r));
-    if (fut.length) checks.push({ status: "info", title: "今日より後の日付の取引", detail: `${fut.length}件（予定・定期登録として扱い、実績には含めていません）` });
+    if (fut.length) checks.push({ status: "info", title: "今日より後の日付の取引", detail: `${fut.length}件` });
 
     const latest = latestActualDate();
     const ended = range.end <= addDays(today, 1);
     if (ended && latest < lastDay) {
-      checks.push({ status: "warn", title: "データの最終日", detail: `この月は ${xFmtDate(lastDay)} までですが、データは ${xFmtDate(latest)} までです（CSVの同期が止まっていないか確認してください）` });
+      checks.push({ status: "warn", title: "データの最終日", detail: `この月は ${xFmtDate(lastDay)} までですが、データは ${xFmtDate(latest)} までです` });
     } else if (!ended && today >= range.start) {
       const lag = Math.round((today - latest) / 86400000);
-      checks.push({ status: lag > 3 ? "info" : "ok", title: "データの最終日", detail: lag > 3 ? `最後の取引は ${xFmtDate(latest)}（${lag}日前）。CSVが最新か確認してください` : `${xFmtDate(latest)} まで反映されています` });
+      checks.push({ status: lag > 3 ? "info" : "ok", title: "データの最終日", detail: lag > 3 ? `最後の取引は ${xFmtDate(latest)}（${lag}日前）` : `${xFmtDate(latest)} まで反映されています` });
     }
 
     const asOf = parseAsofDate();
     if (ended && asOf < lastDay) {
-      checks.push({ status: "warn", title: "残高の確認日", detail: `口座残高の確認日（${xFmtDate(asOf)}）が月末（${xFmtDate(lastDay)}）より前です。月末時点の残高は取引からの推計になります` });
+      checks.push({ status: "warn", title: "残高の確認日", detail: `口座残高の確認日（${xFmtDate(asOf)}）が月末（${xFmtDate(lastDay)}）より前です` });
     } else {
       checks.push({ status: "ok", title: "残高の確認日", detail: `${xFmtDate(asOf)} 時点の残高を基準にしています` });
     }
@@ -7911,7 +7882,7 @@ function svgEl(tag, attrs) {
         ]));
       });
       host.appendChild(el("table", { class: "x-tbl" }, [head([["日付"], ["借方"], ["貸方"], ["金額", true], ["摘要"]]), body]));
-      if (sorted.length > LIMIT) host.appendChild(el("div", { class: "cash-note" }, [`新しい順に${LIMIT}件を表示（全${sorted.length}件）。期間を絞ると全件を確認できます。`]));
+      if (sorted.length > LIMIT) host.appendChild(el("div", { class: "cash-note" }, [`新しい順に${LIMIT}件を表示（全${sorted.length}件）`]));
       return;
     }
     const tb = new Map();
@@ -7982,7 +7953,7 @@ function svgEl(tag, attrs) {
     const hit = items.filter((it) => terms.every((t) => it.label.toLowerCase().includes(t)));
     const out = hit.slice(0, 12);
     if (q.trim()) out.push({ label: "取引を検索：「" + q.trim() + "」", hint: "検索", run: () => {
-      state.txFilter = null; state.categoryFilter = null; state.search = q.trim(); state.page = 0;
+      state.txFilter = null; state.txPeriod = null; state.categoryFilter = null; state.search = q.trim(); state.page = 0;
       const s = document.getElementById("searchInput"); if (s) s.value = state.search;
       activateTab("tx"); render();
     } });
