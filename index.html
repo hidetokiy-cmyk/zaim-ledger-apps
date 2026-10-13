@@ -541,18 +541,11 @@
   .mono-textarea { width: 100%; background: var(--paper-raised); border: 1px solid var(--rule-strong); color: var(--ink);
     font-family: 'SFMono-Regular', Consolas, monospace; font-size: 14px; padding: 8px; border-radius: 3px; resize: vertical; }
   .mono-textarea:focus { outline: none; border-color: var(--ink); }
-  .sbi-import-result { font-size: 15.5px; line-height: 1.8; }
-  .sbi-import-result .ok { color: var(--green); }
-  .sbi-import-result .err { color: var(--red); }
   .checkbox-line { display: flex; align-items: center; gap: 7px; font-size: 16px; margin-top: 8px; }
   .check-list { display: flex; flex-direction: column; gap: 3px; max-height: 150px; overflow-y: auto; border: 1px solid var(--rule);
     padding: 8px 10px; margin-top: 6px; }
   .check-row { display: flex; align-items: center; gap: 7px; font-size: 15.5px; padding: 2px 0; }
   .check-row .amt { margin-left: auto; color: var(--ink-faint); font-size: 14px; }
-  /* 集計除外ペイン：まとめ操作 */
-  .bulk-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
-  .bulk-row .btn { padding: 3px 10px; font-size: 14px; cursor: pointer; }
-  .bulk-row .bulk-count { margin-left: auto; font-size: 13.5px; color: var(--ink-faint); }
   /* GitHubトークンの保存方法・ロック解除 */
   .pw-input, .sync-select { background: var(--paper-raised); border: 1px solid var(--rule-strong); color: var(--ink); border-radius: 4px; padding: 6px 8px; font-size: 15.5px; }
   .pw-input:focus, .sync-select:focus { outline: none; border-color: var(--ink); }
@@ -1302,12 +1295,8 @@
         <button class="settings-nav-btn active" data-pane="sync">同期</button>
         <button class="settings-nav-btn" data-pane="accounts">口座</button>
         <button class="settings-nav-btn" data-pane="prepaid">簿外勘定</button>
-        <button class="settings-nav-btn" data-pane="ignore">除外キーワード</button>
-        <button class="settings-nav-btn" data-pane="exclude">集計除外</button>
         <button class="settings-nav-btn" data-pane="tax">税務集計</button>
         <button class="settings-nav-btn" data-pane="fixedManual">固定費（手動）</button>
-        <button class="settings-nav-btn" data-pane="zaimImport">Zaim取込</button>
-        <button class="settings-nav-btn" data-pane="sbiImport">SBI取込</button>
         <button class="settings-nav-btn" data-pane="backup">バックアップ</button>
         <button class="settings-nav-btn" data-pane="dupCheck">重複チェック</button>
         <button class="settings-nav-btn" data-pane="integrity">整合性チェック</button>
@@ -1408,44 +1397,6 @@
         </div>
       </div>
 
-      <div class="field-group settings-pane hidden" data-pane="ignore">
-        <div class="modal-section-title">その他の除外キーワード</div>
-        <div class="field-hint" style="margin-top:8px;">
-          「不存在取消」口座の取引は自動で無視されるため設定不要です。それ以外で無視したい取引があれば追加してください。
-        </div>
-        <label class="field-label" style="margin-top:10px;" for="ignoreKeywordsInput">除外キーワード（カンマ区切り）</label>
-        <input type="text" id="ignoreKeywordsInput" placeholder="例: 取消">
-        <div class="field-hint">
-          カテゴリ・内訳・メモ・品目・お店のいずれかに該当する取引は、取引明細にも出ないよう完全に無視されます。
-        </div>
-      </div>
-
-      <div class="field-group settings-pane hidden" data-pane="exclude">
-        <div class="modal-section-title">集計から除外する項目（追加設定）</div>
-        <div class="field-hint" style="margin-top:8px;">
-          CSVの「集計の設定」列は自動反映済みです。ここでは、それに加えて手動で除外したい口座・カテゴリを追加設定できます。
-        </div>
-        <label class="field-label" style="margin-top:10px;" id="excludeAccountsLabel">口座</label>
-        <div class="bulk-row">
-          <button class="btn" type="button" data-bulk="accounts" data-act="all">すべて除外</button>
-          <button class="btn" type="button" data-bulk="accounts" data-act="none">すべて解除</button>
-          <button class="btn" type="button" data-bulk="accounts" data-act="invert">選択を反転</button>
-          <span class="bulk-count" id="excludeAccountsCount"></span>
-        </div>
-        <div class="check-list" id="excludeAccountsList" role="group" aria-labelledby="excludeAccountsLabel"></div>
-        <label class="field-label" style="margin-top:12px;" id="excludeCategoriesLabel">勘定科目（カテゴリ）</label>
-        <div class="bulk-row">
-          <button class="btn" type="button" data-bulk="categories" data-act="all">すべて除外</button>
-          <button class="btn" type="button" data-bulk="categories" data-act="none">すべて解除</button>
-          <button class="btn" type="button" data-bulk="categories" data-act="invert">選択を反転</button>
-          <span class="bulk-count" id="excludeCategoriesCount"></span>
-        </div>
-        <div class="check-list" id="excludeCategoriesList" role="group" aria-labelledby="excludeCategoriesLabel"></div>
-        <div class="field-hint">
-          チェックした口座・カテゴリは取引明細には残りますが、収支・グラフの集計からは除外されます。「すべて解除」「選択を反転」は、上の一覧に表示されている項目だけが対象です。
-        </div>
-      </div>
-
       <div class="field-group settings-pane hidden" data-pane="tax">
         <div class="modal-section-title">税務関連の年間集計設定</div>
         <div class="field-hint" style="margin-top:8px;">
@@ -1490,27 +1441,6 @@
         </label>
         <button id="manualFixedAddBtn" class="btn" style="margin-top:10px; cursor:pointer;">追加</button>
         <div class="field-hint" id="manualFixedAddStatus" style="margin-top:8px;"></div>
-      </div>
-
-      <div class="field-group settings-pane hidden" data-pane="zaimImport">
-        <div class="modal-section-title">Zaim 口座残高の取り込み（スクレイピング）</div>
-        <div class="field-hint" style="margin-top:8px;">
-          Zaimの「口座」一覧画面で下のブックマークレットを実行すると、表示中の全口座の残高がJSONとしてコピーされます。貼り付けて取り込むと、口座名を自動照合して一致した残高をまとめて更新します。SBI 証券は評価額（含み損益込み）が取得されるため対象外です（下のセクションで別途取り込んでください）。Zaim上の旧「SBI証券」（スペースなし）口座は非表示口座として自動除外されます。
-        </div>
-        <label class="field-label" style="margin-top:10px;" for="zaimBookmarklet">ブックマークレット（クリックして全選択→コピーし、ブックマークバーに登録）</label>
-        <textarea id="zaimBookmarklet" class="mono-textarea" rows="3" readonly onclick="this.select()">javascript:(function(){var a=[];document.querySelectorAll('#list-accounts > .col-xs-6.col-md-3').forEach(function(c){var i=c.querySelector('img[alt]');var n=i?i.getAttribute('alt').trim():'';var e=c.querySelector('.edit-balance');var b;if(e&&e.hasAttribute('data-balance')){b=parseInt(e.getAttribute('data-balance'),10);}else{var v=c.querySelector('.value');var t=v?v.textContent.trim():'0';b=(t==='-')?0:(parseInt(t.replace(/[^0-9-]/g,''),10)||0);}if(n)a.push({name:n,balance:b});});var j=JSON.stringify(a);navigator.clipboard.writeText(j).then(function(){alert('残高'+a.length+'件をコピーしました');},function(){prompt('コピーに失敗。手動でコピーしてください:',j);});})();</textarea>
-        <label class="field-label" style="margin-top:12px;" for="zaimImportInput">コピーされたJSONを貼り付け</label>
-        <textarea id="zaimImportInput" class="mono-textarea" rows="4" placeholder='[{"name":"三井住友銀行 普通","balance":185726}, ...]'></textarea>
-        <button id="zaimImportBtn" class="btn" style="margin-top:8px; cursor:pointer;">取り込んで反映</button>
-        <div class="field-hint sbi-import-result" id="zaimImportResult"></div>
-      </div>
-
-      <div class="field-group settings-pane hidden" data-pane="sbiImport">
-        <div class="modal-section-title">証券・投資信託データの取り込み</div>
-        <div class="field-hint" style="margin-top:8px;">
-          口座残高・取引CSVと同じ「zaim同期ブックマークレット」ページの証券用ブックマークレットを証券サイトのポートフォリオ画面で実行すると、保有銘柄（株式・投資信託）の取得金額（簿価）と時価評価額、現金・その他残高がGitHub経由で自動的に反映されます。手動での貼り付けは不要です。
-        </div>
-        <div class="field-hint sbi-import-result" id="sbiImportResult" style="margin-top:10px;"></div>
       </div>
 
       <div class="field-group settings-pane hidden" data-pane="backup">
@@ -1630,10 +1560,7 @@
 
   const settings = {
     prepaidAccounts: [],
-    ignoreKeywords: [],
     furusatoKeyword: "ふるさと納税",   // 税務集計：ふるさと納税として合計する支出の判定キーワード
-    excludedAccounts: new Set(),
-    excludedCategories: new Set(),
     accountBalanceOverride: new Map(),
     balanceExcludedAccounts: new Set(),
     accountBalanceInited: false,
@@ -1663,7 +1590,6 @@
     pass: "",           // パスフレーズ（メモリ上のみ。どこにも保存しない）
     locked: false };    // 暗号化トークンがあるが、まだ復号していない状態
   // 設定「集計除外」ペインの一覧に表示中の項目（まとめ操作の対象）
-  const excludeListItems = { accounts: [], categories: [] };
   // 設定「口座」タブの表示状態（開いている口座・非表示の口座を出すか・参考残高）
   const accountsUi = { openNames: new Set(), showHidden: false, computed: new Map(), seq: 0 };
 
@@ -1846,10 +1772,7 @@
     return {
       v: 1,
       prepaidAccounts: settings.prepaidAccounts,
-      ignoreKeywords: settings.ignoreKeywords,
       furusatoKeyword: settings.furusatoKeyword,
-      excludedAccounts: Array.from(settings.excludedAccounts),
-      excludedCategories: Array.from(settings.excludedCategories),
       accountBalanceOverride: Object.fromEntries(settings.accountBalanceOverride),
       balanceExcludedAccounts: Array.from(settings.balanceExcludedAccounts),
       accountBalanceInited: settings.accountBalanceInited,
@@ -1908,10 +1831,7 @@
   function applyCloudObject(obj) {
     if (!obj || typeof obj !== "object") return;
     settings.prepaidAccounts = Array.isArray(obj.prepaidAccounts) ? obj.prepaidAccounts : [];
-    settings.ignoreKeywords = Array.isArray(obj.ignoreKeywords) ? obj.ignoreKeywords : [];
     settings.furusatoKeyword = typeof obj.furusatoKeyword === "string" && obj.furusatoKeyword.trim() ? obj.furusatoKeyword.trim() : "ふるさと納税";
-    settings.excludedAccounts = new Set(obj.excludedAccounts || []);
-    settings.excludedCategories = new Set(obj.excludedCategories || []);
     settings.accountBalanceOverride = new Map(Object.entries(obj.accountBalanceOverride || {}));
     settings.balanceExcludedAccounts = new Set(obj.balanceExcludedAccounts || []);
     settings.accountBalanceInited = !!obj.accountBalanceInited;
@@ -1935,16 +1855,11 @@
     try { renderSyncHealthBanner(); } catch (e) { /* 表示だけの補助機能なので無視 */ }
 
     document.getElementById("prepaidAccountsInput").value = settings.prepaidAccounts.join(", ");
-    document.getElementById("ignoreKeywordsInput").value = settings.ignoreKeywords.join(", ");
     document.getElementById("furusatoKeywordInput").value = settings.furusatoKeyword;
     refreshAccountsPane();
     document.querySelectorAll("#balancePatternToggle button").forEach((b) => b.classList.toggle("active", Number(b.dataset.pattern) === state.balancePattern));
 
     if (state.transactions) { refreshSettingsLists(); render(); }
-    if (!document.getElementById("settingsOverlay").classList.contains("hidden")) {
-      renderZaimImportStatus(null, true);
-      renderSecuritiesImportStatus(null, true);
-    }
     if (renamedByApply || rowsRenamed) scheduleCloudSave();
   }
 
@@ -2038,7 +1953,6 @@
         setAccountBalanceAsOfDate(pending.scrapedAt || new Date());
         settings.pendingZaimImport = null;
         if (state.transactions) { refreshSettingsLists(); render(); }
-        renderZaimImportStatus(null, true);
         await pushCloudSettings(true);
       }
       // スクレイピングスクリプトが取引CSV（zaim-export.csv）を置いていった場合、まだ取り込んでいなければ
@@ -2056,7 +1970,6 @@
         applySecuritiesImport(pendingSec);
         settings.pendingSecuritiesImport = null;
         if (state.transactions) { refreshSettingsLists(); render(); }
-        renderSecuritiesImportStatus(null, true);
         await pushCloudSettings(true);
       }
       if (settings.pendingZaimCsv && (!state.transactions || settings.pendingZaimCsv.downloadedAt !== localCsvSyncedAt)) {
@@ -2205,7 +2118,7 @@
     base = base || {};
     const conflicts = [];
     const merged = { ...remote };
-    ["prepaidAccounts", "ignoreKeywords", "excludedAccounts", "excludedCategories", "balanceExcludedAccounts", "accountGroupList"]
+    ["prepaidAccounts", "balanceExcludedAccounts", "accountGroupList"]
       .forEach((key) => { merged[key] = mergeSetField(base, local, remote, key); });
     merged.accountBalanceOverride = mergeMapField(base, local, remote, "accountBalanceOverride", conflicts);
     merged.manualFixedCosts = mergeMapField(base, local, remote, "manualFixedCosts", conflicts);
@@ -2513,29 +2426,11 @@
     return rows;
   }
 
-  function matchesIgnoreKeyword(r) {
-    if (settings.ignoreKeywords.length === 0) return false;
-    const fields = [r.category, r.subCategory, r.memo, r.item, r.store];
-    return settings.ignoreKeywords.some((kw) => fields.some((f) => f && f.includes(kw)));
-  }
-
   // ---------- aggregation logic ----------
 
   function isPrepaidAccount(name) { return settings.prepaidAccounts.includes(name); }
   function isBroadPeriod(mode) { return mode === "year" || mode === "all"; }
-  // income/expenseは「関係する自分の口座」片側だけを見れば十分だが、transfer・balance（残高調整）は
-  // fromAccount・toAccountのどちらか一方だけが除外口座でも除外されるべきなので、両方チェックする
-  // （特にbalance型はfromAccount/toAccountの片方しか値を持たないため、旧ロジックでは
-  // 「toAccountのみを持つ残高調整」が除外設定をすり抜けていた）。
-  function isAccountExcludedForRow(r) {
-    if (r.type === "income") return settings.excludedAccounts.has(r.toAccount);
-    if (r.type === "expense") return settings.excludedAccounts.has(r.fromAccount);
-    return (r.fromAccount && settings.excludedAccounts.has(r.fromAccount)) ||
-      (r.toAccount && settings.excludedAccounts.has(r.toAccount));
-  }
   function isExcludedRow(r, broad) {
-    if (settings.excludedCategories.has(r.category)) return true;
-    if (isAccountExcludedForRow(r)) return true;
     if (r.aggSetting === "exclude") return true;
     if (r.aggSetting === "yearOnly" && !broad) return true;
     return false;
@@ -2904,7 +2799,7 @@
       settings.accountBalanceOverride.delete(oldName);
       changed = true;
     }
-    ["balanceExcludedAccounts", "excludedAccounts"].forEach((k) => {
+    ["balanceExcludedAccounts"].forEach((k) => {
       if (settings[k].has(oldName)) { settings[k].delete(oldName); settings[k].add(newName); changed = true; }
     });
     if (settings.prepaidAccounts.includes(oldName)) {
@@ -4132,10 +4027,8 @@
   const isCashAccount = (name) => name && CF_CASH_ACCOUNTS.has(name) && !settings.balanceExcludedAccounts.has(name);
   // C/Fは実際の現金の動きを見るものなので、P/L用の「年次集計のみ（月次等では除外）」設定は
   // 適用しない（年払いの支出も、実際に支払った月には現金が出ているため）。
-  // それ以外（カテゴリ除外・口座除外・個別除外）は引き続き除く。
+  // それ以外（個別除外）は引き続き除く。
   function isExcludedFromCF(r) {
-    if (settings.excludedCategories.has(r.category)) return true;
-    if (isAccountExcludedForRow(r)) return true;
     if (r.aggSetting === "exclude") return true;
     return false;
   }
@@ -4232,8 +4125,6 @@
 
     // isExcludedFromCFが true になった理由を分かりやすい日本語にする（複数該当する場合は最初に該当したもの）
     function exclusionReason(r) {
-      if (settings.excludedCategories.has(r.category)) return "カテゴリ除外設定";
-      if (isAccountExcludedForRow(r)) return "口座除外設定";
       if (r.aggSetting === "exclude") return "個別に集計対象外";
       return "その他の除外設定";
     }
@@ -4417,7 +4308,7 @@
       b.variableRowsBySubcat.get(label).push(r);
     }
     function isExcludedForForecast(r) {
-      return settings.excludedCategories.has(r.category) || isAccountExcludedForRow(r) || r.aggSetting === "exclude";
+      return r.aggSetting === "exclude";
     }
     for (const r of state.transactions) {
       if (isFutureRow(r)) continue;   // 予定の取引は実績の月次集計に入れない（入れると未来の月が「直近の実績月」になる）
@@ -6277,86 +6168,9 @@ function svgEl(tag, attrs) {
       : `「${name}」を追加しました。取引が同期される前でも一覧に表示されます。`;
   }
 
-  // 集計除外ペイン：一覧の項目に対するまとめ操作（すべて除外／すべて解除／選択を反転）。一覧に出ている項目だけが対象。
-  function excludeSetOf(kind) { return kind === "accounts" ? settings.excludedAccounts : settings.excludedCategories; }
-  function updateExcludeCounts() {
-    [["accounts", "excludeAccountsCount"], ["categories", "excludeCategoriesCount"]].forEach(([kind, id]) => {
-      const items = excludeListItems[kind], set = excludeSetOf(kind);
-      document.getElementById(id).textContent = items.length ? `${items.filter((n) => set.has(n)).length} / ${items.length} 件を除外中` : "";
-    });
-  }
-  function bulkExclude(kind, act) {
-    const items = excludeListItems[kind];
-    if (!items || !items.length) return;
-    const set = excludeSetOf(kind);
-    items.forEach((n) => {
-      if (act === "all") set.add(n);
-      else if (act === "none") set.delete(n);
-      else if (set.has(n)) set.delete(n); else set.add(n);
-    });
-    refreshSettingsLists();   // チェック状態と件数を一覧に反映
-    render();
-    scheduleCloudSave();
-  }
-  document.querySelectorAll("[data-bulk]").forEach((btn) => {
-    btn.addEventListener("click", () => bulkExclude(btn.dataset.bulk, btn.dataset.act));
-  });
-
   function refreshSettingsLists() {
     refreshAccountsPane();
     if (!state.transactions) return;
-    const accounts = new Set(), categories = new Set();
-    state.transactions.forEach((r) => {
-      if (r.fromAccount) accounts.add(r.fromAccount);
-      if (r.toAccount) accounts.add(r.toAccount);
-      if (r.category) categories.add(r.category);
-    });
-    const catTotals = computeCategoryBreakdown(state.transactions, "category", true);
-    const catAmtMap = new Map(catTotals.map((c) => [c.key, c.amount]));
-
-    const accWrap = document.getElementById("excludeAccountsList");
-    accWrap.innerHTML = "";
-    excludeListItems.accounts = Array.from(accounts).sort();
-    excludeListItems.accounts.forEach((a) => {
-      const row = el("label", { class: "check-row" }, [
-        el("input", { type: "checkbox" }),
-        el("span", null, [a]),
-      ]);
-      const cb = row.querySelector("input");
-      cb.checked = settings.excludedAccounts.has(a);
-      cb.addEventListener("change", () => {
-        if (cb.checked) settings.excludedAccounts.add(a); else settings.excludedAccounts.delete(a);
-        updateExcludeCounts();
-        render();
-        scheduleCloudSave();
-      });
-      accWrap.appendChild(row);
-    });
-
-    const catWrap = document.getElementById("excludeCategoriesList");
-    catWrap.innerHTML = "";
-    excludeListItems.categories = Array.from(categories).sort((a, b) => {
-      const cmp = categoryOrderIndex(a) - categoryOrderIndex(b);
-      return cmp !== 0 ? cmp : a.localeCompare(b);
-    });
-    excludeListItems.categories.forEach((c) => {
-      const row = el("label", { class: "check-row" }, [
-        el("input", { type: "checkbox" }),
-        el("span", null, [c]),
-        el("span", { class: "amt num" }, [YEN(catAmtMap.get(c) || 0)]),
-      ]);
-      const cb = row.querySelector("input");
-      cb.checked = settings.excludedCategories.has(c);
-      cb.addEventListener("change", () => {
-        if (cb.checked) settings.excludedCategories.add(c); else settings.excludedCategories.delete(c);
-        updateExcludeCounts();
-        render();
-        scheduleCloudSave();
-      });
-      catWrap.appendChild(row);
-    });
-    updateExcludeCounts();
-
     refreshManualFixedList();
     populateManualFixedMatchOptions();
   }
@@ -6411,22 +6225,6 @@ function svgEl(tag, attrs) {
     if (prevSub && subs.has(prevSub)) subSelect.value = prevSub;
   }
 
-  function renderSecuritiesImportStatus(message, ok) {
-    const box = document.getElementById("sbiImportResult");
-    if (message) {
-      box.innerHTML = "";
-      box.appendChild(el("span", { class: ok ? "ok" : "err" }, [message]));
-    } else if (settings.securitiesScrapeInfo) {
-      const info = settings.securitiesScrapeInfo;
-      const gain = info.totalMarketValue - info.totalCostBasis;
-      box.innerHTML = "";
-      box.appendChild(el("span", { class: "ok" }, [
-        `前回の取り込み: ${info.importedAt.toLocaleString("ja-JP")}／保有${info.count}件／取得金額（簿価）${YEN(info.totalCostBasis)}／時価評価額${YEN(info.totalMarketValue)}／含み損益${gain >= 0 ? "+" : "−"}${YEN(Math.abs(gain))}`,
-      ]));
-    } else {
-      box.textContent = "";
-    }
-  }
 
   function normalizeAcctName(s) {
     return (s || "").replace(/\s+/g, "").trim();
@@ -6459,30 +6257,8 @@ function svgEl(tag, attrs) {
     return candidates[0];
   }
 
-  function renderZaimImportStatus(message, ok) {
-    const box = document.getElementById("zaimImportResult");
-    if (message) {
-      box.innerHTML = "";
-      box.appendChild(el("span", { class: ok ? "ok" : "err" }, [message]));
-      return;
-    }
-    if (settings.zaimScrapeInfo) {
-      const info = settings.zaimScrapeInfo;
-      box.innerHTML = "";
-      let line = `前回の取り込み: ${info.importedAt.toLocaleString("ja-JP")}／${info.matched}件を反映`;
-      if (info.added > 0) line += `（うち新規口座として追加: ${info.added}件）`;
-      const lines = [el("span", { class: "ok" }, [line])];
-      if (info.unmatched.length > 0) {
-        lines.push(el("br"));
-        lines.push(el("span", { class: "err" }, [`対象外・未反映: ${info.unmatched.join("、")}`]));
-      }
-      lines.forEach((l) => box.appendChild(l));
-    } else {
-      box.textContent = "";
-    }
-  }
 
-  // ブックマークレット手動貼り付け・自動スクレイピング取込の両方から使う共通ロジック。
+  // 自動スクレイピング取込から使う口座残高の反映ロジック。
   // items: [{name, balance}, ...] を既存口座名にマッチさせてaccountBalanceOverrideへ反映する。
   function applyZaimImportItems(items) {
     initAccountSettingsDefaults();
@@ -6535,29 +6311,6 @@ function svgEl(tag, attrs) {
     };
     setAccountBalanceAsOfDate(pending.scrapedAt || new Date());
   }
-
-  document.getElementById("zaimImportBtn").addEventListener("click", () => {
-    const raw = document.getElementById("zaimImportInput").value.trim();
-    if (!raw) { renderZaimImportStatus("JSONを貼り付けてください。", false); return; }
-    let data;
-    try {
-      data = JSON.parse(raw);
-    } catch (e) {
-      renderZaimImportStatus("JSONの解析に失敗しました。ブックマークレットの出力をそのまま貼り付けてください。", false);
-      return;
-    }
-    if (!Array.isArray(data)) {
-      renderZaimImportStatus("想定した形式（[{name, balance}, ...]）ではありません。", false);
-      return;
-    }
-    const { matched, added, unmatched, balances } = applyZaimImportItems(data);
-    settings.zaimScrapeInfo = { matched, added, unmatched, balances, importedAt: new Date() };
-    setAccountBalanceAsOfDate(new Date());
-    document.getElementById("zaimImportInput").value = "";
-    renderZaimImportStatus(null, true);
-    render();
-    scheduleCloudSave();
-  });
 
   // 「固定費（手動登録）」：一致タイプの切り替えに応じて、お店名／カテゴリ・内訳の入力欄を出し分ける
   document.getElementById("manualFixedMatchType").addEventListener("change", (e) => {
@@ -6634,8 +6387,6 @@ function svgEl(tag, attrs) {
 
   function openSettingsModal() {
     refreshSettingsLists();
-    renderZaimImportStatus(null, true);
-    renderSecuritiesImportStatus(null, true);
     document.getElementById("settingsOverlay").classList.remove("hidden");
   }
   document.getElementById("gearBtn").addEventListener("click", openSettingsModal);
@@ -7036,11 +6787,6 @@ function svgEl(tag, attrs) {
     render();
     scheduleCloudSave();
   });
-  document.getElementById("ignoreKeywordsInput").addEventListener("input", (e) => {
-    settings.ignoreKeywords = e.target.value.split(",").map((s) => s.trim()).filter(Boolean);
-    reapplyIgnoreKeywords();
-    scheduleCloudSave();
-  });
   document.getElementById("furusatoKeywordInput").addEventListener("input", (e) => {
     settings.furusatoKeyword = e.target.value.trim() || "ふるさと納税";
     try { renderTaxSummary(); } catch (err) { console.error("税務集計の表示に失敗", err); }
@@ -7315,14 +7061,6 @@ function svgEl(tag, attrs) {
   loadSyncConfig();
 
   let rawParsedRows = null;
-  function reapplyIgnoreKeywords() {
-    if (!rawParsedRows) return;
-    state.transactions = rawParsedRows.filter((r) => !matchesIgnoreKeyword(r));
-    rebuildTxIndex();
-    state.page = 0;
-    render();
-  }
-
   document.getElementById("levelToggle").addEventListener("click", (e) => {
     const btn = e.target.closest("button[data-level]");
     if (!btn) return;
@@ -7429,7 +7167,7 @@ function svgEl(tag, attrs) {
     state.fileName = fileName;
     state.csvParseWarning = rows.parseWarnings || null;
     rawParsedRows = rows;
-    state.transactions = rows.filter((r) => !matchesIgnoreKeyword(r));
+    state.transactions = rows;
     rebuildTxIndex();
     state.periodMode = "month"; state.periodAnchor = startOfDay(new Date()); state.search = ""; state.page = 0;
     state.categoryFilter = null; state.trendKey = null; state.amountMin = null; state.amountMax = null; state.adv = emptyAdv(); state.searchMode = "or";
