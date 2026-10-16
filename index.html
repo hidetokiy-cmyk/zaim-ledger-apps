@@ -5441,7 +5441,7 @@ function svgEl(tag, attrs) {
         el("div", { class: "spend-sub num" + (remain < 0 ? " over" : "") }, [remain >= 0 ? `残 ${YEN(remain)}` : `超過 ${YEN(-remain)}`])];
       if (d.range) left.push(el("div", { class: "spend-range" }, [d.range]));
       if (i === 0) left.push(el("div", { class: "spend-range" }, [`残り${daysLeftM}日・1日あたり ${perDay >= 0 ? YEN(perDay) : "超過 " + YEN(-Math.round(perDay))}`]));
-      const fill = el("div", { class: "spend-fill " + cls, style: `width:${Math.min(100, Math.round(ratio * 100))}%` });
+      const fill = el("div", { class: "spend-fill " + cls, style: `width:${remain < 0 ? 100 : Math.min(100, Math.round(ratio * 100))}%` });   // 超過中は、使った額が0円でもバーを満たして警告色を見せる
       rowsEl.appendChild(el("div", { class: "spend-row" }, [el("div", { class: "spend-label" }, [d.label]), el("div", null, left), el("div", { class: "spend-track" }, [fill])]));
     });
     const lastTx = latestActualDate();
