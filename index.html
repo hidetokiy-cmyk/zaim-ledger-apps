@@ -5424,7 +5424,8 @@ function svgEl(tag, attrs) {
         reserve += sub.amount; reserveN++;
       });
     } catch (e) { reserve = 0; reserveN = 0; }
-    const perDay = Math.max(0, (revenue - spentM - reserve + spentD) / daysLeftM);
+    // 月が上限を超えているときは、1日あたりもマイナスのまま持つ（超過分を残り日数で割り戻す）。0に丸めると今週・今日が「残 ¥0」になり超過が見えなくなる
+    const perDay = revenue > 0 ? (revenue - spentM - reserve + spentD) / daysLeftM : 0;   // 給与が未記録の間は従来どおり上限0円
     const defs = [
       { label: "今月", spent: spentM, budget: revenue, range: `${md(cyc.start)}〜${md(addDays(cyc.end, -1))}` },
       { label: "今週", spent: spentW, budget: (spentW - spentD) + perDay * daysLeftW, range: `${md(week.start)}〜${md(addDays(week.end, -1))}` },
@@ -5434,12 +5435,12 @@ function svgEl(tag, attrs) {
     defs.forEach((d, i) => {
       const budget = Math.round(d.budget);
       const ratio = budget > 0 ? d.spent / budget : (d.spent > 0 ? 1 : 0);
-      const cls = ratio >= 1 ? "over" : ratio >= 0.8 ? "warn" : "";
       const remain = budget - d.spent;
+      const cls = (ratio >= 1 || remain < 0) ? "over" : ratio >= 0.8 ? "warn" : "";
       const left = [el("div", { class: "spend-amt num" }, [YEN(d.spent)]),
         el("div", { class: "spend-sub num" + (remain < 0 ? " over" : "") }, [remain >= 0 ? `残 ${YEN(remain)}` : `超過 ${YEN(-remain)}`])];
       if (d.range) left.push(el("div", { class: "spend-range" }, [d.range]));
-      if (i === 0) left.push(el("div", { class: "spend-range" }, [`残り${daysLeftM}日・1日あたり ${YEN(perDay)}`]));
+      if (i === 0) left.push(el("div", { class: "spend-range" }, [`残り${daysLeftM}日・1日あたり ${perDay >= 0 ? YEN(perDay) : "超過 " + YEN(-Math.round(perDay))}`]));
       const fill = el("div", { class: "spend-fill " + cls, style: `width:${Math.min(100, Math.round(ratio * 100))}%` });
       rowsEl.appendChild(el("div", { class: "spend-row" }, [el("div", { class: "spend-label" }, [d.label]), el("div", null, left), el("div", { class: "spend-track" }, [fill])]));
     });
