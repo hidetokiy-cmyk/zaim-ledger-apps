@@ -65,6 +65,8 @@
     --cat-4: #C08AB3; --cat-5: #7FBDB2; --cat-6: #CB9366; --cat-7: #B0B57A; --cat-8: #9297AC;
   }
   * { box-sizing: border-box; }
+  html, body { overflow-x: clip; }   /* タブ切替の3Dスライドで一時的に右へはみ出しても、横幅を広げない */
+  @supports not (overflow-x: clip) { html { overflow-x: hidden; } }
   html, body { margin:0; padding:0; background: var(--paper); color: var(--ink);
     font-family: 'Zen Kaku Gothic New', 'Hiragino Sans', sans-serif; min-height: 100%; }
   .serif { font-family: 'Shippori Mincho', serif; }
@@ -4951,7 +4953,17 @@ function svgEl(tag, attrs) {
     catcher.addEventListener("touchend", handleLeave);
     if (opts.onClick) {
       catcher.addEventListener("click", (evt) => opts.onClick(indexForEvent(evt)));
-      catcher.addEventListener("touchend", () => opts.onClick(lastIndex));
+      // 指を離した瞬間にonClickを呼ぶと、グラフの上から縦スクロールを始めただけでも明細タブへ飛んでしまう。
+      // タップはclickに任せ、ここでは「横になぞって離した」ときだけ選択する
+      let tStart = null;
+      catcher.addEventListener("touchstart", (e) => { const t = e.touches[0]; tStart = t ? { x: t.clientX, y: t.clientY } : null; }, { passive: true });
+      catcher.addEventListener("touchend", (e) => {
+        const t = e.changedTouches[0];
+        if (!tStart || !t) return;
+        const dx = Math.abs(t.clientX - tStart.x), dy = Math.abs(t.clientY - tStart.y);
+        tStart = null;
+        if (dx >= 12 && dx > dy * 1.5) opts.onClick(lastIndex);
+      });
     }
   }
 
