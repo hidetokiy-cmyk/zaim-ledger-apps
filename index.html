@@ -163,7 +163,7 @@
 
   .page-head { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 14px; margin-bottom: 18px; }
   html[data-theme="dark"] .tab-bar { border-bottom-color: var(--rule-strong); }
-  .search-wrap { position: relative; }
+  .search-wrap { position: relative; max-width: 100%; }   /* 幅の狭い画面で、検索欄の固定幅が画面を押し広げないように */
   .adv-search-panel { position: absolute; top: 100%; right: 0; margin-top: 8px; background: var(--paper-raised);
     border: 1px solid var(--rule-strong); border-radius: 8px; padding: 14px; width: 360px; max-width: calc(100vw - 24px); max-height: 75vh; overflow-y: auto; z-index: 20;
     box-shadow: 0 6px 18px rgba(var(--ink-rgb),0.18); }
@@ -316,7 +316,7 @@
       gap: 0; flex-wrap: nowrap; padding: 3px 2px calc(3px + env(safe-area-inset-bottom)); }
     .tab-btn { flex: 1 1 0; flex-direction: column; gap: 3px; border-left: none; border-right: none;
       border-bottom: none; border-radius: 0; background: transparent; padding: 7px 2px 5px; margin-bottom: 0;
-      font-size: 11.5px; white-space: nowrap; }
+      font-size: 11.5px; white-space: nowrap; min-width: 0; }
     .tab-btn.active { background: transparent; }
     .tab-btn svg { display: block; width: 19px; height: 19px; }
   }
@@ -652,6 +652,7 @@
   .bal-row { gap: 10px; }
   .bal-row .name { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
   .bal-row .amt { flex-shrink: 0; }
+  .bal-row .amt.amt-wrap { flex-shrink: 1; min-width: 0; text-align: right; overflow-wrap: anywhere; }   /* 長い文章の値（資金繰り予測の根拠など）は折り返し、画面幅を超えて広げない */
 
   /* ---- スマホ：期間選択をボトムシート化（既存の期間UIをそのまま下から出す） ---- */
   .period-chip, .psheet-backdrop, .psheet-close { display: none; }
@@ -889,7 +890,7 @@
         </div>
         <div class="search-wrap" id="searchWrap">
           <div style="display:flex; gap:6px; align-items:center;">
-            <input id="searchInput" type="text" placeholder="カテゴリ・お店・メモで検索" title="スペース区切りで複数語を検索できます" style="width:280px; max-width:100%; min-width:0;">
+            <input id="searchInput" type="text" placeholder="カテゴリ・お店・メモで検索" title="スペース区切りで複数語を検索できます" style="flex:1 1 0; width:280px; max-width:280px; min-width:0;">
             <button id="advSearchToggleBtn" class="btn" type="button" title="詳細検索" aria-label="詳細検索" aria-expanded="false">詳細▾</button>
           </div>
           <div class="adv-search-panel hidden" id="advSearchPanel">
@@ -4772,31 +4773,31 @@
       basisWrap.appendChild(el("div", { class: "bal-group" }, [
         el("div", { class: "bal-row" }, [
           el("span", { class: "name" }, ["対象期間"]),
-          el("span", { class: "amt num" }, [
+          el("span", { class: "amt num amt-wrap" }, [
             `${rangeLabel}（${forecast.windowSize}ヶ月分の実績${forecast.seasonal ? "＋前年同月を半分の重みで加味" : ""}）`,
           ]),
         ]),
         el("div", { class: "bal-row" }, [
           el("span", { class: "name" }, ["給与見込み（月平均）"]),
-          el("span", { class: "amt num" }, [
+          el("span", { class: "amt num amt-wrap" }, [
             forecastDrillLabel(`${YEN(basis.incomeAvg)}（${basis.incomeRows.length}件の実績から算出）`, basis.incomeRows, "給与の実績（予測の根拠）"),
           ]),
         ]),
         el("div", { class: "bal-row" }, [
           el("span", { class: "name" }, ["変動費見込み（月平均）"]),
-          el("span", { class: "amt num" }, [
+          el("span", { class: "amt num amt-wrap" }, [
             forecastDrillLabel(`${YEN(basis.variableAvg)}（${basis.variableRows.length}件の実績から算出）`, basis.variableRows, "変動費の実績（予測の根拠）"),
           ]),
         ]),
         el("div", { class: "bal-row" }, [
           el("span", { class: "name" }, ["投資・財務活動見込み（月平均）"]),
-          el("span", { class: "amt num" }, [
+          el("span", { class: "amt num amt-wrap" }, [
             forecastDrillLabel(`${basis.investFinAvg >= 0 ? "+" : "−"}${YEN(Math.abs(basis.investFinAvg))}（${basis.investFinRows.length}件の実績から算出）`, basis.investFinRows, "投資・財務活動の実績（予測の根拠）"),
           ]),
         ]),
         el("div", { class: "bal-row" }, [
           el("span", { class: "name" }, ["上下のブレ幅の根拠"]),
-          el("span", { class: "amt num" }, [`月次収支の標準偏差 ${YEN(basis.netStdev)}（先の月ほど√月数倍に拡大）`]),
+          el("span", { class: "amt num amt-wrap" }, [`月次収支の標準偏差 ${YEN(basis.netStdev)}（先の月ほど√月数倍に拡大）`]),
         ]),
       ]));
 
