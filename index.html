@@ -3176,7 +3176,7 @@
       const dayDelta = deltaByDay.get(dk);
       if (dayDelta) {
         const next = new Map(running);
-        dayDelta.forEach((delta, acct) => next.set(acct, (next.get(acct) || 0) - delta));
+        dayDelta.forEach((delta, acct) => { if (next.has(acct)) next.set(acct, next.get(acct) - delta); });
         running = next;
       }
       cursor = addDays(cursor, -1);
@@ -5114,16 +5114,23 @@ function svgEl(tag, attrs) {
     const plotH = Math.max(10, h - padT - padB);
     const n = labels.length;
 
-    // 系列を渡された順番のまま累積（符号に関わらず加算）→ 最終的な累積値が「表示中グループの合計」になる
-    const cumulative = []; // cumulative[gi] = 各時点でのそのグループ積み上げ後の値
-    let running = new Array(n).fill(0);
+    // 正の値は0から上へ、負の値は0から下へ積み上げる（符号が混在しても帯が重ならない）。合計ラインは全グループの和
+    const spans = []; // spans[gi][i] = {lo, hi}
+    const posBase = new Array(n).fill(0), negBase = new Array(n).fill(0);
+    const cumulative = [];
+    const totalSeries = new Array(n).fill(0);
     groups.forEach((g) => {
-      running = running.map((base, i) => base + g.values[i]);
-      cumulative.push(running.slice());
+      const sp = g.values.map((v, i) => {
+        if (v >= 0) { const lo = posBase[i]; posBase[i] += v; return { lo, hi: posBase[i], edge: posBase[i] }; }
+        const hi = negBase[i]; negBase[i] += v; return { lo: negBase[i], hi, edge: negBase[i] };
+      });
+      spans.push(sp);
+      cumulative.push(sp.map((q) => q.edge));
+      g.values.forEach((v, i) => { totalSeries[i] += v; });
     });
-    const totalSeries = cumulative[cumulative.length - 1];
+    cumulative.push(totalSeries.slice());
 
-    const allTouched = [0].concat(cumulative.flat());
+    const allTouched = [0].concat(cumulative.flat(), posBase, negBase);
     let max = Math.max(...allTouched);
     let min = Math.min(...allTouched);
     if (max === min) { max += 1; min -= 1; }
@@ -5155,18 +5162,16 @@ function svgEl(tag, attrs) {
     // 各系列を「直前の累積値」から「今の累積値」まで積み上げて描画し、
     // ホバー判定用に各時点・各グループの値幅（bandsByIndex）も記録する
     const bandsByIndex = labels.map(() => []);
-    let base = new Array(n).fill(0);
     groups.forEach((g, gi) => {
-      const top = cumulative[gi];
-      const topLine = top.map((v, i) => [x(i), y(v)]);
-      const bottomLine = base.map((v, i) => [x(i), y(v)]);
+      const sp = spans[gi];
+      const topLine = sp.map((q, i) => [x(i), y(q.hi)]);
+      const bottomLine = sp.map((q, i) => [x(i), y(q.lo)]);
       const areaPts = topLine.concat(bottomLine.slice().reverse()).map((p) => p.join(",")).join(" ");
       svg.appendChild(svgEl("polygon", { points: areaPts, fill: g.color, "fill-opacity": 0.55, stroke: "none" }));
       svg.appendChild(svgEl("polyline", { points: topLine.map((p) => p.join(",")).join(" "), fill: "none", stroke: g.color, "stroke-width": 1.6 }));
-      top.forEach((v, i) => {
-        bandsByIndex[i].push({ name: g.name, color: g.color, value: g.values[i], lo: Math.min(base[i], v), hi: Math.max(base[i], v), gi });
+      sp.forEach((q, i) => {
+        bandsByIndex[i].push({ name: g.name, color: g.color, value: g.values[i], lo: q.lo, hi: q.hi, gi, edge: q.edge });
       });
-      base = top;
     });
 
     // 表示中グループの合計ラインを太線で重ねる
@@ -5203,7 +5208,7 @@ function svgEl(tag, attrs) {
 
       guideLine.setAttribute("x1", x(i)); guideLine.setAttribute("x2", x(i));
       guideLine.setAttribute("visibility", "visible");
-      const dotValue = hovered ? cumulative[hovered.gi][i] : totalSeries[i];
+      const dotValue = hovered ? hovered.edge : totalSeries[i];
       hoverDot.setAttribute("cx", x(i));
       hoverDot.setAttribute("cy", y(dotValue));
       hoverDot.setAttribute("fill", hovered ? hovered.color : "var(--ink)");
@@ -5255,7 +5260,7 @@ function svgEl(tag, attrs) {
     if (titleEl) titleEl.textContent = `資産構成の推移（${PERIOD_MODE_LABEL[state.periodMode]}）`;
     const count = PERIOD_TREND_COUNT[state.periodMode] || 12;
     const { labels, groups: allGroups } = computeGroupBalancesForMode(3, state.periodMode, state.periodAnchor, count);
-    const colors = { "現金類": "var(--green)", "カード類": "var(--red)", "預金類": "var(--cat-3)", "運用資産": "var(--gold)", "前払・預け金": "var(--cat-7)" };
+    const colors = { "現金類": "var(--green)", "カード類": "var(--red)", "預金類": "var(--cat-3)", "運用資産": "var(--gold)", "前払・預け金": "var(--cat-7)", "未払・借入金": "var(--cat-5)" };
     const available = allGroups.filter((g) => g.values.some((v) => v !== 0));
 
     if (toggles) {
