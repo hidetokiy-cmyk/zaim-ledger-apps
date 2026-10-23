@@ -413,7 +413,7 @@
   .compare-table tr.current { background: rgba(197, 165, 100, 0.12); font-weight: bold; }
   .compare-table tr.current td:first-child { color: var(--ink); }
   .compare-table tbody tr { cursor: pointer; }
-  .compare-table tbody tr:hover { background: rgba(255,255,255,0.05); }
+  .compare-table tbody tr:hover { background: rgba(var(--ink-rgb),0.05); }
   .toggle-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; padding: 4px 10px 4px 6px; border-radius: 999px;
     border: 1px solid var(--chip-color, var(--rule-strong)); cursor: pointer; user-select: none; color: var(--ink); }
   .toggle-chip input { accent-color: var(--chip-color, var(--ink)); }
@@ -424,8 +424,6 @@
   select.trend-select { background: var(--paper-raised); border: 1px solid var(--rule-strong); color: var(--ink);
     font-size: 15.5px; padding: 5px 9px; }
 
-  .acct-row { margin-bottom: 11px; }
-  .acct-row:last-child { margin-bottom: 0; }
   .acct-label-row { display: flex; justify-content: space-between; font-size: 15.5px; margin-bottom: 4px; }
   .acct-track { width: 100%; height: 8px; background: rgba(var(--ink-rgb),0.06); }
   .acct-fill { height: 100%; background: var(--ink); }
@@ -655,12 +653,13 @@
   .bal-row .amt.amt-wrap { flex-shrink: 1; min-width: 0; text-align: right; overflow-wrap: anywhere; }   /* 長い文章の値（資金繰り予測の根拠など）は折り返し、画面幅を超えて広げない */
 
   /* ---- スマホ：期間選択をボトムシート化（既存の期間UIをそのまま下から出す） ---- */
-  .period-chip, .psheet-backdrop, .psheet-close { display: none; }
+  /* 期間ストリップのチップ（.period-chip）とクラス名が重なると、PCでストリップが消えるため別名にしている */
+  .period-mchip, .psheet-backdrop, .psheet-close { display: none; }
   @media (max-width: 640px) {
-    .period-chip { display: flex; align-items: stretch; margin: 0 14px 8px; border: 1px solid #565A6C; border-radius: 3px; color: var(--sidebar-soft); }
-    .period-chip button { background: transparent; border: none; color: inherit; font-family: inherit; min-height: 44px; cursor: pointer; }
-    .period-chip .pc-step { width: 48px; font-size: 22px; }
-    .period-chip .pc-label { flex: 1; min-width: 0; font-size: 16px; padding: 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    .period-mchip { display: flex; align-items: stretch; margin: 0 14px 8px; border: 1px solid #565A6C; border-radius: 3px; color: var(--sidebar-soft); }
+    .period-mchip button { background: transparent; border: none; color: inherit; font-family: inherit; min-height: 44px; cursor: pointer; }
+    .period-mchip .pc-step { width: 48px; font-size: 22px; }
+    .period-mchip .pc-label { flex: 1; min-width: 0; font-size: 16px; padding: 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       border-left: 1px solid #565A6C; border-right: 1px solid #565A6C; color: var(--sidebar-ink); }
     .sidebar > .period-section { display: none; }
     body.psheet-open .psheet-backdrop { display: block; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 55; }
@@ -1344,7 +1343,7 @@
           非公開のGitHubリポジトリに設定（口座残高・除外設定・元本など。取引明細は含みません）を自動で保存・取得します。準備：①GitHubで非公開リポジトリを作成（例: zaim-ledger-settings）②Settings &gt; Developer settings &gt; Fine-grained personal access tokens で、そのリポジトリ限定・「Contents: Read and write」権限のトークンを発行。下に入力すれば、以降は起動時に自動取得・変更時に自動保存されます。
         </div>
         <label class="field-label" style="margin-top:10px;" for="syncRepoInput">リポジトリ（owner/repo）</label>
-        <input type="text" id="syncRepoInput" placeholder="例: hide/zaim-ledger-settings">
+        <input type="text" id="syncRepoInput" placeholder="例: yourname/zaim-ledger-settings">
         <label class="field-label" style="margin-top:10px;" for="syncTokenInput">Personal Access Token</label>
         <div style="display:flex; gap:6px; align-items:center;">
           <input type="password" id="syncTokenInput" class="pw-input" autocomplete="off" placeholder="github_pat_..." style="flex:1;">
@@ -1454,7 +1453,7 @@
 
         <div class="modal-section-title" style="margin-top:20px;">新規追加</div>
         <label class="field-label" style="margin-top:10px;" for="manualFixedLabelInput">表示名</label>
-        <input type="text" id="manualFixedLabelInput" placeholder="例: 家賃（リアライズ）">
+        <input type="text" id="manualFixedLabelInput" placeholder="例: 家賃">
         <label class="field-label" style="margin-top:10px;" for="manualFixedAmountInput">月額（円・手数料等含めた合計）</label>
         <input type="text" id="manualFixedAmountInput" placeholder="例: 85640">
         <label class="field-label" style="margin-top:10px;" for="manualFixedMatchType">一致させる取引</label>
@@ -1971,14 +1970,25 @@
         cloudSync.sha = null;
         setSyncStatus("まだ保存されたデータがありません（このリポジトリでは初回）。");
         markSyncOk();
+        if (localSettingsDirty) await pushCloudSettings(true);   // この端末の設定を最初の保存分として送る
         return;
       }
       if (!res.ok) { markSyncFail(null, res.status); setSyncStatus(`取得に失敗しました（${res.status}）。リポジトリ名・トークンを確認してください。`, true); return; }
       const data = await res.json();
       cloudSync.sha = data.sha;
       const obj = JSON.parse(base64ToUtf8(data.content));
-      cloudSync.baseObj = obj;
-      applyCloudObject(obj);
+      // この端末にGitHubへ送れていない変更が残っていれば、上書きせずに統合してから送り直す
+      const hadLocalChanges = localSettingsDirty;
+      if (hadLocalChanges) {
+        const { merged } = mergeCloudObjects(cloudSync.baseObj, settingsToCloudObject(), obj);
+        cloudSync.baseObj = obj;
+        applyCloudObject(merged);
+      } else {
+        cloudSync.baseObj = obj;
+        applyCloudObject(obj);
+      }
+      saveLocalSettings(hadLocalChanges);
+      if (hadLocalChanges) await pushCloudSettings(true);
       // スクレイピングスクリプト等が置いていった未取込データがあれば、この端末で自動的に取込を実行し、
       // 取込後の状態をクラウドへ書き戻して pendingZaimImport をクリアする（他端末にも反映されるように）。
       if (settings.pendingZaimImport && Array.isArray(settings.pendingZaimImport.items)) {
@@ -2030,8 +2040,11 @@
 
   async function pushCloudSettings(silent) {
     if (!cloudSync.repo || !cloudSync.token) { if (!silent) setSyncStatus("リポジトリとトークンを入力してください。", true); return; }
-    if (cloudSync.saving) return;
+    // 保存中に呼ばれた分は捨てずに印を付け、今の保存が終わってからもう一度保存する（途中の変更が送られないままになるのを防ぐ）
+    if (cloudSync.saving) { cloudSync.pendingSave = true; return; }
     cloudSync.saving = true;
+    cloudSync.pendingSave = false;
+    saveLocalSettings(true);   // 送信に失敗しても、変更が端末に残るように先に保存する
     if (!silent) setSyncStatus("保存中…");
     try {
       const obj = settingsToCloudObject();
@@ -2065,6 +2078,7 @@
           // マージ結果をこの端末の表示にも反映する（そうしないと次回保存時のbase判定がずれる）
           applyCloudObject(merged);
           markSyncOk();
+          saveLocalSettings(false);
           setSyncStatus(conflicts.length
             ? `他端末との変更を統合して保存しました（${new Date().toLocaleString("ja-JP")}／要確認: ${conflicts.join("、")}）`
             : `他端末との変更を統合して保存しました（${new Date().toLocaleString("ja-JP")}）`);
@@ -2080,12 +2094,14 @@
         cloudSync.baseObj = obj;
       }
       markSyncOk();
+      saveLocalSettings(false);
       setSyncStatus(`保存しました（${new Date().toLocaleString("ja-JP")}）`);
     } catch (e) {
       markSyncFail(e);
       setSyncStatus("通信エラーで保存できませんでした。", true);
     } finally {
       cloudSync.saving = false;
+      if (cloudSync.pendingSave) { cloudSync.pendingSave = false; scheduleCloudSave(); }
     }
   }
 
@@ -2167,7 +2183,31 @@
     return { merged, conflicts };
   }
 
+  // ---------- 設定の端末内保存 ----------
+  // 設定をこの端末（localStorage）にも保存しておき、起動時はまずそれを使う。
+  // 以前は起動のたびにコード内の初期値を使ってからGitHubの設定を取りに行っていたため、
+  // オフライン時やトークンのロック解除前は初期値頼みになり、初期値に個人の口座情報を書いておく必要があった。
+  // dirty: GitHubにまだ送れていない変更があるか。base: 最後にGitHubと一致していた時点の設定（3-way mergeの基準）
+  const LOCAL_SETTINGS_KEY = "zaimLedgerSettings";
+  let localSettingsDirty = false;
+  function saveLocalSettings(dirty) {
+    if (typeof dirty === "boolean") localSettingsDirty = dirty;
+    try {
+      localStorage.setItem(LOCAL_SETTINGS_KEY, JSON.stringify({ v: 1, obj: settingsToCloudObject(), base: cloudSync.baseObj, dirty: localSettingsDirty }));
+    } catch (e) { /* 保存できなくても、GitHub同期があれば次回取得し直せる */ }
+  }
+  function loadLocalSettings() {
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(LOCAL_SETTINGS_KEY) || "null"); } catch (e) { saved = null; }
+    if (!saved || !saved.obj) return false;
+    localSettingsDirty = !!saved.dirty;
+    cloudSync.baseObj = saved.base || null;
+    applyCloudObject(saved.obj);
+    return true;
+  }
+
   function scheduleCloudSave() {
+    saveLocalSettings(true);
     if (!cloudSync.repo || !cloudSync.token) return;
     clearTimeout(cloudSync.timer);
     cloudSync.timer = setTimeout(() => pushCloudSettings(true), 1500);
@@ -2263,7 +2303,7 @@
     while (added) {
       added = false;
       Array.from(set).forEach((s) => {
-        const d = new Date(s);
+        const d = parseCsvDate(s);   // new Date("YYYY-MM-DD") はUTC扱いになるため、端末の時刻の0:00で読む
         const mid = new Date(d); mid.setDate(d.getDate() + 1);
         const midK = dkey(mid);
         if (!set.has(midK) && mid.getDay() !== 0 && mid.getDay() !== 6) {
@@ -2348,6 +2388,14 @@
     return "always";
   }
 
+  // 「2026-09-03」形式を new Date() に渡すとUTC扱いになり、日本時間では9:00になる。
+  // 残高の巻き戻しなどは時刻つきで比較しているため、表記に関係なくその日の0:00（端末の時刻）にそろえる
+  function parseCsvDate(str) {
+    const m = String(str).trim().match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/);
+    const d = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(str);
+    return isNaN(d.getTime()) ? null : startOfDay(d);
+  }
+
   function parseZaimCSV(text) {
     if (!text || !text.trim()) {
       throw new Error("ファイルが空です。Zaimの「データのエクスポート」からダウンロードしたCSVファイルを選択してください。");
@@ -2399,8 +2447,8 @@
     for (const r of result.data) {
       const dateStr = r[dateCol];
       if (!dateStr) { skippedNoDate++; continue; }
-      const date = new Date(dateStr);
-      if (isNaN(date.getTime())) { skippedBadDate++; continue; }
+      const date = parseCsvDate(dateStr);
+      if (!date) { skippedBadDate++; continue; }
 
       const income = parseAmount(incomeCol ? r[incomeCol] : 0);
       const expense = parseAmount(expenseCol ? r[expenseCol] : 0);
@@ -2727,33 +2775,29 @@
   // 口座ごとのON/OFF（現金類・カード・預金・運用資産…）は settings.accountMeta に持ち、設定画面の「口座」タブで編集する。
   // 下の SEED_* は「初期値」としてだけ使う定数で、初回（accountMetaInited が false のとき）に一度だけ
   // settings.accountMeta へ移す。それ以降の判定はすべて accountMeta を参照し、これらの定数は参照しない。
+  // 個人の口座名（銀行・支店・カード番号の一部など）はここに書かない。実際の口座の分類は設定（端末内保存・GitHub同期）にだけ持つ。
+  // ここには、どの家計でも共通する勘定（現金・前払費用・未払費用など）の初期値だけを置く。
   const SEED_GROUPS_PATTERN1 = [
-    { name: "三井住友系", accounts: ["PayPay","三井住友カード Olive","口座引落","三井住友銀行 普通"] },
-    { name: "楽天系", accounts: ["楽天pay","楽天カード","楽天カード 楽天銀行カード(JCB) XXXX-XXXX-XXXX-1894","楽天銀行","楽天銀行 ポップ支店 普通 ****690","楽天市場","楽天トラベル"] },
-    { name: "JRE系", accounts: ["モバイルSUICA","ビューカード スタンダードJ","JRE BANK JREとき支店 普通 ****906"] },
-    { name: "イオン系", accounts: ["AEON Pay","モバイルWAON","イオンカードセレクト","イオン銀行 スイレン 普通預金"] },
-    { name: "りそな系（給与口座）", accounts: ["りそな銀行 福岡 普通","りそな銀行 新都心 普通","りそな銀行 福岡支店 定期"] },
-    { name: "運用資産", accounts: ["あおぞら銀行 普通","SBI 証券"] },
     { name: "前払・預け金", accounts: ["前払費用","預け金"] },
     { name: "未払・借入金", accounts: ["未払費用","借入金"] },
-    { name: "その他", accounts: ["現金","ふるなびポイント","モバイル PASMO","ゆうちょ銀行","Amazon.co.jp"] },
+    { name: "その他", accounts: ["現金"] },
   ];
-  const SEED_CASH_LIKE = ["現金","PayPay","楽天pay","AEON Pay","モバイルWAON","モバイルSUICA","モバイル PASMO","ふるなびポイント","Amazon.co.jp","楽天市場","楽天トラベル"];
+  const SEED_CASH_LIKE = ["現金"];
   // 口座引落・未払費用・借入金は「将来の支払義務」という点でカードと同質のため、カード類として扱う
-  const SEED_CARD = ["三井住友カード Olive","ビューカード スタンダードJ","楽天カード","楽天カード 楽天銀行カード(JCB) XXXX-XXXX-XXXX-1894","イオンカードセレクト","口座引落","未払費用","借入金"];
-  const SEED_DEPOSIT = ["三井住友銀行 普通","楽天銀行","楽天銀行 ポップ支店 普通 ****690","JRE BANK JREとき支店 普通 ****906","りそな銀行 福岡 普通","りそな銀行 新都心 普通","りそな銀行 福岡支店 定期","ゆうちょ銀行","イオン銀行 スイレン 普通預金"];
+  const SEED_CARD = ["未払費用","借入金"];
+  const SEED_DEPOSIT = [];
   // 前払費用（既に支払済みの費用）・預け金（手元にない限り流動性がない）は「取引明細上は口座間振替として現れる簿外的な勘定」
   const SEED_PREPAID = ["前払費用","預け金"];
   const SEED_UNPAID = ["未払費用","借入金"];
-  const SEED_INVESTMENT = ["あおぞら銀行 普通","SBI 証券"];
+  const SEED_INVESTMENT = [];
   // 流動資産合計には含めない口座（前払費用はすでに消費済みの費用であり資産ではないため、預け金は手元にない限り流動性がないため）
   const SEED_LIQUID_EXCLUDED = ["前払費用","預け金"];
-  const SEED_DORMANT = ["ゆうちょ銀行"];
+  const SEED_DORMANT = [];
   // 時価連携ができず値動きを追えないため、残高ではなく「投資元本（含み損益除く）」として扱う口座
-  const SEED_PRINCIPAL_ONLY = ["SBI 証券"];
+  const SEED_PRINCIPAL_ONLY = [];
   const SEED_FINANCING = ["借入金"];
   // 一覧・グループ内の並び順の初期値（旧・各リストの並びをすべて満たす順序）
-  const SEED_ACCOUNT_ORDER = ["現金","PayPay","楽天pay","AEON Pay","モバイルWAON","モバイルSUICA","モバイル PASMO","ふるなびポイント","Amazon.co.jp","三井住友カード Olive","ビューカード スタンダードJ","楽天カード","楽天カード 楽天銀行カード(JCB) XXXX-XXXX-XXXX-1894","イオンカードセレクト","口座引落","未払費用","借入金","三井住友銀行 普通","楽天銀行","楽天銀行 ポップ支店 普通 ****690","楽天市場","楽天トラベル","JRE BANK JREとき支店 普通 ****906","りそな銀行 福岡 普通","りそな銀行 新都心 普通","りそな銀行 福岡支店 定期","ゆうちょ銀行","イオン銀行 スイレン 普通預金","前払費用","預け金","あおぞら銀行 普通","SBI 証券"];
+  const SEED_ACCOUNT_ORDER = ["現金","未払費用","借入金","前払費用","預け金"];
 
   const ACCOUNT_OTHER_GROUP = "その他"; // 未設定の口座が入る固定グループ（名前変更・削除不可）
   let accountMetaRev = 0;
@@ -3028,25 +3072,20 @@
     ]);
   }
 
-  const ACCOUNT_MANUAL_BALANCE = {
-    "口座引落": -85200, "現金": 2362, "モバイルSUICA": 5748, "AEON Pay": 2364, "楽天pay": 26677,
-    "ふるなびポイント": 4200, "モバイル PASMO": 4419, "三井住友銀行 普通": 185726,
-    "ビューカード スタンダードJ": -17568, "三井住友カード Olive": -109152, "楽天銀行": 3352,
-    "楽天カード": -23965, "りそな銀行 新都心 普通": 40, "未払費用": -38471, "預け金": 20000,
-    "前払費用": 342002, "りそな銀行 福岡 普通": 182, "あおぞら銀行 普通": 1002040,
-    "イオンカードセレクト": -14292, "JRE BANK JREとき支店 普通 ****906": 13000, "SBI 証券": 1015600,
-  };
-  const ACCOUNT_BALANCE_ASOF_DEFAULT = "2026/9/3"; // 初回起動時（クラウド同期未設定など）のフォールバック値
+  // 口座残高の初期値。実際の残高は設定（端末内保存・GitHub同期・Zaimからの取込）にだけ持ち、コードには書かない
+  const ACCOUNT_MANUAL_BALANCE = {};
   // 口座残高（accountBalanceOverride）の確認日を「YYYY/M/D」形式の表示文字列で返す。
-  // 手入力／取込（手動貼り付け・自動スクレイピング取込）のたびに更新される。
+  // 手入力／取込（手動貼り付け・自動スクレイピング取込）のたびに更新される。未設定のときは今日を確認日とみなす
   function accountBalanceAsOfLabel() {
-    return settings.accountBalanceAsOfDate || ACCOUNT_BALANCE_ASOF_DEFAULT;
+    if (settings.accountBalanceAsOfDate) return settings.accountBalanceAsOfDate;
+    const t = new Date();
+    return `${t.getFullYear()}/${t.getMonth() + 1}/${t.getDate()}`;
   }
   function setAccountBalanceAsOfDate(d) {
     const dt = d instanceof Date ? d : new Date(d);
     settings.accountBalanceAsOfDate = `${dt.getFullYear()}/${dt.getMonth() + 1}/${dt.getDate()}`;
   }
-  const ACCOUNT_EXCLUDED_DEFAULT = ["年金累計額", "不存在取消", "三井住友カード", "ゆうちょ銀行 定額預金", "楽天 Edy", "楽天 Edy ****-****-****-*442", "SBI証券", "PASMO", "楽天銀行 ポップ支店 普通 ****690", "楽天カード 楽天銀行カード(JCB) XXXX-XXXX-XXXX-1894", "Vポイント", "WAON センター預", "りそな銀行 福岡支店 定期", "あおぞら銀行 BANKコバルト支店 円定期預金 ****163", "あおぞら銀行 BANKコバルト支店 円貯蓄預金 ****920", "イオン銀行 スイレン 定期預金 ****380", "Amazon.co.jp", "楽天市場", "楽天トラベル"];
+  const ACCOUNT_EXCLUDED_DEFAULT = ["年金累計額", "不存在取消"];   // Zaim共通の、残高に出す意味のない勘定だけ
   function initAccountSettingsDefaults() {
     // 口座ごとの分類（accountMeta）は初回に一度だけ初期値から作る。以降は設定画面「口座」タブでの変更が正で、
     // 非表示の初期値も初回にだけ取り込む（毎回マージすると、利用者が非表示を解除しても元に戻ってしまうため）。
@@ -3359,6 +3398,13 @@
     return { freq, last, prev, nextExpected, likelyCancelled };
   }
   function detectSubscriptions() {
+    if (subsCacheOn) {
+      if (!subsCache) subsCache = detectSubscriptionsUncached();
+      return subsCache.map((s) => ({ ...s }));   // 呼び出し側が項目を書き足すため、浅いコピーを渡す
+    }
+    return detectSubscriptionsUncached();
+  }
+  function detectSubscriptionsUncached() {
     if (!state.transactions || state.transactions.length === 0) return [];
     const lastDataDate = latestActualDate();
     const groups = new Map();
@@ -3414,7 +3460,7 @@
     results.sort((a, b) => b.monthlyEquivalent - a.monthlyEquivalent);
     return results;
   }
-  // 定期積立投資の自動検出：現金・預金口座から投資口座（あおぞら銀行 普通・SBI 証券）への振替のうち、
+  // 定期積立投資の自動検出：現金・預金口座から投資口座（口座設定で「運用資産」にした口座）への振替のうち、
   // 同じ振込先口座でおおむね月次・年次で規則的に繰り返されているものを「定期投資」として検出する。
   // サブスク自動検出と同じ規則性判定ロジックを使い、対象を「投資口座への一方向の振替」に変えただけのもの。
   // 資金繰り予測では、ここで検出された定期投資分だけを将来の見込みに使い、それ以外の不定期な投資・財務活動
@@ -3792,7 +3838,7 @@
     const cutoff = dkey(info.importedAt);
     // 残高が「-」表示の口座（Zaim側で残高を管理していない）と、前払費用・預け金のような簿外的な勘定は、
     // Zaimの「残高」が実際の残高を表さないため、突合の対象から外す
-    const offBook = new Set(SEED_PREPAID);
+    const offBook = new Set([...SEED_PREPAID, ...accountFlagSet("prepaid")]);   // 設定で「前払費用等」にした口座も対象外
     const skipped = info.balances.filter((b) => b.noBalance || offBook.has(b.name));
     const targets = info.balances.filter((b) => !(b.noBalance || offBook.has(b.name)));
     if (!targets.length) { det.classList.add("hidden"); return; }
@@ -5797,6 +5843,13 @@ function svgEl(tag, attrs) {
       wrap.appendChild(emptyState("該当する取引がありません"));
     } else {
       let currentDay = null, dayGroupEl = null, dayBucket = [];
+      // 日付見出しの支出合計は、日ごとに全件を数え直さず、先に一度だけ集計しておく
+      const broadForDay = isBroadPeriod(state.periodMode);
+      const dayExpenseMap = new Map();
+      rows.forEach((x) => {
+        if (x.type !== "expense" || isExcludedRow(x, broadForDay)) return;
+        dayExpenseMap.set(x.dayKey, (dayExpenseMap.get(x.dayKey) || 0) + x.amount);
+      });
       const flushDayBucket = () => {
         // 同じ日の中で、同一店舗・同一種別（支出/収入/振替）・同一の表示フラグを持つ取引をひとまとめにする。
         // お店が入力されていない取引（振替や給与など）は対象外とし、これまで通り単独表示する。
@@ -5829,8 +5882,7 @@ function svgEl(tag, attrs) {
         if (r.dayKey !== currentDay) {
           if (dayGroupEl) flushDayBucket();
           currentDay = r.dayKey;
-          const dayRows = rows.filter((x) => x.dayKey === currentDay);
-          const dayExpense = dayRows.filter((x) => x.type === "expense" && !isExcludedRow(x, isBroadPeriod(state.periodMode))).reduce((s, x) => s + x.amount, 0);
+          const dayExpense = dayExpenseMap.get(currentDay) || 0;
           dayGroupEl = el("div", { class: "day-group" });
           dayGroupEl.appendChild(el("div", { class: "day-head" }, [
             el("span", { class: "d" }, [dayLabel(r.date)]),
@@ -5850,7 +5902,14 @@ function svgEl(tag, attrs) {
     document.getElementById("nextBtn").disabled = state.page >= totalPages - 1;
   }
 
+  // 1回の描画の間だけ、定期支払いの検出結果を使い回す（各パネルが何度も全取引を走査して重くなるのを防ぐ）。
+  // 描画が終われば捨てるので、設定変更後の描画では必ず計算し直される
+  let subsCache = null, subsCacheOn = false;
   function render() {
+    subsCacheOn = true; subsCache = null;
+    try { renderBody(); } finally { subsCacheOn = false; subsCache = null; }
+  }
+  function renderBody() {
     if (!state.transactions) return;
     const broad = isBroadPeriod(state.periodMode);
     const filtered = getFiltered();
@@ -6447,6 +6506,11 @@ function svgEl(tag, attrs) {
   document.getElementById("fallbackSettingsBtn").addEventListener("click", openSettingsModal);
   document.getElementById("settingsClose").addEventListener("click", () => document.getElementById("settingsOverlay").classList.add("hidden"));
   document.getElementById("settingsOverlay").addEventListener("click", (e) => { if (e.target.id === "settingsOverlay") e.currentTarget.classList.add("hidden"); });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape" || e.isComposing) return;
+    const ov = document.getElementById("settingsOverlay");
+    if (!ov.classList.contains("hidden") && document.getElementById("cmdOverlay").classList.contains("hidden")) ov.classList.add("hidden");
+  });
   document.getElementById("settingsNav").addEventListener("click", (e) => {
     const btn = e.target.closest(".settings-nav-btn");
     if (!btn) return;
@@ -7277,14 +7341,21 @@ function svgEl(tag, attrs) {
   function applyParsedCsv(text, fileName) {
     const rows = parseZaimCSV(text);
     if (rows.length === 0) { showError("取引データが見つかりませんでした。Zaimからエクスポートした家計簿CSVを選択してください。"); return false; }
+    const firstLoad = !state.transactions;
     state.fileName = fileName;
     state.csvParseWarning = rows.parseWarnings || null;
     rawParsedRows = rows;
     state.transactions = rows;
     rebuildTxIndex();
-    state.periodMode = "month"; state.periodAnchor = startOfDay(new Date()); state.search = ""; state.page = 0;
-    state.categoryFilter = null; state.trendKey = null; state.amountMin = null; state.amountMax = null; state.adv = emptyAdv(); state.searchMode = "or";
-    document.getElementById("searchInput").value = "";
+    if (firstLoad) {
+      state.periodMode = "month"; state.periodAnchor = startOfDay(new Date()); state.search = ""; state.page = 0;
+      state.categoryFilter = null; state.trendKey = null; state.amountMin = null; state.amountMax = null; state.adv = emptyAdv(); state.searchMode = "or";
+      document.getElementById("searchInput").value = "";
+    } else if (state.txFilter && state.txFilter.mode === "rows") {
+      // 同期で取引を読み直したときは、見ている期間・絞り込みはそのまま残す。
+      // 取引の一覧そのものを持つ絞り込み（資金繰り予測から開いた明細）だけは、古い取引を指しているので外す
+      state.txFilter = null;
+    }
     // 前払費用という口座名が実在すれば、便利のため自動で設定欄に補完する
     if (settings.prepaidAccounts.length === 0) {
       const accountNames = new Set();
@@ -7300,7 +7371,13 @@ function svgEl(tag, attrs) {
     return true;
   }
 
-  document.getElementById("searchInput").addEventListener("input", (e) => { state.search = e.target.value; state.page = 0; render(); });
+  // 1文字ごとに全画面を描き直すと重いため、入力が止まってから描き直す
+  let searchTimer = null;
+  document.getElementById("searchInput").addEventListener("input", (e) => {
+    state.search = e.target.value; state.page = 0;
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(render, 200);
+  });
   document.getElementById("prevBtn").addEventListener("click", () => { state.page = Math.max(0, state.page - 1); render(); });
   document.getElementById("nextBtn").addEventListener("click", () => { state.page += 1; render(); });
 
@@ -7485,6 +7562,7 @@ function svgEl(tag, attrs) {
       document.getElementById("uploadView").classList.remove("hidden");
     }
   }
+  try { loadLocalSettings(); } catch (e) { console.error("端末に保存した設定の読み込みに失敗", e); }
   restoreCsvCache().then(function () {
   if (cloudSync.locked) {
     // 暗号化トークンがロック中：ローカルに復元済みのデータがあれば先に表示し、解除ダイアログを出す
@@ -7925,7 +8003,7 @@ function svgEl(tag, attrs) {
   const mk = (cls, text, aria) => { const b = document.createElement("button"); b.type = "button"; b.className = cls; b.textContent = text; if (aria) b.setAttribute("aria-label", aria); return b; };
   const prev = mk("pc-step", "‹", "前の期間へ"), next = mk("pc-step", "›", "次の期間へ"), mid = mk("pc-label", "期間を選ぶ");
   mid.setAttribute("aria-haspopup", "dialog");
-  const chip = document.createElement("div"); chip.className = "period-chip";
+  const chip = document.createElement("div"); chip.className = "period-mchip";
   chip.append(prev, mid, next);
   sb.insertBefore(chip, sec);
   const back = document.createElement("div"); back.className = "psheet-backdrop";
@@ -8001,7 +8079,7 @@ function svgEl(tag, attrs) {
   if (tokenToggle && tokenInput && navigator.clipboard && navigator.clipboard.readText) {
     const p = document.createElement("button"); p.type = "button"; p.className = "btn"; p.textContent = "貼り付け";
     p.addEventListener("click", async () => {
-      try { const t = (await navigator.clipboard.readText()).trim(); if (t) { tokenInput.value = t; tokenInput.dispatchEvent(new Event("input", { bubbles: true })); } }
+      try { const t = (await navigator.clipboard.readText()).trim(); if (t) { tokenInput.value = t; tokenInput.dispatchEvent(new Event("change", { bubbles: true })); /* 保存処理は change で動く */ } }
       catch (e) { alert("クリップボードを読み取れませんでした。入力欄に直接貼り付けてください。"); }
     });
     tokenToggle.parentNode.insertBefore(p, tokenToggle);
