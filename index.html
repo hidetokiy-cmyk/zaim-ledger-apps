@@ -12,9 +12,12 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<!-- フォントはCSS内の@importではなく<link>で読む（@importだとCSSを読み終えるまで取得が始まらず、初回表示が遅れる） -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
 <script src="papaparse.min.js"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap');
 
   :root {
     --paper: #EFEDE3;
@@ -321,7 +324,8 @@
     .tab-btn svg { display: block; width: 19px; height: 19px; }
   }
   .tab-page.hidden { display: none !important; }
-  .tab-page, .substab-page { transition: opacity .38s ease, transform .5s cubic-bezier(.2,.8,.2,1); opacity: 1; transform: perspective(1400px) translate3d(0,0,0) rotateX(0deg); transform-origin: 50% 0; }
+  /* 通常時は transform を付けない（常に付いていると描画層が残り、スクロールが重くなる）。none との間でも動きは補間される */
+  .tab-page, .substab-page { transition: opacity .38s ease, transform .5s cubic-bezier(.2,.8,.2,1); opacity: 1; transform: none; transform-origin: 50% 0; }
   .tab-page.tab-enter, .substab-page.tab-enter { opacity: 0; transform: perspective(1400px) translate3d(0,14px,-90px) rotateX(-7deg); transition: none; }
 
   .verdict-card { background: var(--paper-raised); border: 1px solid var(--rule); border-left: 4px solid var(--ink);
@@ -511,6 +515,45 @@
   .tx-summary .val { font-size: 18px; font-weight: 600; }
   .tx-summary .note { flex-basis: 100%; font-size: 12px; color: var(--ink-faint); }
   .pager { display: flex; align-items: center; justify-content: space-between; padding: 13px 22px; font-size: 15.5px; color: var(--ink-soft); }
+  .skel-shell { display: flex; min-height: 100vh; min-height: 100dvh; }
+  .skel-side { width: var(--sidebar-w); flex-shrink: 0; background: var(--sidebar); padding: 22px; }
+  .skel-side .title { color: var(--sidebar-ink); font-size: 25.5px; }
+  .skel-side .sub { color: #8D90A1; font-size: 14px; margin-top: 3px; }
+  .skel-main { flex: 1; min-width: 0; padding: 30px 34px; max-width: 1068px; }
+  .skel-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+  .skel { border-radius: 4px; background: linear-gradient(90deg, rgba(var(--ink-rgb),.06) 25%, rgba(var(--ink-rgb),.12) 37%, rgba(var(--ink-rgb),.06) 63%);
+    background-size: 400% 100%; animation: skelShine 1.4s ease infinite; }
+  .skel.skel-dark { background-image: linear-gradient(90deg, rgba(255,255,255,.05) 25%, rgba(255,255,255,.11) 37%, rgba(255,255,255,.05) 63%); }
+  @keyframes skelShine { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+  @media (max-width: 860px) {
+    .skel-shell { flex-direction: column; }
+    .skel-side { width: 100%; padding: 14px 16px; }
+    .skel-side .skel { display: none; }
+    .skel-main { padding: 18px 14px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .skel { animation: none; } }
+  .budget-row-view { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 12px; padding: 10px 0; border-bottom: 1px solid var(--rule); }
+  .budget-row-view:last-of-type { border-bottom: none; }
+  .budget-row-view .spend-track { grid-column: 1 / -1; position: relative; }
+  .budget-row-view .spend-sub { grid-column: 1 / -1; margin-top: 0; }
+  .budget-name { display: flex; align-items: center; gap: 8px; font-size: 15.5px; min-width: 0; }
+  .budget-nums { font-size: 15px; white-space: nowrap; }
+  .budget-pace { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--ink); opacity: .55; }
+  .field-group input.budget-input { width: 150px; text-align: right; }
+  .budget-edit-row { gap: 9px; padding: 4px 0; }
+  .heatmap-wrap { overflow-x: auto; padding-bottom: 4px; }
+  .panel.collapsed > :not(.panel-head) { display: none !important; }
+  .panel.collapsed > .panel-head { margin-bottom: 0; }
+  .panel-collapse { margin-left: auto; flex-shrink: 0; width: 28px; height: 28px; border-radius: 4px; cursor: pointer;
+    background: none; border: 1px solid var(--rule-strong); color: var(--ink-soft); font-size: 13px; line-height: 1; }
+  .panel-collapse:hover { color: var(--ink); border-color: var(--ink); }
+  .sync-health-banner { background: #fff4d6; color: #7a4b00; border-bottom: 1px solid #f0d28a; padding: 8px 14px; font-size: 14px; line-height: 1.5; cursor: pointer; white-space: pre-line; }
+  html[data-theme="dark"] .sync-health-banner { background: #3a3018; color: #f0d28a; border-bottom-color: #6b5520; }
+  .tx-more { text-align: center; padding: 14px; border-top: 1px solid var(--rule); }
+  mark.hl { background: rgba(156,122,46,0.30); color: inherit; padding: 0 1px; border-radius: 2px; }
+  /* 取引明細の合計欄は、スクロールしても上に残す（スマホは日付見出しが上に固定されるため対象外） */
+  @media (min-width: 641px) { .tx-summary { position: sticky; top: 0; z-index: 6; background: var(--paper-raised); } }
+  @media (max-height: 500px) and (orientation: landscape) and (pointer: coarse) { .tx-summary { position: static; } }
   .pager .btns { display: flex; gap: 4px; }
 
   /* settings modal */
@@ -799,12 +842,22 @@
   } catch (e) {}
 </script>
 
-<div id="initLoadingView" class="upload-shell">
-  <div class="upload-box">
-    <div class="upload-brand">
-      <div class="title serif">家計元帳</div>
-      <div class="sub">読み込み中…</div>
-    </div>
+<!-- 起動直後の仮表示：本番の画面と同じ配置の枠を出しておき、読み込み後に差し替える -->
+<div id="initLoadingView" class="skel-shell" aria-busy="true" aria-label="読み込み中">
+  <div class="skel-side">
+    <div class="title serif">家計元帳</div>
+    <div class="sub">読み込み中…</div>
+    <div class="skel skel-dark" style="height:30px;margin-top:22px;"></div>
+    <div class="skel skel-dark" style="height:30px;margin-top:10px;"></div>
+    <div class="skel skel-dark" style="height:120px;margin-top:22px;"></div>
+  </div>
+  <div class="skel-main">
+    <div class="skel" style="height:30px;width:45%;"></div>
+    <div class="skel" style="height:44px;margin-top:22px;"></div>
+    <div class="skel" style="height:150px;margin-top:22px;"></div>
+    <div class="skel" style="height:96px;margin-top:14px;"></div>
+    <div class="skel-row"><div class="skel" style="height:90px;"></div><div class="skel" style="height:90px;"></div></div>
+    <div class="skel" style="height:180px;margin-top:14px;"></div>
   </div>
 </div>
 
@@ -984,6 +1037,14 @@
         <div class="cash-note" id="spendNote"></div>
       </div>
 
+      <div class="card panel" id="budgetPanel">
+        <div class="panel-head">
+          <div class="section-title serif">カテゴリ別の予算</div>
+          <div class="sub-meta" id="budgetMeta"></div>
+        </div>
+        <div id="budgetBody"></div>
+      </div>
+
       <div class="verdict-card">
         <div class="verdict-label">損益（発生ベース・経済的な収益と費用）</div>
         <div class="verdict-value num serif" id="profitVal">¥0</div>
@@ -1039,6 +1100,14 @@
         <div id="monthCheckBody"></div>
       </div>
 
+      <div class="card panel" id="cardSchedulePanel" style="margin-top:18px;">
+        <div class="panel-head">
+          <div class="section-title serif">カード引落の予定</div>
+          <div class="sub-meta" id="cardScheduleMeta"></div>
+        </div>
+        <div id="cardScheduleBody"></div>
+      </div>
+
       <div class="card panel" id="subscriptionPanel" style="margin-top:18px;">
         <div class="panel-head">
           <div class="section-title serif">定期支払い（サブスク）検出</div>
@@ -1053,13 +1122,6 @@
           <a class="btn" id="taxOpenBtn" href="tax-furusato.html" style="text-decoration:none;">確定申告・ふるさと納税の試算を開く ↗</a>
         </div>
         <div class="summary-grid">
-          <div class="card summary-card" style="background:rgba(var(--ink-rgb),0.02);">
-            <div class="summary-label">医療費（医療費控除の目安）</div>
-            <div class="summary-value-row">
-              <div class="summary-value num serif" id="medicalExpenseVal">¥0</div>
-            </div>
-            <div class="cash-note" id="medicalExpenseNote"></div>
-          </div>
           <div class="card summary-card" style="background:rgba(var(--ink-rgb),0.02);">
             <div class="summary-label">ふるさと納税（実績合計）</div>
             <div class="summary-value-row">
@@ -1076,6 +1138,9 @@
           </div>
         </div>
         <div class="cash-note" id="taxRefNote" style="margin-top:10px;"></div>
+        <div class="modal-section-title" style="margin-top:18px;">ふるさと納税の寄附先</div>
+        <div class="cash-note" id="furusatoDeadline" style="margin:6px 0 4px;"></div>
+        <div id="furusatoList"></div>
       </div>
 
       </div>
@@ -1118,14 +1183,23 @@
       <div class="card panel" id="simPanel">
         <div class="panel-head"><div class="section-title serif">資産推移シミュレーション</div></div>
         <div class="x-fields">
-          <label>毎月の積立額（円）<input type="number" id="simMonthly" step="1000" inputmode="numeric"></label>
+          <label>毎月の積立額（円）<input type="text" id="simMonthly" inputmode="numeric" autocomplete="off" data-yen></label>
           <label>想定年利（%）<input type="number" id="simRate" step="0.5" inputmode="decimal"></label>
           <label>期間（年）<input type="number" id="simYears" min="1" max="50" step="1" inputmode="numeric"></label>
-          <label>目標額（円・任意）<input type="number" id="simTarget" step="100000" inputmode="numeric"></label>
+          <label>目標額（円・任意）<input type="text" id="simTarget" inputmode="numeric" autocomplete="off" data-yen></label>
         </div>
         <div class="cash-note" id="simStartNote" style="margin:0 0 8px;"></div>
         <div class="line-chart" id="simChart"></div>
         <div id="simResult" style="margin-top:10px;font-size:15px;line-height:1.7;"></div>
+      </div>
+
+      <div class="card panel" id="heatmapPanel">
+        <div class="panel-head">
+          <div class="section-title serif">支出カレンダー（直近1年）</div>
+          <div class="sub-meta" id="heatmapMeta"></div>
+        </div>
+        <div class="heatmap-wrap" id="heatmapBody"></div>
+        <div style="font-size:13px;color:var(--ink-soft);margin-top:6px;">選択中の期間の最終日までの53週間。色が濃いほど支出が多い日です（集計から除外する設定の取引は含みません。検索・絞り込み条件を反映）。日付をクリックすると、その日の取引明細を開きます。</div>
       </div>
 
       <div class="card panel">
@@ -1274,6 +1348,7 @@
           <div class="section-title serif">取引明細</div>
           <div style="display:flex;align-items:center;gap:10px;">
             <div class="file-meta" id="txCount" style="font-size:14.5px;color:var(--ink-soft)"></div>
+            <button id="txTodayBtn" class="btn" type="button" style="cursor:pointer;" title="今日を含む期間に切り替え、今日の取引の位置まで移動します">今日へ</button>
             <button id="exportTxCsvBtn" class="btn" style="cursor:pointer;" title="現在の絞り込み条件を反映してCSVを書き出します">CSVで書き出す</button>
           </div>
         </div>
@@ -1329,6 +1404,7 @@
         <button class="settings-nav-btn active" data-pane="sync">同期</button>
         <button class="settings-nav-btn" data-pane="accounts">口座</button>
         <button class="settings-nav-btn" data-pane="prepaid">簿外勘定</button>
+        <button class="settings-nav-btn" data-pane="budget">予算</button>
         <button class="settings-nav-btn" data-pane="tax">税務集計</button>
         <button class="settings-nav-btn" data-pane="fixedManual">固定費（手動）</button>
         <button class="settings-nav-btn" data-pane="backup">バックアップ</button>
@@ -1431,10 +1507,18 @@
         </div>
       </div>
 
+      <div class="field-group settings-pane hidden" data-pane="budget">
+        <div class="modal-section-title">カテゴリ別の月予算</div>
+        <div class="field-hint" style="margin-top:8px;">
+          支出カテゴリごとに、1か月（会計月・25日始まり）の予算を設定します。空欄のカテゴリは予算なしとして扱い、概要タブには予算を入れたカテゴリだけが表示されます。集計は損益と同じく、集計から除外する設定の取引を含みません。GitHub同期・バックアップにも含まれます。
+        </div>
+        <div id="budgetEditList" style="margin-top:10px;"></div>
+      </div>
+
       <div class="field-group settings-pane hidden" data-pane="tax">
         <div class="modal-section-title">税務関連の年間集計設定</div>
         <div class="field-hint" style="margin-top:8px;">
-          概要タブに、選択中の期間が属する暦年（1〜12月）を対象とした医療費控除・ふるさと納税の年間集計を参考表示します。医療費は「医療・保険」カテゴリの支出合計、ふるさと納税は下記キーワードに一致する支出の合計です。控除額・寄附上限額の計算は別ファイルの試算ページで行い、ここの集計値が引き継がれます。
+          概要タブに、選択中の期間が属する暦年（1〜12月）を対象としたふるさと納税の年間集計と寄附先の一覧を参考表示します。ふるさと納税は下記キーワードに一致する支出の合計です。寄附上限額などの計算は別ファイルの試算ページで行い、ここの集計値が引き継がれます。医療費は集計しません（試算ページで直接入力してください）。
         </div>
         <label class="field-label" style="margin-top:10px;" for="furusatoKeywordInput">ふるさと納税の判定キーワード</label>
         <input type="text" id="furusatoKeywordInput" placeholder="例: ふるさと納税" value="ふるさと納税">
@@ -1455,7 +1539,7 @@
         <label class="field-label" style="margin-top:10px;" for="manualFixedLabelInput">表示名</label>
         <input type="text" id="manualFixedLabelInput" placeholder="例: 家賃">
         <label class="field-label" style="margin-top:10px;" for="manualFixedAmountInput">月額（円・手数料等含めた合計）</label>
-        <input type="text" id="manualFixedAmountInput" placeholder="例: 85640">
+        <input type="text" id="manualFixedAmountInput" placeholder="例: 85,640" inputmode="numeric" autocomplete="off" data-yen>
         <label class="field-label" style="margin-top:10px;" for="manualFixedMatchType">一致させる取引</label>
         <select id="manualFixedMatchType" class="trend-select" style="width:100%;">
           <option value="store">お店名で一致させる</option>
@@ -1611,6 +1695,7 @@
     pendingSecuritiesImport: null, // 証券スクレイピングスクリプトがクラウド経由で置いていく未取込データ { stocks, funds, cash, other, totalCostBasis, totalMarketValue, scrapedAt }
     manualFixedCosts: new Map(), // 手動登録した固定費。id -> { matchType:'store'|'sub'|'none', matchValue, category, label, amount, cashPaid }
     accountRenames: new Map(), // 口座名の変更記録。旧口座名 -> 新口座名（Zaim側で名前を変えた口座の設定・取引を引き継ぐ）
+    categoryBudgets: new Map(), // カテゴリ別の月予算。カテゴリ名 -> 月額（円）。会計月（25日始まり）単位で使う
   };
 
   // ---------- cloud sync (GitHub private repo, settings only — no transaction data) ----------
@@ -1823,6 +1908,7 @@
       pendingSecuritiesImport: settings.pendingSecuritiesImport,
       manualFixedCosts: Object.fromEntries(settings.manualFixedCosts),
       accountRenames: Object.fromEntries(settings.accountRenames),
+      categoryBudgets: Object.fromEntries(settings.categoryBudgets),
       balancePattern: state.balancePattern,
       updatedAt: new Date().toISOString(),
     };
@@ -1854,7 +1940,7 @@
     if (!el) {
       el = document.createElement("div");
       el.id = "syncHealthBanner";
-      el.style.cssText = "background:#fff4d6;color:#7a4b00;border-bottom:1px solid #f0d28a;padding:8px 14px;font-size:14px;line-height:1.5;cursor:pointer;white-space:pre-line;";
+      el.className = "sync-health-banner";   // 配色はCSS側（ダークモード対応）
       el.title = "クリックで閉じる";
       el.addEventListener("click", () => { syncBannerDismissed = true; el.remove(); });
       document.body.prepend(el);
@@ -1882,6 +1968,7 @@
     settings.pendingSecuritiesImport = obj.pendingSecuritiesImport && (Array.isArray(obj.pendingSecuritiesImport.stocks) || Array.isArray(obj.pendingSecuritiesImport.funds)) ? obj.pendingSecuritiesImport : null;
     settings.manualFixedCosts = new Map(Object.entries(obj.manualFixedCosts || {}));
     settings.accountRenames = new Map(Object.entries(obj.accountRenames || {}));
+    settings.categoryBudgets = new Map(Object.entries(obj.categoryBudgets || {}).filter(([, v]) => typeof v === "number" && v > 0));
     // 他の端末で口座名を変えた場合や、古い設定が旧名のまま残っていた場合に、設定と取引の口座名を新名へそろえる
     const renamedByApply = applyAccountRenames();
     const rowsRenamed = renormalizeLoadedRows();
@@ -1952,6 +2039,10 @@
       return got;
     }));
     if (parts.some((p) => !p || !p.text)) return null;
+    // 一覧から消えた年のファイルの保存分は、端末から削除する（溜まり続けないように）
+    IDB.keys().then((ks) => (ks || []).forEach((k) => {
+      if (typeof k === "string" && k.startsWith("f:") && !files.includes(k.slice(2))) IDB.del(k).catch(() => {});
+    })).catch(() => {});
     let text = "";
     parts.forEach((p, i) => {
       let t = p.text;
@@ -2175,6 +2266,7 @@
     merged.manualFixedCosts = mergeMapField(base, local, remote, "manualFixedCosts", conflicts);
     merged.accountMeta = mergeMapField(base, local, remote, "accountMeta", conflicts);
     merged.accountRenames = mergeMapField(base, local, remote, "accountRenames", conflicts);
+    merged.categoryBudgets = mergeMapField(base, local, remote, "categoryBudgets", conflicts);
     ["accountBalanceInited", "accountBalanceAsOfDate", "balancePattern", "furusatoKeyword", "securitiesScrapeInfo", "zaimScrapeInfo",
       "pendingZaimImport", "pendingZaimCsv", "zaimCsvSyncedAt", "pendingSecuritiesImport", "accountMetaInited", "syncHeartbeat"]
       .forEach((key) => { merged[key] = mergeScalarField(base, local, remote, key, conflicts); });
@@ -2371,6 +2463,30 @@
     const n = parseFloat(String(v).replace(/[,¥\s]/g, ""));
     return isNaN(n) ? 0 : n;
   }
+  // 金額入力欄（data-yen を付けた欄）は、入力中に3桁区切りを付ける。読む側は parseAmount() でカンマを外す
+  function formatYenInput(v) {
+    const s = String(v == null ? "" : v).replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)).replace(/[^\d-]/g, "");
+    if (s === "" || s === "-") return s;
+    const neg = s.startsWith("-");
+    const digits = s.replace(/-/g, "").replace(/^0+(?=\d)/, "");
+    return (neg ? "-" : "") + digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  }
+  document.addEventListener("input", (e) => {
+    const t = e.target;
+    if (!t || !t.matches || !t.matches("input[data-yen]") || e.isComposing) return;
+    const pos = t.selectionStart == null ? t.value.length : t.selectionStart;
+    const digitsBefore = t.value.slice(0, pos).replace(/\D/g, "").length;
+    const nv = formatYenInput(t.value);
+    if (nv === t.value) return;
+    t.value = nv;
+    let i = 0, seen = 0;   // カーソルを、入力前と同じ桁の位置に戻す
+    while (i < nv.length && seen < digitsBefore) { if (/\d/.test(nv[i])) seen++; i++; }
+    try { t.setSelectionRange(i, i); } catch (err) { /* 対応していない入力欄は無視 */ }
+  });
+  document.addEventListener("compositionend", (e) => {
+    const t = e.target;
+    if (t && t.matches && t.matches("input[data-yen]")) t.value = formatYenInput(t.value);
+  });
   const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
   function dayLabel(d) { return `${d.getMonth() + 1}月${d.getDate()}日（${WEEKDAYS[d.getDay()]}）`; }
 
@@ -5518,6 +5634,236 @@ function svgEl(tag, attrs) {
     noteEl.style.whiteSpace = "pre-line";
   }
 
+  // ---------- カテゴリ別の月予算 ----------
+  // 選択中の期間が属する会計月（25日始まり）で、予算を入れたカテゴリの支出と予算を比べる
+  function budgetCategoryNames() {
+    const names = CATEGORY_TAXONOMY.expense.map((c) => c.name);
+    (state.transactions || []).forEach((r) => { if (r.type === "expense" && r.category && !names.includes(r.category)) names.push(r.category); });
+    settings.categoryBudgets.forEach((_, k) => { if (!names.includes(k)) names.push(k); });
+    return names;
+  }
+  function openSettingsPane(name) {
+    openSettingsModal();
+    const b = document.querySelector(`#settingsNav .settings-nav-btn[data-pane="${name}"]`);
+    if (b) { b.click(); b.focus(); }
+  }
+  function renderBudgetPanel() {
+    const body = document.getElementById("budgetBody"), meta = document.getElementById("budgetMeta");
+    if (!body) return;
+    body.innerHTML = "";
+    const range = periodRangeForMode("month", state.periodAnchor, 0);
+    const today = startOfDay(new Date());
+    const ongoing = today >= range.start && today < range.end;
+    meta.textContent = cycleLabel(range.key) + (ongoing ? "（進行中）" : "");
+    const editBtn = el("button", { type: "button", class: "btn", onclick: () => openSettingsPane("budget") }, ["予算を設定"]);
+    if (settings.categoryBudgets.size === 0) {
+      body.appendChild(el("div", { class: "x-check" }, [el("div", { class: "x-body" }, [el("div", { class: "x-detail" }, ["予算はまだ設定されていません。食費など、カテゴリごとに1か月の予算を入れると、ここで使った割合を確認できます。"])]), editBtn]));
+      return;
+    }
+    const spent = new Map();
+    rowsInRange(range).forEach((r) => {
+      if (r.type !== "expense" || isExcludedRow(r, false)) return;
+      spent.set(r.category, (spent.get(r.category) || 0) + r.amount);
+    });
+    const days = Math.max(1, Math.round((range.end - range.start) / 86400000));
+    const elapsed = ongoing ? Math.round((today - range.start) / 86400000) + 1 : days;
+    const pacePct = Math.min(100, Math.round((elapsed / days) * 100));
+    let totB = 0, totS = 0;
+    const row = (label, s, b, cat) => {
+      const ratio = b > 0 ? s / b : 0;
+      const cls = ratio >= 1 ? "over" : ratio >= 0.8 ? "warn" : "";
+      const notes = [s <= b ? `残 ${YEN(b - s)}` : `超過 ${YEN(s - b)}`];
+      if (ongoing && elapsed < days && s <= b) {
+        const proj = (s / elapsed) * days;
+        if (proj > b) notes.push(`このペースだと月末 ${YEN(proj)}`);
+      }
+      const track = el("div", { class: "spend-track" }, [el("div", { class: "spend-fill " + cls, style: `width:${Math.min(100, Math.round(ratio * 100))}%` })]);
+      if (ongoing) track.appendChild(el("div", { class: "budget-pace", title: `今日の位置（${elapsed}/${days}日）`, style: `left:${pacePct}%` }));
+      return el("div", { class: "budget-row-view" }, [
+        el("div", { class: "budget-name" }, cat ? [el("span", { class: "cat-dot", style: `background:${catColor(cat)}` }), drillLabel(label, { category: cat })] : [el("strong", null, [label])]),
+        el("div", { class: "budget-nums num" }, [`${YEN(s)} / ${YEN(b)}`]),
+        track,
+        el("div", { class: "spend-sub num" + (s > b ? " over" : "") }, [notes.join("・")]),
+      ]);
+    };
+    budgetCategoryNames().filter((c) => settings.categoryBudgets.has(c)).forEach((cat) => {
+      const b = settings.categoryBudgets.get(cat), s = spent.get(cat) || 0;
+      totB += b; totS += s;
+      body.appendChild(row(cat, s, b, cat));
+    });
+    if (settings.categoryBudgets.size > 1) body.appendChild(row("予算を入れたカテゴリの合計", totS, totB, null));
+    body.appendChild(el("div", { style: "display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap;" }, [
+      el("div", { class: "cash-note", style: "margin:0;" }, [ongoing ? "縦線は今日の位置（月の経過割合）です。" : ""]),
+      editBtn,
+    ]));
+  }
+  function refreshBudgetEditList() {
+    const wrap = document.getElementById("budgetEditList");
+    if (!wrap) return;
+    wrap.innerHTML = "";
+    budgetCategoryNames().forEach((cat) => {
+      const v = settings.categoryBudgets.get(cat);
+      const input = el("input", { type: "text", class: "budget-input", inputmode: "numeric", autocomplete: "off", "data-yen": "", "aria-label": `${cat}の月予算`, placeholder: "予算なし" });
+      if (v) input.value = formatYenInput(v);
+      input.addEventListener("change", () => {
+        const n = Math.round(parseAmount(input.value));
+        if (n > 0) settings.categoryBudgets.set(cat, n);
+        else { settings.categoryBudgets.delete(cat); input.value = ""; }
+        render();
+        scheduleCloudSave();
+      });
+      wrap.appendChild(el("label", { class: "check-row budget-edit-row" }, [
+        el("span", { class: "cat-dot", style: `background:${catColor(cat)}` }),
+        el("span", { style: "flex:1;" }, [cat]),
+        input,
+        el("span", { style: "color:var(--ink-faint);font-size:13px;" }, ["円"]),
+      ]));
+    });
+  }
+
+  // ---------- カード引落の予定 ----------
+  // 推定した締め日・支払日（getCardBillingCycle）をもとに、カードごとの次回・次々回の引落額を出す。
+  // 引落元は、過去にそのカードへ決済した口座のうち最も回数の多いもの。残高は口座残高の確認日時点の値で比べる。
+  const CARD_WARN_DAYS = 45;
+  function computeCardSchedule() {
+    const today = startOfDay(new Date());
+    const cards = Array.from(accountFlagSet("card")).filter((a) => !settings.balanceExcludedAccounts.has(a) && !getAccountMeta(a).unpaid);
+    const out = [], skipped = [];
+    cards.forEach((acct) => {
+      const cycle = getCardBillingCycle(acct);
+      if (!cycle) { if ((state.transactions || []).some((r) => r.fromAccount === acct)) skipped.push(acct); return; }
+      const purchases = [], srcCount = new Map();
+      let lastSettle = null;
+      for (const r of state.transactions) {
+        if (r.type === "expense" && r.fromAccount === acct) purchases.push(r);
+        else if ((r.type === "transfer" || r.type === "balance") && r.toAccount === acct && r.fromAccount && forecastIsCashAccount(r.fromAccount)) {
+          srcCount.set(r.fromAccount, (srcCount.get(r.fromAccount) || 0) + 1);
+          if (!isFutureRow(r) && (!lastSettle || r.date > lastSettle)) lastSettle = r.date;
+        }
+      }
+      const srcSorted = Array.from(srcCount.entries()).sort((a, b) => b[1] - a[1]);
+      const source = srcSorted.length ? srcSorted[0][0] : null;
+      const items = [];
+      for (let k = 0; k < 4 && items.length < 2; k++) {
+        const y = today.getFullYear() + Math.floor((today.getMonth() + k) / 12), m0 = (today.getMonth() + k) % 12;
+        const settle = new Date(y, m0, Math.min(cycle.settlementDayOfMonth, new Date(y, m0 + 1, 0).getDate()));
+        if (settle < today) continue;
+        if (lastSettle && lastSettle >= addDays(settle, -10)) continue;   // 今月分がもう引き落とされている（推定日より早かった）
+        const end = cardCycleClosingDateForSettlement(settle, cycle.closingDay, cycle.lag);
+        const start = new Date(end.getFullYear(), end.getMonth() - 1, end.getDate());
+        let amount = 0, n = 0;
+        purchases.forEach((p) => { if (p.date > start && p.date <= end) { amount += p.amount; n++; } });
+        items.push({ settle, from: addDays(start, 1), end, amount, n, closed: end < today });
+      }
+      if (items.length) out.push({ account: acct, source, cycle, items });
+    });
+    // 引落元ごとに、近いうちの引落合計と残高を比べる
+    const asOf = parseAsofDate();
+    const bal = getAccountBalancesAsOf(asOf);
+    const bySource = new Map();
+    out.forEach((c) => c.items.forEach((it) => {
+      if (!c.source || (it.settle - today) / 86400000 > CARD_WARN_DAYS) return;
+      bySource.set(c.source, (bySource.get(c.source) || 0) + it.amount);
+    }));
+    const warnings = [];
+    bySource.forEach((total, src) => {
+      const b = bal.get(src);
+      if (typeof b === "number" && total > b) warnings.push({ source: src, total, balance: b });
+    });
+    return { cards: out, skipped, warnings, asOf };
+  }
+  function renderCardSchedulePanel() {
+    const body = document.getElementById("cardScheduleBody"), meta = document.getElementById("cardScheduleMeta");
+    if (!body) return;
+    body.innerHTML = "";
+    const { cards, skipped, warnings, asOf } = computeCardSchedule();
+    const md = (d) => `${d.getMonth() + 1}/${d.getDate()}`;
+    if (!cards.length) {
+      meta.textContent = "";
+      body.appendChild(emptyState(skipped.length ? "締め日・支払日を推定できるカードがありません（決済の実績が2回以上必要です）" : "カードとして設定された口座がありません"));
+      return;
+    }
+    const soon = cards.reduce((s, c) => s + c.items.filter((it) => (it.settle - startOfDay(new Date())) / 86400000 <= 31).reduce((t, it) => t + it.amount, 0), 0);
+    meta.textContent = `1か月以内の引落 ${YEN(soon)}`;
+    warnings.forEach((w) => {
+      body.appendChild(el("div", { class: "x-check" }, [
+        el("div", { class: "x-mark warn" }, ["!"]),
+        el("div", { class: "x-body" }, [
+          el("div", { class: "x-title" }, [`${w.source}の残高が足りない可能性があります`]),
+          el("div", { class: "x-detail" }, [`${CARD_WARN_DAYS}日以内の引落 ${YEN(w.total)} に対し、残高は ${YEN(w.balance)}（${md(asOf)}時点）。給与などの入金予定は考慮していません。`]),
+        ]),
+      ]));
+    });
+    cards.forEach((c) => {
+      c.items.forEach((it, i) => {
+        const tag = it.closed ? el("span", { class: "bal-tag" }, ["締め済み"]) : el("span", { class: "bal-tag bal-tag-warn" }, ["利用期間の途中"]);
+        body.appendChild(el("div", { class: "sub-row" }, [
+          el("div", null, [
+            el("div", { class: "sub-name" }, [i === 0 ? drillLabel(c.account, { account: c.account }) : el("span", { style: "color:var(--ink-soft);" }, [c.account]), tag]),
+            el("div", { class: "sub-meta-line" }, [`${md(it.settle)}頃 引落${c.source ? `（${c.source}から）` : ""}・利用期間 ${md(it.from)}〜${md(it.end)}・${it.n}件`]),
+          ]),
+          el("div", { class: "num amt" }, [YEN(it.amount)]),
+        ]));
+      });
+    });
+    const notes = ["引落日・締め日は過去の決済実績からの推定です（土日祝の前後のずれは考慮していません）。「利用期間の途中」の金額は、今日までの利用分だけです。"];
+    if (skipped.length) notes.push(`推定できなかったカード：${skipped.join("、")}`);
+    body.appendChild(el("div", { class: "cash-note" }, [notes.join(" ")]));
+  }
+
+  // ---------- 支出カレンダー（ヒートマップ） ----------
+  function renderHeatmap() {
+    const host = document.getElementById("heatmapBody"), meta = document.getElementById("heatmapMeta");
+    if (!host) return;
+    host.innerHTML = "";
+    const periodEnd = addDays(periodRangeForMode(state.periodMode, state.periodAnchor, 0).end, -1);
+    const today = startOfDay(new Date());
+    const last = periodEnd < today ? periodEnd : today;
+    const firstMon = addDays(mondayOf(last), -52 * 7);
+    const sums = new Map();
+    applyCommonFilters(rowsInRange({ start: firstMon, end: addDays(last, 1) })).forEach((r) => {
+      if (r.type !== "expense" || isExcludedRow(r, false)) return;
+      sums.set(r.dayKey, (sums.get(r.dayKey) || 0) + r.amount);
+    });
+    const vals = Array.from(sums.values()).filter((v) => v > 0).sort((a, b) => a - b);
+    const q = (p) => vals.length ? vals[Math.min(vals.length - 1, Math.floor(p * vals.length))] : 0;
+    const th = [q(0.25), q(0.5), q(0.75), q(0.92)];
+    const level = (v) => (v <= 0 ? 0 : v <= th[0] ? 1 : v <= th[1] ? 2 : v <= th[2] ? 3 : v <= th[3] ? 4 : 5);
+    const alpha = [0, 0.18, 0.34, 0.52, 0.72, 0.95];
+    const cell = 12, gap = 2, padL = 22, padT = 16, weeks = 53;
+    const w = padL + weeks * (cell + gap), h = padT + 7 * (cell + gap);
+    const svg = svgEl("svg", { viewBox: `0 0 ${w} ${h}`, width: w, height: h, role: "img", "aria-label": "支出カレンダー", style: "display:block;font-family:inherit;" });
+    ["月", "水", "金"].forEach((t, i) => { const tx = svgEl("text", { x: 0, y: padT + (i * 2) * (cell + gap) + cell - 2, "font-size": 9, fill: "var(--ink-soft)" }); tx.textContent = t; svg.appendChild(tx); });
+    let prevMonth = -1, total = 0, activeDays = 0;
+    for (let wk = 0; wk < weeks; wk++) {
+      for (let d = 0; d < 7; d++) {
+        const day = addDays(firstMon, wk * 7 + d);
+        if (day > last) continue;
+        if (d === 0 && day.getMonth() !== prevMonth) {
+          prevMonth = day.getMonth();
+          const tx = svgEl("text", { x: padL + wk * (cell + gap), y: 10, "font-size": 9, fill: "var(--ink-soft)" });
+          tx.textContent = `${day.getMonth() + 1}月`;
+          svg.appendChild(tx);
+        }
+        const key = dkey(day), v = sums.get(key) || 0, lv = level(v);
+        if (v > 0) { total += v; activeDays++; }
+        const rect = svgEl("rect", { x: padL + wk * (cell + gap), y: padT + d * (cell + gap), width: cell, height: cell, rx: 2,
+          fill: lv ? "var(--red)" : "rgba(var(--ink-rgb),0.06)", "fill-opacity": lv ? alpha[lv] : 1, style: "cursor:pointer;" });
+        const title = svgEl("title", {});
+        title.textContent = `${dayLabel(day)} ${v ? YEN(v) : "支出なし"}`;
+        rect.appendChild(title);
+        rect.addEventListener("click", () => {
+          state.periodMode = "day"; state.periodAnchor = day; state.page = 0; state.txFilter = null; state.txPeriod = null;
+          drilledIn = true; activateTab("tx", "in"); render();
+        });
+        svg.appendChild(rect);
+      }
+    }
+    host.appendChild(svg);
+    host.scrollLeft = host.scrollWidth;   // 直近が右端。狭い画面では最初から直近を見せる
+    meta.textContent = activeDays ? `支出のあった日 ${activeDays}日・合計 ${YEN(total)}` : "";
+  }
+
   // アプリを開いたまま日付が変わった場合（PWAを翌日に開き直したときなど）、基準日が昨日のままにならないよう更新する
   let lastSeenDay = startOfDay(new Date()).getTime();
   function refreshIfDayChanged() {
@@ -5533,17 +5879,22 @@ function svgEl(tag, attrs) {
 
   // ---------- 税務連携（確定申告・ふるさと納税の試算ページ tax-furusato.html との受け渡し） ----------
   // 税制改正で計算式が変わっても、この元帳側は触らずに済むよう、税額の計算は別ファイルに分けている。
-  // 元帳→試算ページ：暦年ごとの集計値（寄附額・医療費・社会保険料・源泉所得税など）を localStorage とリンクのハッシュで渡す
+  // 元帳→試算ページ：暦年ごとの集計値（寄附額・社会保険料・源泉所得税など）を localStorage とリンクのハッシュで渡す。
+  // 医療費は「医療・保険」カテゴリが控除対象の医療費と一致しないため、集計も受け渡しもしない（試算ページで直接入力する）
   // 試算ページ→元帳：試算結果（寄附上限額・残り枠・納税/還付額）を localStorage と戻りリンクのハッシュで受け取る
   const TAX_HANDOFF_KEY = "ledger.taxHandoff", TAX_RESULT_KEY = "ledger.taxResult";
   const SHAKAI_SUBS = new Set(["健康保険", "年金保険", "雇用保険"]);
   const PAYROLL_SHAKAI_RE = /健康保険|厚生年金|雇用保険|介護保険|子育|支援金/;
 
+  function isFurusatoRow(r, kw) {
+    return !!kw && r.type === "expense" && [r.category, r.subCategory, r.store, r.item, r.memo].some((f) => f && f.includes(kw));
+  }
+
   // 暦年ごとに一度の走査で集計する。除外口座・除外カテゴリなど画面表示用の絞り込みは、税務の事実とは関係がないため適用しない。
   function computeTaxYearTotals() {
     const kw = (settings.furusatoKeyword || "").trim();
     const years = {};
-    const get = (y) => years[y] || (years[y] = { med: 0, medN: 0, don: 0, donN: 0, gross: 0, net: 0, shakai: 0, wh: 0, res: 0, shakaiX: 0, shakaiSelf: 0, whX: 0, resX: 0 });
+    const get = (y) => years[y] || (years[y] = { don: 0, donN: 0, gross: 0, net: 0, shakai: 0, wh: 0, res: 0, shakaiX: 0, shakaiSelf: 0, whX: 0, resX: 0 });
     for (const r of state.transactions || []) {
       if (r.aggSetting === "exclude") continue;   // Zaimで「集計に含めない」にした取引は税務集計にも含めない（「年の集計にのみ含める」は年間集計なので対象）
       const y = r.date.getFullYear();
@@ -5562,8 +5913,7 @@ function svgEl(tag, attrs) {
       }
       if (r.type !== "expense") continue;
       const g = get(y);
-      if (r.category === "医療・保険") { g.med += r.amount; g.medN++; }
-      if (kw && [r.category, r.subCategory, r.store, r.item, r.memo].some((f) => f && f.includes(kw))) { g.don += r.amount; g.donN++; }
+      if (isFurusatoRow(r, kw)) { g.don += r.amount; g.donN++; }
       if (r.category === "税金") {
         // 社会保険料は「その月分」を翌月の給与で徴収するため、支出側の日付（○月分）を1か月後にずらして年を判定する（12月分は翌年の支払い扱い）
         if (SHAKAI_SUBS.has(r.subCategory)) {
@@ -5602,16 +5952,52 @@ function svgEl(tag, attrs) {
     try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { /* ignore */ }
   }
 
+  // ふるさと納税の寄附先一覧（寄附先＝お店。お店が空なら品目・メモ）と、ワンストップ特例の申請期限（翌年1月10日必着）
+  const ONESTOP_MAX_CITIES = 5;
+  function renderFurusatoList(year) {
+    const listEl = document.getElementById("furusatoList"), dlEl = document.getElementById("furusatoDeadline");
+    if (!listEl || !dlEl) return;
+    const kw = (settings.furusatoKeyword || "").trim();
+    const map = new Map();
+    (state.transactions || []).forEach((r) => {
+      if (r.aggSetting === "exclude" || r.date.getFullYear() !== year || !isFurusatoRow(r, kw)) return;
+      const name = r.store || r.item || r.memo || "（寄附先の記載なし）";
+      const o = map.get(name) || { name, amount: 0, n: 0, last: r.date };
+      o.amount += r.amount; o.n++; if (r.date > o.last) o.last = r.date;
+      map.set(name, o);
+    });
+    const list = Array.from(map.values()).sort((a, b) => b.amount - a.amount);
+    listEl.innerHTML = "";
+    if (list.length === 0) { listEl.appendChild(emptyState(`${year}年の寄附はまだありません`)); dlEl.textContent = ""; return; }
+    list.forEach((o) => {
+      listEl.appendChild(el("div", { class: "sub-row" }, [
+        el("div", null, [
+          el("div", { class: "sub-name" }, [drillLabel(o.name, { store: o.name })]),
+          el("div", { class: "sub-meta-line" }, [`${o.n}回・最終 ${o.last.getMonth() + 1}/${o.last.getDate()}`]),
+        ]),
+        el("div", { class: "num amt" }, [YEN(o.amount)]),
+      ]));
+    });
+    const today = startOfDay(new Date());
+    const deadline = new Date(year + 1, 0, 10);
+    const days = Math.round((deadline - today) / 86400000);
+    const parts = [`寄附先 ${list.length}か所`];
+    if (list.length > ONESTOP_MAX_CITIES) parts.push(`ワンストップ特例は${ONESTOP_MAX_CITIES}自治体までのため、確定申告が必要です`);
+    else if (days >= 0) parts.push(`ワンストップ特例の申請期限 ${year + 1}/1/10（必着）まであと${days}日`);
+    else parts.push(`ワンストップ特例の申請期限（${year + 1}/1/10）は過ぎています`);
+    parts.push("寄附先はお店の名前でまとめています。同じ自治体が別の名前で記録されている場合は別々に数えます");
+    dlEl.textContent = parts.join("／");
+  }
+
   function renderTaxSummary() {
     if (!document.getElementById("taxSummaryPanel")) return;
     const year = state.periodAnchor.getFullYear();
     const years = computeTaxYearTotals();
-    const t = years[year] || { med: 0, medN: 0, don: 0, donN: 0, gross: 0, net: 0, shakai: 0, wh: 0, res: 0 };
+    const t = years[year] || { don: 0, donN: 0, gross: 0, net: 0, shakai: 0, wh: 0, res: 0 };
     document.getElementById("taxSummaryYear").textContent = String(year);
-    document.getElementById("medicalExpenseVal").textContent = YEN(t.med);
-    document.getElementById("medicalExpenseNote").textContent = `「医療・保険」カテゴリの支出 ${t.medN}件`;
     document.getElementById("furusatoVal").textContent = YEN(t.don);
     document.getElementById("furusatoNote").textContent = `「${settings.furusatoKeyword}」に一致する支出 ${t.donN}件`;
+    try { renderFurusatoList(year); } catch (e) { console.error("寄附先一覧の表示に失敗", e); }
 
     // 試算ページで保存された結果（対象年が同じときだけ表示）
     const res = readTaxResult(), limVal = document.getElementById("furusatoLimitVal"), limNote = document.getElementById("furusatoLimitNote");
@@ -5709,6 +6095,19 @@ function svgEl(tag, attrs) {
   }
 
   // 単独取引（同一日・同一店舗の他取引と統合されなかったもの）の1行を描画する
+  // 検索語に一致した部分を<mark>で強調する（検索と同じく大文字・小文字は区別する）
+  function hl(text) {
+    const s = String(text == null ? "" : text);
+    const terms = state.search.trim().split(/\s+/).filter(Boolean);
+    if (!terms.length || !s) return s;
+    const re = new RegExp("(" + terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") + ")", "g");
+    const parts = s.split(re);
+    if (parts.length === 1) return s;
+    const span = document.createElement("span");
+    parts.forEach((p, i) => { if (!p) return; span.appendChild(i % 2 ? el("mark", { class: "hl" }, [p]) : document.createTextNode(p)); });
+    return span;
+  }
+
   function renderSingleTxRow(dayGroupEl, r, flags) {
     // amount自体がマイナス（割引・返金などで支出/収入が打ち消される取引）の場合も、
     // 実際の現金の向き（入ってくる＝＋／出ていく＝−）で符号を出し分ける。
@@ -5727,12 +6126,12 @@ function svgEl(tag, attrs) {
     if (r.memo && primary !== r.memo) subItems.push({ label: "メモ", value: r.memo });
     const subEls = subItems.map((it) => el("span", { class: "tx-sub-item" }, it.label ? [
       el("span", { class: "lbl" }, [it.label + ": "]),
-      it.value,
-    ] : [it.value]));
+      hl(it.value),
+    ] : [hl(it.value)]));
     dayGroupEl.appendChild(el("div", { class: "tx-row" + (flags.excluded ? " excluded" : "") }, [
       el("div", { class: "tx-icon", style: `background:${r.type === "expense" ? color : "var(--icon-neutral)"}` }, [iconChar]),
       el("div", { class: "tx-main" }, [
-        el("div", { class: "tx-cat" }, [primary, ...txFlagTags(flags), isOutlierRow(r) ? el("span", { class: "tx-tag tx-tag-outlier", title: `${r.category}の中央値（過去実績）の約${(Math.abs(r.amount) / state.catMedianExpense.get(r.category)).toFixed(1)}倍` }, ["⚠ 高額"]) : null]),
+        el("div", { class: "tx-cat" }, [hl(primary), ...txFlagTags(flags), isOutlierRow(r) ? el("span", { class: "tx-tag tx-tag-outlier", title: `${r.category}の中央値（過去実績）の約${(Math.abs(r.amount) / state.catMedianExpense.get(r.category)).toFixed(1)}倍` }, ["⚠ 高額"]) : null]),
         subEls.length ? el("div", { class: "tx-sub" }, subEls) : null,
         el("div", { class: "tx-account-mobile", title: txAccountText(r) }, [txAccountText(r)]),
       ]),
@@ -5773,7 +6172,7 @@ function svgEl(tag, attrs) {
       if (r.memo) noteParts.push(r.memo);
       const note = noteParts.length ? `（${noteParts.join(" / ")}）` : "";
       return el("div", { class: "tx-group-detail-row" }, [
-        el("span", { class: "tx-group-detail-label" }, [label + note, isOutlierRow(r) ? el("span", { class: "tx-tag tx-tag-outlier", title: "同カテゴリの中央値から大きく外れています" }, ["⚠"]) : null]),
+        el("span", { class: "tx-group-detail-label" }, [hl(label + note), isOutlierRow(r) ? el("span", { class: "tx-tag tx-tag-outlier", title: "同カテゴリの中央値から大きく外れています" }, ["⚠"]) : null]),
         el("span", { class: "tx-group-detail-amt num" }, [rSign + YEN(Math.abs(r.amount))]),
       ]);
     });
@@ -5785,7 +6184,7 @@ function svgEl(tag, attrs) {
           el("span", { class: "tx-icon-badge" }, [String(groupRows.length)]),
         ]),
         el("div", { class: "tx-main" }, [
-          el("div", { class: "tx-cat" }, [first.store, el("span", { class: "tx-tag" }, [`${groupRows.length}件まとめ`]), ...txFlagTags(flags), groupRows.some(isOutlierRow) ? el("span", { class: "tx-tag tx-tag-outlier", title: "内訳のいずれかが同カテゴリの中央値から大きく外れています" }, ["⚠ 高額"]) : null]),
+          el("div", { class: "tx-cat" }, [hl(first.store), el("span", { class: "tx-tag" }, [`${groupRows.length}件まとめ`]), ...txFlagTags(flags), groupRows.some(isOutlierRow) ? el("span", { class: "tx-tag tx-tag-outlier", title: "内訳のいずれかが同カテゴリの中央値から大きく外れています" }, ["⚠ 高額"]) : null]),
           catText ? el("div", { class: "tx-sub" }, [el("span", { class: "tx-sub-item" }, [catText])]) : null,
           el("div", { class: "tx-account-mobile", title: accountText }, [accountText]),
         ]),
@@ -5796,6 +6195,8 @@ function svgEl(tag, attrs) {
     ]));
   }
 
+  const TX_DAY_STEP = 60;
+  let txDayLimit = TX_DAY_STEP, txDayLimitKey = "";
   function renderTxList(rows) {
     const chipWrap = document.getElementById("txFilterChip");
     chipWrap.innerHTML = "";
@@ -5878,12 +6279,19 @@ function svgEl(tag, attrs) {
         });
         dayBucket = [];
       };
-      pageRows.forEach((r) => {
+      // 一度に全件を画面に作ると重いため、最初は TX_DAY_STEP 日分だけ出し、「さらに表示」で続きを出す。
+      // 絞り込み・期間が変わって一覧の中身が変わったら、表示日数を最初の量に戻す
+      const listKey = [rows.length, rows.length ? rows[0].dayKey : "", rows.length ? rows[rows.length - 1].dayKey : "", state.page].join("|");
+      if (listKey !== txDayLimitKey) { txDayLimitKey = listKey; txDayLimit = TX_DAY_STEP; }
+      let shownDays = 0, hiddenDays = 0;
+      for (const r of pageRows) {
         if (r.dayKey !== currentDay) {
+          if (shownDays >= txDayLimit) { hiddenDays = new Set(pageRows.filter((x) => x.dayKey <= r.dayKey).map((x) => x.dayKey)).size; break; }
+          shownDays++;
           if (dayGroupEl) flushDayBucket();
           currentDay = r.dayKey;
           const dayExpense = dayExpenseMap.get(currentDay) || 0;
-          dayGroupEl = el("div", { class: "day-group" });
+          dayGroupEl = el("div", { class: "day-group", "data-day": currentDay });
           dayGroupEl.appendChild(el("div", { class: "day-head" }, [
             el("span", { class: "d" }, [dayLabel(r.date)]),
             dayExpense !== 0 ? el("span", { class: "num" }, [(dayExpense > 0 ? "− " : "+ ") + YEN(Math.abs(dayExpense))]) : null,
@@ -5891,8 +6299,14 @@ function svgEl(tag, attrs) {
           wrap.appendChild(dayGroupEl);
         }
         dayBucket.push(r);
-      });
+      }
       if (dayGroupEl) flushDayBucket();
+      if (hiddenDays > 0) {
+        wrap.appendChild(el("div", { class: "tx-more" }, [
+          el("button", { class: "btn", type: "button", onclick: () => { txDayLimit += TX_DAY_STEP; renderTxList(rows); } },
+            [`さらに表示（残り${hiddenDays}日分）`]),
+        ]));
+      }
     }
 
     document.getElementById("txCount").textContent = rows.length + "件";
@@ -5960,6 +6374,9 @@ function svgEl(tag, attrs) {
     renderAssetsHistoryChart();
     renderTrendChart();
     renderSubscriptionPanel();
+    [renderBudgetPanel, renderCardSchedulePanel, renderHeatmap].forEach((fn) => {
+      try { fn(); } catch (e) { console.error("表示に失敗：" + fn.name, e); }
+    });
     renderExtraPanels();
     try { renderTaxSummary(); } catch (e) { console.error("税務集計の表示に失敗", e); }
     renderTxList(getTxRows(filtered).slice().reverse()); // 最新の取引が先頭に来るようにする
@@ -6281,6 +6698,7 @@ function svgEl(tag, attrs) {
 
   function refreshSettingsLists() {
     refreshAccountsPane();
+    refreshBudgetEditList();
     if (!state.transactions) return;
     refreshManualFixedList();
     populateManualFixedMatchOptions();
@@ -6498,8 +6916,19 @@ function svgEl(tag, attrs) {
 
   function openSettingsModal() {
     refreshSettingsLists();
+    settingsReturnFocus = document.activeElement;
     document.getElementById("settingsOverlay").classList.remove("hidden");
+    setTimeout(() => { const b = document.querySelector("#settingsNav .settings-nav-btn.active"); if (b) b.focus(); }, 0);
   }
+  // 設定を閉じたら、開く前に操作していたボタンへフォーカスを戻す
+  let settingsReturnFocus = null;
+  new MutationObserver(() => {
+    const ov = document.getElementById("settingsOverlay");
+    if (ov.classList.contains("hidden") && settingsReturnFocus) {
+      const t = settingsReturnFocus; settingsReturnFocus = null;
+      if (t && t.focus && document.contains(t)) t.focus();
+    }
+  }).observe(document.getElementById("settingsOverlay"), { attributes: true, attributeFilter: ["class"] });
   document.getElementById("gearBtn").addEventListener("click", openSettingsModal);
   // データ未読み込み時のフォールバック画面にも設定ボタンを用意し、GitHub同期の設定（リポジトリ・トークン等）に
   // アクセスできない状態にならないようにする（サイドバーの歯車アイコンはdashboardView内にありこの画面では見えないため）
@@ -7071,8 +7500,66 @@ function svgEl(tag, attrs) {
     if (!fromPoint && dir !== "next" && dir !== "prev") staggerDepth(page);
   }
 
+  // 読み上げ・キーボード操作向け：タブ／ダイアログの役割を付け、ダイアログを開いている間はTabキーのフォーカスを中に留める
+  (function initA11y() {
+    document.getElementById("tabBar").setAttribute("role", "tablist");
+    document.getElementById("statementsSubTab").setAttribute("role", "tablist");
+    document.querySelectorAll(".tab-btn, .substab-btn").forEach((b) => {
+      b.setAttribute("role", "tab");
+      b.setAttribute("aria-selected", b.classList.contains("active") ? "true" : "false");
+    });
+    [["settingsOverlay", "設定"], ["cmdOverlay", "コマンドパレット"], ["unlockOverlay", "トークンのロック解除"]].forEach(([id, label]) => {
+      const m = document.querySelector("#" + id + " .modal");
+      if (!m) return;
+      m.setAttribute("role", "dialog"); m.setAttribute("aria-modal", "true"); m.setAttribute("aria-label", label);
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Tab") return;
+      const ov = Array.from(document.querySelectorAll(".modal-overlay:not(.hidden)")).pop();
+      if (!ov) return;
+      const f = Array.from(ov.querySelectorAll('button, input, select, textarea, a[href], summary, [tabindex]:not([tabindex="-1"])'))
+        .filter((x) => !x.disabled && x.offsetParent !== null);
+      if (!f.length) return;
+      const first = f[0], last = f[f.length - 1];
+      if (!ov.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+      else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
+  })();
+  // 概要タブの各パネルを折りたためるようにし、閉じた状態をこの端末に覚えておく
+  (function initCollapsiblePanels() {
+    const KEY = "zaimLedgerCollapsed";
+    let closed;
+    try { closed = new Set(JSON.parse(localStorage.getItem(KEY) || "[]")); } catch (e) { closed = new Set(); }
+    document.querySelectorAll("#tabOverview > .card.panel[id]").forEach((p) => {
+      const head = p.querySelector(":scope > .panel-head");
+      if (!head) return;
+      const title = (head.querySelector(".section-title") || head).textContent.trim();
+      const btn = el("button", { type: "button", class: "panel-collapse" }, []);
+      const apply = (c) => {
+        p.classList.toggle("collapsed", c);
+        btn.textContent = c ? "▸" : "▾";
+        btn.setAttribute("aria-expanded", c ? "false" : "true");
+        btn.setAttribute("aria-label", `${title}を${c ? "開く" : "折りたたむ"}`);
+        btn.title = c ? "開く" : "折りたたむ";
+      };
+      btn.addEventListener("click", () => {
+        const c = !p.classList.contains("collapsed");
+        apply(c);
+        if (c) closed.add(p.id); else closed.delete(p.id);
+        try { localStorage.setItem(KEY, JSON.stringify(Array.from(closed))); } catch (e) { /* 覚えられなくても開閉はできる */ }
+      });
+      head.appendChild(btn);
+      apply(closed.has(p.id));
+    });
+  })();
+  function syncTabAria() {
+    document.querySelectorAll(".tab-btn, .substab-btn").forEach((b) => b.setAttribute("aria-selected", b.classList.contains("active") ? "true" : "false"));
+  }
+
   function activateTab(target, dir) {
     document.querySelectorAll(".tab-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === target));
+    syncTabAria();
     ["overview", "charts", "statements", "tx"].forEach((t) => {
       const id = "tab" + t.charAt(0).toUpperCase() + t.slice(1);
       if (t === target) showPageWithFade(id, dir);
@@ -7105,6 +7592,7 @@ function svgEl(tag, attrs) {
   function activateStatementsSubTab(target) {
     state.statementsSubTab = target;
     document.querySelectorAll("#statementsSubTab .substab-btn").forEach((b) => b.classList.toggle("active", b.dataset.substab === target));
+    syncTabAria();
     const map = { bs: "subBS", pl: "subPL", cf: "subCF", ratios: "subRatios", forecast: "subForecast", journal: "subJournal" };
     Object.keys(map).forEach((k) => {
       if (k === target) showPageWithFade(map[k]);
@@ -7148,6 +7636,7 @@ function svgEl(tag, attrs) {
     state.amountMin = null; state.amountMax = null; state.adv = emptyAdv();
     const searchEl = document.getElementById("searchInput");
     if (searchEl) searchEl.value = "";
+    if (!state.periodBeforeForecast) state.periodBeforeForecast = state.periodMode;   // 明細から離れたら元の期間に戻す
     state.periodMode = "all";
     state.txFilter = { mode: "rows", rows: (rows || []).slice(), label };
     state.page = 0;
@@ -7186,7 +7675,10 @@ function svgEl(tag, attrs) {
   let pendingTabDir = null;   // スワイプ由来の遷移方向（"next" | "prev"）
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
-      if (btn.dataset.tab !== "tx") { state.txFilter = null; state.txPeriod = null; } // 明細タブ以外への遷移で絞り込みを解除
+      if (btn.dataset.tab !== "tx") { // 明細タブ以外への遷移で絞り込みを解除
+        state.txFilter = null; state.txPeriod = null;
+        if (state.periodBeforeForecast) { state.periodMode = state.periodBeforeForecast; state.periodBeforeForecast = null; }
+      }
       const back = drilledIn && btn.dataset.tab !== "tx";
       drilledIn = false;
       activateTab(btn.dataset.tab, pendingTabDir || (back ? "out" : null));
@@ -7266,6 +7758,7 @@ function svgEl(tag, attrs) {
     const btn = e.target.closest("button[data-mode]");
     if (!btn || btn.dataset.mode === state.periodMode) return;
     state.periodMode = btn.dataset.mode;
+    state.periodBeforeForecast = null;   // 自分で期間を選んだら、そちらを優先する
     state.page = 0;
     render();
   });
@@ -7321,7 +7814,8 @@ function svgEl(tag, attrs) {
       t.onerror = () => rej(t.error);
       t.onabort = () => rej(t.error || new Error("IndexedDB transaction aborted"));
     }));
-    return { get: (k) => tx("readonly", (st) => st.get(k)), set: (k, v) => tx("readwrite", (st) => st.put(v, k)), del: (k) => tx("readwrite", (st) => st.delete(k)) };
+    return { get: (k) => tx("readonly", (st) => st.get(k)), set: (k, v) => tx("readwrite", (st) => st.put(v, k)), del: (k) => tx("readwrite", (st) => st.delete(k)),
+      keys: () => tx("readonly", (st) => st.getAllKeys()) };
   })();
   let csvCacheMem = null;
   function saveCsvCache(fileName, text, sourceDownloadedAt) {
@@ -7385,6 +7879,16 @@ function svgEl(tag, attrs) {
   // すべて反映した一覧を、Zaim再取り込み等にも使いやすいシンプルな列構成でCSV化する。
   const TX_TYPE_LABEL = { income: "収入", expense: "支出", transfer: "振替", balance: "残高調整" };
   function isoDateStr(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
+  // 「今日へ」：今日を含む期間に切り替え、今日（無ければ今日より前で一番近い日）の取引まで移動する
+  document.getElementById("txTodayBtn").addEventListener("click", () => {
+    const today = startOfDay(new Date());
+    state.periodAnchor = today; state.txPeriod = null; state.page = 0;
+    render();
+    const key = dkey(today);
+    const groups = Array.from(document.querySelectorAll("#txList .day-group[data-day]"));
+    const target = groups.find((g) => g.dataset.day <= key) || groups[0];
+    if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
   document.getElementById("exportTxCsvBtn").addEventListener("click", () => {
     const broad = isBroadPeriod(state.periodMode);
     const rows = getTxRows(getFiltered()).slice().sort((a, b) => a.date - b.date);
@@ -7781,21 +8285,21 @@ function svgEl(tag, attrs) {
       const saved = simLoad();
       const ms = xMonthly(6);
       const defMonthly = ms.length ? Math.max(0, Math.round(xAvg(ms.map((m) => m.profit)) / 1000) * 1000) : 0;
-      inM.value = saved.monthly != null ? saved.monthly : defMonthly;
+      inM.value = formatYenInput(saved.monthly != null ? saved.monthly : defMonthly);
       inR.value = saved.rate != null ? saved.rate : 3;
       inY.value = saved.years != null ? saved.years : 10;
-      inT.value = saved.target != null ? saved.target : "";
+      inT.value = saved.target != null ? formatYenInput(saved.target) : "";
       const onChange = () => {
-        try { localStorage.setItem(SIM_KEY, JSON.stringify({ monthly: inM.value === "" ? 0 : Number(inM.value), rate: inR.value === "" ? 0 : Number(inR.value), years: Number(inY.value) || 10, target: inT.value === "" ? null : Number(inT.value) })); } catch (e) { /* 保存できなくても動作に影響なし */ }
+        try { localStorage.setItem(SIM_KEY, JSON.stringify({ monthly: parseAmount(inM.value), rate: inR.value === "" ? 0 : Number(inR.value), years: Number(inY.value) || 10, target: inT.value.trim() === "" ? null : parseAmount(inT.value) })); } catch (e) { /* 保存できなくても動作に影響なし */ }
         renderSimPanel();
       };
       [inM, inR, inY, inT].forEach((i) => i.addEventListener("input", onChange));
       simBound = true;
     }
-    const monthly = Number(inM.value) || 0;
+    const monthly = parseAmount(inM.value);
     const rate = Math.max(-5, Math.min(30, Number(inR.value) || 0));
     const years = Math.max(1, Math.min(50, Math.round(Number(inY.value) || 10)));
-    const target = Number(inT.value) > 0 ? Number(inT.value) : 0;
+    const target = parseAmount(inT.value) > 0 ? parseAmount(inT.value) : 0;
     const start = computeBalanceSheet(startOfDay(new Date())).netAssets;
     document.getElementById("simStartNote").textContent = `出発点：現在の純資産 ${YEN(start)}`;
     const r = rate / 100 / 12;

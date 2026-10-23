@@ -1,13 +1,20 @@
 // 家計元帳 Service Worker
 // 更新するときは VERSION を変える（古いキャッシュは自動で消える）
-const VERSION = "v24";
+const VERSION = "v25";
 const APP = "ledger-app-" + VERSION;
 const FONTS = "ledger-fonts";
-const CORE = ["./", "index.html", "tax-furusato.html", "papaparse.min.js", "manifest.webmanifest", "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png", "favicon-32.png"];
+// REQUIRED が1つでも取れなければインストールを失敗させる（画面が出ない版を有効にしないため）。
+// OPTIONAL はアイコンなど、無くても動くもの。取れなかったものは飛ばし、残りは保存する
+const REQUIRED = ["./", "index.html", "papaparse.min.js"];
+const OPTIONAL = ["tax-furusato.html", "manifest.webmanifest", "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png", "favicon-32.png"];
 
 self.addEventListener("install", (e) => {
   // HTTPキャッシュ（GitHub Pagesは約10分）を通さず、常にサーバーの最新を取って保存する。待機状態で止め、画面の「更新」タップで有効化する
-  e.waitUntil(caches.open(APP).then((c) => c.addAll(CORE.map((u) => new Request(u, { cache: "reload" })))));
+  const req = (u) => new Request(u, { cache: "reload" });
+  e.waitUntil(caches.open(APP).then((c) => Promise.all([
+    c.addAll(REQUIRED.map(req)),
+    ...OPTIONAL.map((u) => c.add(req(u)).catch(() => { /* 無くても動くファイルなので飛ばす */ })),
+  ])));
 });
 self.addEventListener("activate", (e) => {
   e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k.startsWith("ledger-app-") && k !== APP).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
