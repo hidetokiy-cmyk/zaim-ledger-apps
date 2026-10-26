@@ -2923,7 +2923,7 @@
   function touchAccountMeta() { accountMetaRev++; }
   function blankAccountMeta() {
     return { cash: false, card: false, deposit: false, investment: false, prepaid: false, unpaid: false, financing: false,
-      group: "", dormant: false, principalOnly: false, liquidExcluded: false };
+      group: "", dormant: false, principalOnly: false, liquidExcluded: false, emergencyFund: false };
   }
   function getAccountMeta(name) {
     const m = settings.accountMeta.get(name);
@@ -6425,6 +6425,7 @@ function svgEl(tag, attrs) {
     { key: "dormant", label: "あまり使わない（表示は残すが目立たなくする）" },
     { key: "principalOnly", label: "元本のみ表示・含み損益を追わない（主に運用資産向け）" },
     { key: "liquidExcluded", label: "流動資産合計に含めない" },
+    { key: "emergencyFund", label: "生活防衛資金に含める（運用資産などでも、家計の健康診断の計算に足す）" },
   ];
 
   function parseYenInput(raw) {
@@ -6485,6 +6486,7 @@ function svgEl(tag, attrs) {
     if (m.dormant) sub.push(el("span", { class: "bal-tag" }, ["あまり使わない"]));
     if (m.principalOnly) sub.push(el("span", { class: "bal-tag" }, ["元本のみ"]));
     if (m.liquidExcluded) sub.push(el("span", { class: "bal-tag" }, ["流動資産合計に含めず"]));
+    if (m.emergencyFund) sub.push(el("span", { class: "bal-tag" }, ["生活防衛資金"]));
 
     const hasOverride = settings.accountBalanceOverride.has(name) && settings.accountBalanceOverride.get(name) !== null;
     const balInput = el("input", { type: "text", class: "acct-balance", inputmode: "numeric", autocomplete: "off",
@@ -8122,9 +8124,21 @@ function svgEl(tag, attrs) {
     const avgCost = cost / ms.length;
     if (avgCost > 0) {
       const bs = computeBalanceSheet(startOfDay(new Date()));
-      const cash = (bs.assetGroups.find((g) => g.name === BS_PLACEMENT_LABEL.cash) || { subtotal: 0 }).subtotal;
-      const months = cash / avgCost;
-      items.push({ label: "生活防衛資金", value: (months < 0 ? "−" : "") + Math.abs(months).toFixed(1) + "か月分", level: months >= 6 ? "good" : months >= 3 ? "ok" : "warn", note: `現金及び預金 ${YEN(cash)} ÷ 月平均の費用 ${YEN(avgCost)}` });
+      const cashGroup = bs.assetGroups.find((g) => g.name === BS_PLACEMENT_LABEL.cash) || { subtotal: 0, items: [] };
+      const cash = cashGroup.subtotal;
+      // 口座設定で「生活防衛資金に含める」にした口座のうち、現金及び預金以外（運用資産など）に載っているものを足す（二重に数えない）
+      const inCash = new Set(cashGroup.items.map((x) => x.account));
+      const extra = [];
+      bs.assetGroups.forEach((g) => g.items.forEach((x) => {
+        if (!inCash.has(x.account) && getAccountMeta(x.account).emergencyFund) extra.push(x);
+      }));
+      const extraSum = extra.reduce((s, x) => s + x.balance, 0);
+      const fund = cash + extraSum;
+      const months = fund / avgCost;
+      const fundNote = extra.length
+        ? `現金及び預金 ${YEN(cash)} ＋ ${extra.map((x) => `${x.account} ${YEN(x.balance)}`).join("・")} ÷ 月平均の費用 ${YEN(avgCost)}`
+        : `現金及び預金 ${YEN(cash)} ÷ 月平均の費用 ${YEN(avgCost)}`;
+      items.push({ label: "生活防衛資金", value: (months < 0 ? "−" : "") + Math.abs(months).toFixed(1) + "か月分", level: months >= 6 ? "good" : months >= 3 ? "ok" : "warn", note: fundNote });
       const cv = (xStd(costs) / avgCost) * 100;
       items.push({ label: "支出の安定度", value: "月ごとに±" + cv.toFixed(0) + "%", level: cv <= 15 ? "good" : cv <= 30 ? "ok" : "warn", note: "" });
     }
