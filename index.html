@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<!-- 通信先の制限：このアプリが使うのは自サイト・GitHub API・Googleフォントだけ。外部サービスを足すときはここも直す -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://api.github.com; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>家計元帳 — Zaim CSVビューア</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#23283A">
@@ -1856,6 +1858,8 @@
   function refreshSyncTokenUi() {
     const sel = document.getElementById("syncTokenMode");
     sel.value = cloudSync.mode;
+    // 平文保存は互換のためだけに残している。いま平文で保存中のとき以外は選択肢に出さない
+    { const po = sel.querySelector('option[value="plain"]'); if (po && cloudSync.mode !== "plain") po.remove(); }
     Array.from(sel.options).forEach((o) => { if (o.value === "enc" && !CRYPTO_OK) o.disabled = true; });
     document.getElementById("syncPassRow").classList.toggle("hidden", cloudSync.mode !== "enc");
     document.getElementById("syncUnlockBtn").classList.toggle("hidden", !cloudSync.locked);
@@ -5016,9 +5020,22 @@
     if (forecast.history.length === 0) {
       monthWrap.appendChild(el("div", { style: "font-size:14.5px;color:var(--ink-soft);" }, ["対象データがありません"]));
     } else {
+      // 先頭に「直近N か月平均」の行（予測の移動平均と同じ窓。実績の単純平均）
+      const avgN = Math.max(1, Math.min(forecast.history.length, forecast.windowSize || 3));
+      const avgSrc = forecast.history.slice(-avgN);
+      const avgOf = (k) => Math.round(avgSrc.reduce((t, m) => t + m[k], 0) / avgN);
+      const avgInv = avgOf("investFin");
+      const avgRow = el("tr", { class: "current", style: "cursor:default;" }, [
+        el("td", null, [`直近${avgN}か月平均`]),
+        el("td", { class: "num" }, [YEN(avgOf("income"))]),
+        el("td", { class: "num", style: "color:var(--ink-soft)" }, [YEN(avgOf("otherIncome"))]),
+        el("td", { class: "num" }, [YEN(avgOf("fixed"))]),
+        el("td", { class: "num" }, [YEN(avgOf("variable"))]),
+        el("td", { class: "num" }, [(avgInv >= 0 ? "+" : "−") + YEN(Math.abs(avgInv))]),
+      ]);
       const table = el("table", { class: "compare-table" }, [
         el("thead", null, [el("tr", null, ["会計月", "給与", "その他収入（予測対象外）", "固定費", "変動費", "投資・財務"].map((h) => el("th", null, [h])))]),
-        el("tbody", null, forecast.history.slice().reverse().map((m) => {   // 上が最新の月
+        el("tbody", null, [avgRow].concat(forecast.history.slice().reverse().map((m) => {   // 上が最新の月
           const monthLabel = cycleLabel(m.key);
           const variableRows = m.variableRowsBySubcat ? Array.from(m.variableRowsBySubcat.values()).flat() : [];
           return el("tr", null, [
@@ -5029,7 +5046,7 @@
             el("td", { class: "num" }, [forecastDrillLabel(YEN(m.variable), variableRows, `変動費（${monthLabel}）`)]),
             el("td", { class: "num" }, [forecastDrillLabel((m.investFin >= 0 ? "+" : "−") + YEN(Math.abs(m.investFin)), m.investFinRows, `投資・財務活動（${monthLabel}）`)]),
           ]);
-        })),
+        }))),
       ]);
       monthWrap.appendChild(table);
     }
