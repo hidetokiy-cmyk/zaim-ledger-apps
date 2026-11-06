@@ -1353,6 +1353,11 @@
 
 <div class="modal-section-title" style="margin-top:24px;">月次実績</div>
         <div id="forecastMonthTable" style="margin-top:8px; overflow-x:auto;"></div>
+<details style="margin-top:14px;">
+<summary style="cursor:pointer; font-size:14.5px;">固定費の突き合わせ（予測に入れている毎月の定期支払いが、各月の実績に出ているか）</summary>
+<div class="cash-note" style="margin:8px 0;">「なし」は、その月にその項目の取引が見つからないことを表します（検出より前の月も「なし」になります）。一番下の3行を見比べると、拾えていない原因が絞れます。</div>
+<div id="forecastFixedCheck" style="margin-top:8px; overflow-x:auto;"></div>
+</details>
       </div>
       </div>
 
@@ -5018,6 +5023,35 @@
 
   // 資金繰り予測タブの描画：予測グラフ、予測の前提（根拠パネル）、月次実績を表示する。
   // すべて自動計算のみで、手動での除外・調整設定は持たない。
+  // 固定費の突き合わせ：予測の固定費見込みに入っている毎月の定期支払いが、直近の各月の実績に出ているかを一覧にする
+  function renderFixedCheck(forecast) {
+    const wrap = document.getElementById("forecastFixedCheck");
+    if (!wrap) return;
+    wrap.innerHTML = "";
+    const note = (t) => wrap.appendChild(el("div", { style: "font-size:14.5px;color:var(--ink-soft);padding:4px 0;" }, [t]));
+    const basis = forecast.basis;
+    if (!basis || forecast.history.length === 0) { note("対象データがありません"); return; }
+    const months = forecast.history.slice(-Math.min(forecast.history.length, 6)).slice().reverse();   // 新しい月が左
+    const subs = basis.activeSubs.filter((s) => s.freq === "month");
+    if (subs.length === 0) { note("毎月の定期支払いは検出・登録されていません"); return; }
+    const sumFound = (s, key) => s.rows.filter((r) => r.acctMonthKey === key).reduce((t, r) => t + r.amount, 0);
+    const head = el("tr", null, ["項目", "見込み（月額）"].concat(months.map((m) => cycleLabel(m.key))).map((h) => el("th", null, [h])));
+    const body = subs.map((s) => {
+      const tag = (s.manual ? (s.count ? "（手動）" : "（手動・金額のみ）") : "") + (s.cashPaid ? "" : "（カード等）");
+      const cells = months.map((m) => {
+        const n = s.rows.filter((r) => r.acctMonthKey === m.key).length;
+        return el("td", { class: "num", style: n ? "" : "color:var(--red)" }, [n ? YEN(sumFound(s, m.key)) : "なし"]);
+      });
+      return el("tr", { style: "cursor:default;" }, [el("td", null, [s.label + tag]), el("td", { class: "num" }, [YEN(s.amount)])].concat(cells));
+    });
+    const totalOf = (f) => el("tr", { class: "current", style: "cursor:default;" }, f);
+    const expected = subs.reduce((t, s) => t + s.amount, 0);
+    body.push(totalOf([el("td", null, ["見込みの合計"]), el("td", { class: "num" }, [YEN(expected)])].concat(months.map(() => el("td", null, [""])))));
+    body.push(totalOf([el("td", null, ["検出分の実績合計"]), el("td", null, [""])].concat(months.map((m) => el("td", { class: "num" }, [YEN(subs.reduce((t, s) => t + sumFound(s, m.key), 0))])))));
+    body.push(totalOf([el("td", null, ["月次実績の固定費（表の値）"]), el("td", null, [""])].concat(months.map((m) => el("td", { class: "num" }, [YEN(m.fixedShown)])))));
+    wrap.appendChild(el("table", { class: "compare-table" }, [el("thead", null, [head]), el("tbody", null, body)]));
+  }
+
   function renderForecastPanel() {
     const chartEl = document.getElementById("forecastChart");
     const noteEl = document.getElementById("forecastDataNote");
@@ -5149,6 +5183,8 @@
       }
       basisWrap.appendChild(fixedGroup);
     }
+
+    renderFixedCheck(forecast);
 
     // 月次実績テーブル
     monthWrap.innerHTML = "";
