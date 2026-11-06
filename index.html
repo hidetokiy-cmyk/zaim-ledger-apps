@@ -4496,9 +4496,9 @@
     // 「具体的にどの取引が集計・除外されているか」へドリルダウンするために保持する。
     function bucket(k) {
       if (!map.has(k)) map.set(k, {
-        key: k, income: 0, otherIncome: 0, fixed: 0, variable: 0, investFin: 0,
+        key: k, income: 0, otherIncome: 0, fixed: 0, variable: 0, investFin: 0, fixedCash: 0, cardSub: 0,
         variableBySubcat: new Map(),
-        incomeRows: [], otherIncomeRows: [], fixedRows: [], investFinRows: [], variableRowsBySubcat: new Map(),
+        incomeRows: [], otherIncomeRows: [], fixedRows: [], fixedCashRows: [], cardSubRows: [], cardFixedRows: [], investFinRows: [], variableRowsBySubcat: new Map(),
         settlementByAccount: new Map(), // カード等への決済の口座別・生の金額と取引行（固定費振替の下地。一時利用のみ）
       });
       return map.get(k);
@@ -4525,7 +4525,7 @@
         if (!forecastIsCashAccount(r.fromAccount)) continue;
         const b = bucket(mkey);
         const subKey = subscriptionGroupKey(r);
-        if (subKey && activeSubKeys.has(subKey)) { b.fixed += r.amount; b.fixedRows.push(r); }
+        if (subKey && activeSubKeys.has(subKey)) { b.fixed += r.amount; b.fixedRows.push(r); b.fixedCash += r.amount; b.fixedCashRows.push(r); }
         else { b.variable += r.amount; bumpSubcat(b, breakdownKeyForRow(r, "sub"), r.amount, r); }
       } else if (r.type === "transfer" || r.type === "balance") {
         const fromCash = forecastIsCashAccount(r.fromAccount);
@@ -4569,7 +4569,7 @@
               s.rows.forEach((sr) => { if (sr.fromAccount === account && sr.date > cycleStart && sr.date <= cycleEnd) fixedAmt += sr.amount; });
             });
             fixedAmt = Math.min(fixedAmt, r.amount);
-            if (fixedAmt > 0) { b.fixed += fixedAmt; b.fixedRows.push(r); }
+            if (fixedAmt > 0) { b.fixed += fixedAmt; b.fixedRows.push(r); b.cardSub += fixedAmt; b.cardSubRows.push(r); }
             const leftover = r.amount - fixedAmt;
             if (leftover > 0) {
               if (!leftoverByAccount.has(account)) leftoverByAccount.set(account, []);
@@ -4582,7 +4582,7 @@
             const amt = r.amount;
             const toFixed = Math.min(amt, remainingFixed);
             remainingFixed -= toFixed;
-            if (toFixed > 0) { b.fixed += toFixed; b.fixedRows.push(r); }
+            if (toFixed > 0) { b.fixed += toFixed; b.fixedRows.push(r); b.cardSub += toFixed; b.cardSubRows.push(r); }
             const toVariable = amt - toFixed;
             if (toVariable > 0) {
               if (!leftoverByAccount.has(account)) leftoverByAccount.set(account, []);
@@ -4599,7 +4599,7 @@
       entries.forEach(({ b, amount, rows }) => {
         const baseAmt = Math.min(amount, baseline);
         const excessAmt = amount - baseAmt;
-        if (baseAmt > 0) { b.fixed += baseAmt; b.fixedRows.push(...rows); }
+        if (baseAmt > 0) { b.fixed += baseAmt; b.fixedRows.push(...rows); b.cardFixedRows.push(...rows); }
         if (excessAmt > 0) {
           const label = `${account}への決済（変動分）`;
           b.variable += excessAmt;
@@ -4608,6 +4608,15 @@
           b.variableRowsBySubcat.get(label).push(...rows);
         }
       });
+    });
+    // 月次実績の表示用：カード払いの定期支払い分は固定費のまま、「毎月ほぼ同額の基礎額」分は変動費として見せる
+    // （表だけの話。予測の計算は上の fixed / variable のまま使う）
+    map.forEach((b) => {
+      b.fixedShown = b.fixedCash + b.cardSub;
+      b.variableShown = b.variable + (b.fixed - b.fixedCash - b.cardSub);
+      const uniq = (lists) => { const seen = new Set(); const out = []; lists.forEach((rs) => rs.forEach((r) => { if (!seen.has(r)) { seen.add(r); out.push(r); } })); return out; };
+      b.fixedShownRows = uniq([b.fixedCashRows, b.cardSubRows]);
+      b.variableShownRows = uniq([...Array.from(b.variableRowsBySubcat.values()), b.cardFixedRows]);
     });
     return Array.from(map.values()).sort((a, b) => a.key.localeCompare(b.key));
   }
@@ -5029,21 +5038,21 @@
         el("td", null, [`直近${avgN}か月平均`]),
         el("td", { class: "num" }, [YEN(avgOf("income"))]),
         el("td", { class: "num", style: "color:var(--ink-soft)" }, [YEN(avgOf("otherIncome"))]),
-        el("td", { class: "num" }, [YEN(avgOf("fixed"))]),
-        el("td", { class: "num" }, [YEN(avgOf("variable"))]),
+        el("td", { class: "num" }, [YEN(avgOf("fixedShown"))]),
+        el("td", { class: "num" }, [YEN(avgOf("variableShown"))]),
         el("td", { class: "num" }, [(avgInv >= 0 ? "+" : "−") + YEN(Math.abs(avgInv))]),
       ]);
       const table = el("table", { class: "compare-table" }, [
         el("thead", null, [el("tr", null, ["会計月", "給与", "その他収入（予測対象外）", "固定費", "変動費", "投資・財務"].map((h) => el("th", null, [h])))]),
         el("tbody", null, [avgRow].concat(forecast.history.slice().reverse().map((m) => {   // 上が最新の月
           const monthLabel = cycleLabel(m.key);
-          const variableRows = m.variableRowsBySubcat ? Array.from(m.variableRowsBySubcat.values()).flat() : [];
+          const variableRows = m.variableShownRows || [];
           return el("tr", null, [
             el("td", null, [monthLabel]),
             el("td", { class: "num" }, [forecastDrillLabel(YEN(m.income), m.incomeRows, `給与（${monthLabel}）`)]),
             el("td", { class: "num", style: "color:var(--ink-soft)" }, [forecastDrillLabel(YEN(m.otherIncome), m.otherIncomeRows, `その他収入・予測対象外（${monthLabel}）`)]),
-            el("td", { class: "num" }, [forecastDrillLabel(YEN(m.fixed), m.fixedRows, `固定費（${monthLabel}）`)]),
-            el("td", { class: "num" }, [forecastDrillLabel(YEN(m.variable), variableRows, `変動費（${monthLabel}）`)]),
+            el("td", { class: "num" }, [forecastDrillLabel(YEN(m.fixedShown), m.fixedShownRows, `固定費（${monthLabel}）`)]),
+            el("td", { class: "num" }, [forecastDrillLabel(YEN(m.variableShown), variableRows, `変動費（${monthLabel}）`)]),
             el("td", { class: "num" }, [forecastDrillLabel((m.investFin >= 0 ? "+" : "−") + YEN(Math.abs(m.investFin)), m.investFinRows, `投資・財務活動（${monthLabel}）`)]),
           ]);
         }))),
