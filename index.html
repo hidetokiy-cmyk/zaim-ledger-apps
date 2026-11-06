@@ -5018,7 +5018,7 @@
     } else {
       const table = el("table", { class: "compare-table" }, [
         el("thead", null, [el("tr", null, ["会計月", "給与", "その他収入（予測対象外）", "固定費", "変動費", "投資・財務"].map((h) => el("th", null, [h])))]),
-        el("tbody", null, forecast.history.map((m) => {
+        el("tbody", null, forecast.history.slice().reverse().map((m) => {   // 上が最新の月
           const monthLabel = cycleLabel(m.key);
           const variableRows = m.variableRowsBySubcat ? Array.from(m.variableRowsBySubcat.values()).flat() : [];
           return el("tr", null, [
