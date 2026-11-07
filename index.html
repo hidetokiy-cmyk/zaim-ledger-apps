@@ -7789,6 +7789,7 @@ function svgEl(tag, attrs) {
       else document.getElementById(map[k]).classList.add("hidden");
     });
     if (target === "journal") { try { renderJournalPanel(); } catch (e) { console.error("仕訳・試算表の表示に失敗", e); } }
+    if (target === "forecast") { try { renderForecastPanel(); } catch (e) { console.error("資金繰り予測の表示に失敗", e); } }   // 非表示中は幅0で描かれるため、開いた時点で描き直す
   }
 
   // 財務諸表・口座残高・カテゴリ内訳など、勘定科目/カテゴリ＋金額を表示している箇所から
