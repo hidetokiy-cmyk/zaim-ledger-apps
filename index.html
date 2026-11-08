@@ -877,6 +877,19 @@
   .hero-spark { margin-top: 8px; }
   .hero-mini-link { cursor: pointer; }
   .hero-mini-link:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .cal-range { font-size: 13px; color: var(--ink-soft); }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+  .cal-dow { font-size: 11.5px; color: var(--ink-soft); text-align: center; padding-bottom: 2px; }
+  .cal-cell { min-height: 46px; border: 1px solid var(--rule); border-radius: 10px; background: var(--paper-raised); color: var(--ink);
+    padding: 3px 4px; display: flex; flex-direction: column; justify-content: space-between; align-items: stretch; font: inherit; cursor: pointer; text-align: left; min-width: 0; }
+  .cal-cell .d { font-size: 10.5px; font-weight: 500; }
+  .cal-cell .v { font-size: 11px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .cal-cell.future { border-style: dashed; background: transparent; cursor: default; opacity: .55; }
+  .cal-cell.today { outline: 2px solid var(--ink); outline-offset: -1px; }
+  .cal-cell:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+  .cal-legend { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 10px; font-size: 12px; color: var(--ink-soft); }
+  .cal-legend i { width: 16px; height: 16px; border-radius: 4px; border: 1px solid var(--rule); background: color-mix(in srgb, var(--gold) calc(var(--t) * 100%), var(--paper-raised)); }
+  @media (max-width: 640px) { .cal-cell { min-height: 42px; } .cal-cell .v { font-size: 10px; } }
 </style>
 </head>
 <body>
@@ -1107,6 +1120,15 @@
         </div>
         <div id="spendRows"></div>
         <div class="cash-note" id="spendNote"></div>
+      </div>
+
+      <div class="card panel cal-card" id="calPanel">
+        <div class="panel-head" style="margin-bottom:10px;">
+          <div class="section-title serif">日別の支出</div>
+          <div class="cal-range num" id="calRange"></div>
+        </div>
+        <div class="cal-grid" id="calGrid" role="group" aria-label="日別の支出カレンダー"></div>
+        <div class="cal-legend" aria-hidden="true"><span>少</span><i style="--t:0.08"></i><i style="--t:0.2"></i><i style="--t:0.32"></i><i style="--t:0.45"></i><span>多</span></div>
       </div>
 
       <div class="card panel" id="budgetPanel">
@@ -5909,6 +5931,52 @@ function svgEl(tag, attrs) {
       card.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
     }
   }
+  // 日別の支出カレンダー：選択中の期間が属する会計月（25日始まり）を、月曜始まりで並べる。濃さは支出額（大きな出費に埋もれないよう平方根で段階づけ）。日をタップするとその日の明細へ
+  function renderSpendCalendar() {
+    const grid = document.getElementById("calGrid");
+    if (!grid) return;
+    const DAYMS = 86400000;
+    const today = startOfDay(new Date());
+    const cyc = getCycleBounds(new Date(+state.periodAnchor || +today));
+    const first = startOfDay(cyc.start), last = addDays(startOfDay(cyc.end), -1);
+    const md = (d) => `${d.getMonth() + 1}/${d.getDate()}`;
+    document.getElementById("calRange").textContent = `${md(first)}〜${md(last)}`;
+    const totals = new Map();
+    let max = 0;
+    for (const r of rowsInRange({ start: first, end: addDays(last, 1) })) {
+      if (r.type !== "expense" || isExcludedRow(r, false)) continue;
+      const k = +startOfDay(r.date);
+      const v = (totals.get(k) || 0) + r.amount;
+      totals.set(k, v);
+      if (v > max) max = v;
+    }
+    grid.textContent = "";
+    ["月", "火", "水", "木", "金", "土", "日"].forEach((w) => grid.appendChild(el("div", { class: "cal-dow" }, [w])));
+    for (let i = 0; i < (first.getDay() + 6) % 7; i++) grid.appendChild(el("div", { class: "cal-blank", "aria-hidden": "true" }));
+    const compact = (v) => v >= 100000 ? `${Math.round(v / 10000)}万` : v.toLocaleString("ja-JP");
+    const days = Math.round((last - first) / DAYMS) + 1;
+    for (let i = 0; i < days; i++) {
+      const d = addDays(first, i);
+      const future = d > today;
+      const v = totals.get(+d) || 0;
+      const cell = el("button", { type: "button", class: "cal-cell" + (future ? " future" : "") + (+d === +today ? " today" : "") }, [
+        el("span", { class: "d" }, [String(d.getDate())]),
+        el("span", { class: "v" }, [future || v === 0 ? "" : compact(v)]),
+      ]);
+      if (!future && v > 0 && max > 0) cell.style.background = `color-mix(in srgb, var(--gold) ${Math.round(8 + Math.sqrt(v / max) * 37)}%, var(--paper-raised))`;
+      cell.setAttribute("aria-label", future ? `${md(d)} これから` : `${md(d)} ${v > 0 ? YEN(v) : "支出なし"}`);
+      if (future) cell.disabled = true;
+      else cell.addEventListener("click", () => {
+        state.txFilter = null;
+        state.txPeriod = { mode: "day", anchor: +d, start: d, end: addDays(d, 1), label: md(d), key: null };
+        state.page = 0;
+        drilledIn = true;
+        activateTab("tx", "in");
+        render();
+      });
+      grid.appendChild(cell);
+    }
+  }
   function renderSpendPanel() {
     const rowsEl = document.getElementById("spendRows"), noteEl = document.getElementById("spendNote");
     if (!rowsEl) return;
@@ -6706,6 +6774,7 @@ function svgEl(tag, attrs) {
     renderPeriodControls();
     try { renderSpendPanel(); } catch (e) { console.error("使ったお金の表示に失敗", e); }
     try { renderHeroMini(); } catch (e) { console.error("残高・予測カードの表示に失敗", e); }
+    try { renderSpendCalendar(); } catch (e) { console.error("日別の支出カレンダーの表示に失敗", e); }
     renderPeriodCompareTable();
     renderFilterChip();
 
