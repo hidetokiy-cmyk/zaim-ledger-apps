@@ -861,6 +861,22 @@
     .print-row .pr-opts { flex: 1 1 auto; min-width: 0; margin: 0; }
     .print-row > div { margin: 0 !important; flex-shrink: 0; }
   }
+  .hero-card { padding: 22px 24px; margin-bottom: 16px; }
+  .hero-label { font-size: 14px; color: var(--ink-soft); }
+  .hero-value { font-size: clamp(42px, 9vw, 60px); line-height: 1.15; margin-top: 4px; }
+  .hero-value.over { color: var(--red); }
+  .hero-sub { font-size: 14px; color: var(--ink-soft); margin-top: 4px; }
+  .hero-track { height: 8px; border-radius: 999px; background: rgba(var(--ink-rgb), .1); margin-top: 16px; overflow: hidden; }
+  .hero-track .spend-fill { height: 100%; border-radius: 999px; transition: width .4s ease; }
+  .hero-foot { display: flex; justify-content: space-between; gap: 12px; font-size: 12.5px; color: var(--ink-soft); margin-top: 6px; }
+  @media (prefers-reduced-motion: reduce) { .hero-track .spend-fill { transition: none; } }
+  .hero-mini { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .hero-mini-card { padding: 16px 18px; margin: 0; min-width: 0; }
+  .hero-mini-value { font-size: clamp(20px, 5.4vw, 30px); line-height: 1.25; margin-top: 6px; white-space: nowrap; }
+  .hero-mini-sub { font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; }
+  .hero-spark { margin-top: 8px; }
+  .hero-mini-link { cursor: pointer; }
+  .hero-mini-link:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 </style>
 </head>
 <body>
@@ -1062,6 +1078,28 @@
       </div>
 
       <div class="tab-page" id="tabOverview">
+
+      <div class="card panel hero-card" id="heroCard" role="group" aria-label="今日使える額">
+        <div class="hero-label">今日使える額</div>
+        <div class="hero-value serif num" id="heroValue">¥0</div>
+        <div class="hero-sub num" id="heroSub"></div>
+        <div class="hero-track"><div class="spend-fill" id="heroFill" style="width:0%"></div></div>
+        <div class="hero-foot num"><span id="heroUsed"></span><span id="heroLimit"></span></div>
+      </div>
+
+      <div class="hero-mini" id="heroMini">
+        <div class="card panel hero-mini-card" id="heroBalCard">
+          <div class="hero-label">現金・預金</div>
+          <div class="hero-mini-value serif num" id="heroBalVal">—</div>
+          <div class="hero-mini-sub num" id="heroBalSub"></div>
+        </div>
+        <div class="card panel hero-mini-card hero-mini-link" id="heroFcCard" role="button" tabindex="0" aria-label="資金繰り予測を開く">
+          <div class="hero-label" id="heroFcLabel">予測残高</div>
+          <div class="hero-mini-value serif num" id="heroFcVal">—</div>
+          <div class="hero-mini-sub num" id="heroFcSub"></div>
+          <div class="hero-spark" id="heroFcSpark"></div>
+        </div>
+      </div>
 
       <div class="card panel spend-panel" id="spendPanel">
         <div class="panel-head" style="margin-bottom:6px;">
@@ -5111,11 +5149,15 @@
       const upperSeries = [forecast.startBalance, ...forecast.months.map((m) => m.upper)];
       const balanceSeries = [forecast.startBalance, ...forecast.months.map((m) => m.balance)];
       const lowerSeries = [forecast.startBalance, ...forecast.months.map((m) => m.lower)];
+      const lastLabel = labels[labels.length - 1];
       renderLineChartSVG(chartEl, labels, [
-        { name: "上振れ目安", color: "rgba(156,122,46,0.45)", values: upperSeries },
-        { name: "予測残高", color: "var(--gold)", values: balanceSeries },
-        { name: "下振れ目安", color: "rgba(162,62,50,0.45)", values: lowerSeries },
-      ], { valueFormatter: (v) => YEN(v), axisValueFormatter: YEN_COMPACT });
+        { name: "上振れ目安", color: "var(--gold)", values: upperSeries, width: 1.2, dash: "4 4", opacity: 0.6, noDots: true,
+          endLabel: (v) => `上振れ ${YEN(v)}`, labelSide: "above", labelPriority: 1, labelColor: "var(--ink-soft)" },
+        { name: "予測残高", color: "var(--gold)", values: balanceSeries, width: 3,
+          endLabel: (v) => `${lastLabel} ${YEN(v)}`, labelPriority: 3, labelColor: "var(--ink)" },
+        { name: "下振れ目安", color: "var(--red)", values: lowerSeries, width: 1.2, dash: "4 4", opacity: 0.6, noDots: true,
+          endLabel: (v) => `下振れ ${YEN(v)}`, labelSide: "below", labelPriority: 2, labelColor: "var(--ink-soft)" },
+      ], { valueFormatter: (v) => YEN(v), axisValueFormatter: YEN_COMPACT, band: { upper: 0, lower: 2 } });
     }
 
     
@@ -5449,16 +5491,46 @@ function svgEl(tag, attrs) {
       svg.appendChild(t);
     });
 
+    // 上振れ〜下振れの「帯」（opts.band = {upper: 系列番号, lower: 系列番号}）。線より先に塗って奥に置く
+    if (opts.band && series[opts.band.upper] && series[opts.band.lower]) {
+      const up = series[opts.band.upper].values, lo = series[opts.band.lower].values;
+      const edge = up.map((v, i) => `${x(i)},${y(v)}`).concat(lo.map((v, i) => `${x(i)},${y(v)}`).reverse()).join(" ");
+      svg.appendChild(svgEl("polygon", { points: edge, fill: "var(--gold)", "fill-opacity": 0.16, stroke: "none" }));
+    }
     const dots = [];
     series.forEach((s) => {
       const pts = s.values.map((v, i) => `${x(i)},${y(v)}`).join(" ");
-      svg.appendChild(svgEl("polyline", { points: pts, fill: "none", stroke: s.color, "stroke-width": 2.2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+      const lineAttrs = { points: pts, fill: "none", stroke: s.color, "stroke-width": s.width || 2.2, "stroke-linejoin": "round", "stroke-linecap": "round" };
+      if (s.dash) lineAttrs["stroke-dasharray"] = s.dash;
+      if (s.opacity != null) lineAttrs["stroke-opacity"] = s.opacity;
+      svg.appendChild(svgEl("polyline", lineAttrs));
+      if (s.noDots) { dots.push([]); return; }
       const seriesDots = s.values.map((v, i) => {
         const c = svgEl("circle", { cx: x(i), cy: y(v), r: 3.4, fill: s.negativeColor && v < 0 ? s.negativeColor : s.color });
         svg.appendChild(c);
         return c;
       });
       dots.push(seriesDots);
+    });
+
+    // 線の端に直接ラベル（凡例の代わり）。縦に近すぎるラベルは優先度の高い方だけ残す
+    const endLabelSeries = series.filter((s) => s.endLabel).sort((a, b) => (b.labelPriority || 0) - (a.labelPriority || 0));
+    const usedY = [];
+    endLabelSeries.forEach((s) => {
+      const v = s.values[n - 1];
+      const text = s.endLabel(v);
+      // ラベルが自分の線に重ならないよう、線の傾き（px/px）と文字幅の見積もりから上下どちらに、どれだけ離すか決める
+      const textW = Array.from(text).reduce((sum, ch) => sum + (ch.charCodeAt(0) < 256 ? 7 : 12), 0);
+      const sl = n >= 2 ? (y(v) - y(s.values[n - 2])) / Math.max(1, x(n - 1) - x(n - 2)) : 0; // 正＝右下がり
+      const side = s.labelSide === "above" || s.labelSide === "below" ? s.labelSide : (sl > 0 ? "below" : "above");
+      const dy = side === "above" ? -(8 + Math.max(0, sl * textW)) : 17 + Math.max(0, -sl * textW);
+      const yy = y(v) + dy;
+      if (usedY.some((u) => Math.abs(u - yy) < 15)) return;
+      usedY.push(yy);
+      const t = svgEl("text", { x: x(n - 1) - 4, y: yy, "text-anchor": "end", "font-size": 12, "font-weight": 700, fill: s.labelColor || s.color,
+        stroke: "var(--paper-raised)", "stroke-width": 3, "paint-order": "stroke", "stroke-linejoin": "round" });
+      t.textContent = text;
+      svg.appendChild(t);
     });
 
     container.appendChild(svg);
@@ -5801,6 +5873,42 @@ function svgEl(tag, attrs) {
     }
     return sum;
   }
+  // 「今日使える額」の下の小カード：現金・預金の残高と、次の月度の予測残高（上振れ〜下振れの帯つき）。タップで資金繰り予測へ
+  function renderHeroMini() {
+    const balVal = document.getElementById("heroBalVal");
+    if (!balVal) return;
+    let bal = null;
+    try { if (state.transactions && state.transactions.length) bal = sumCashFromMap(getAccountBalancesAsOf(parseAsofDate())); } catch (e) { bal = null; }
+    balVal.textContent = bal == null ? "—" : YEN(Math.round(bal));
+    document.getElementById("heroBalSub").textContent = bal == null ? "" : `${accountBalanceAsOfLabel()}時点`;
+
+    let f = null;
+    try { if (state.transactions && state.transactions.length) f = computeForecast(); } catch (e) { f = null; }
+    const m0 = f && f.sufficientData && f.months[0];
+    document.getElementById("heroFcLabel").textContent = m0 ? `${m0.label}の予測残高` : "予測残高";
+    document.getElementById("heroFcVal").textContent = m0 ? YEN(Math.round(m0.balance)) : "—";
+    document.getElementById("heroFcSub").textContent = m0 ? `ブレ幅 ±${YEN(Math.round((m0.upper - m0.lower) / 2))}` : "実績が足りず予測できません";
+    const spark = document.getElementById("heroFcSpark");
+    spark.textContent = "";
+    if (m0) {
+      const ms = f.months;
+      const bs = [f.startBalance, ...ms.map((m) => m.balance)], up = [f.startBalance, ...ms.map((m) => m.upper)], lo = [f.startBalance, ...ms.map((m) => m.lower)];
+      const all = up.concat(lo), mx = Math.max(...all), mn = Math.min(...all), rg = (mx - mn) || 1;
+      const X = (i) => 2 + (i / (bs.length - 1)) * 116, Y = (v) => 34 - ((v - mn) / rg) * 30;
+      const svg = svgEl("svg", { viewBox: "0 0 120 36", width: "100%", height: 36, preserveAspectRatio: "none", "aria-hidden": "true", style: "display:block;overflow:visible;" });
+      const edge = up.map((v, i) => `${X(i)},${Y(v)}`).concat(lo.map((v, i) => `${X(i)},${Y(v)}`).reverse()).join(" ");
+      svg.appendChild(svgEl("polygon", { points: edge, fill: "var(--gold)", "fill-opacity": 0.18 }));
+      svg.appendChild(svgEl("polyline", { points: bs.map((v, i) => `${X(i)},${Y(v)}`).join(" "), fill: "none", stroke: "var(--gold)", "stroke-width": 2, "stroke-linecap": "round", "stroke-linejoin": "round", "vector-effect": "non-scaling-stroke" }));
+      spark.appendChild(svg);
+    }
+    const card = document.getElementById("heroFcCard");
+    if (!card.dataset.bound) {
+      card.dataset.bound = "1";
+      const go = () => { clickEl('.tab-btn[data-tab="statements"]'); activateStatementsSubTab("forecast"); };
+      card.addEventListener("click", go);
+      card.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+    }
+  }
   function renderSpendPanel() {
     const rowsEl = document.getElementById("spendRows"), noteEl = document.getElementById("spendNote");
     if (!rowsEl) return;
@@ -5844,6 +5952,31 @@ function svgEl(tag, attrs) {
       const fill = el("div", { class: "spend-fill " + cls, style: `width:${remain < 0 ? 100 : Math.min(100, Math.round(ratio * 100))}%` });   // 超過中は、使った額が0円でもバーを満たして警告色を見せる
       rowsEl.appendChild(el("div", { class: "spend-row" }, [el("div", { class: "spend-label" }, [d.label]), el("div", null, left), el("div", { class: "spend-track" }, [fill])]));
     });
+    // 先頭の「今日使える額」：今日の上限（＝1日あたり）から、今日使った額を引いた残り。計算は下の3段と同じ値を使う
+    const heroValue = document.getElementById("heroValue");
+    if (heroValue) {
+      const hasLimit = revenue > 0;
+      const todayLeft = Math.round(perDay - spentD), monthLeft = Math.round(revenue - spentM);
+      const heroOver = hasLimit && todayLeft < 0;
+      heroValue.textContent = hasLimit ? (heroOver ? `超過 ${YEN(-todayLeft)}` : YEN(todayLeft)) : "—";
+      heroValue.classList.toggle("over", heroOver);
+      // 文の途中で折り返されないよう、区切りごとに折り返し禁止のかたまりにする
+      const subParts = !hasLimit ? ["今月の給与が未記録のため、上限を計算できません"]
+        : perDay < 0 || monthLeft < 0 ? [`今月は ${YEN(-Math.min(monthLeft, 0))} 超過`, `残り${daysLeftM}日`]
+        : [`今日の上限 ${YEN(Math.round(perDay))}`, `今月の残り ${YEN(monthLeft)}`, `残り${daysLeftM}日`];
+      const subEl = document.getElementById("heroSub");
+      subEl.textContent = "";
+      subParts.forEach((t, i) => {
+        if (i) subEl.appendChild(document.createTextNode(" ・ "));
+        const sp = document.createElement("span"); sp.style.whiteSpace = "nowrap"; sp.textContent = t; subEl.appendChild(sp);
+      });
+      const ratioM = hasLimit ? Math.min(1, Math.max(0, spentM / revenue)) : 0;
+      const heroFill = document.getElementById("heroFill");
+      heroFill.style.width = `${Math.round(ratioM * 100)}%`;
+      heroFill.className = "spend-fill " + (!hasLimit ? "" : monthLeft < 0 ? "over" : ratioM >= 0.8 ? "warn" : "");
+      document.getElementById("heroUsed").textContent = `使用 ${YEN(spentM)}`;
+      document.getElementById("heroLimit").textContent = hasLimit ? `上限 ${YEN(revenue)}` : "";
+    }
     const lastTx = latestActualDate();
     const ago = Math.round((today - lastTx) / DAY);
     const notes = [];
@@ -6572,6 +6705,7 @@ function svgEl(tag, attrs) {
 
     renderPeriodControls();
     try { renderSpendPanel(); } catch (e) { console.error("使ったお金の表示に失敗", e); }
+    try { renderHeroMini(); } catch (e) { console.error("残高・予測カードの表示に失敗", e); }
     renderPeriodCompareTable();
     renderFilterChip();
 
