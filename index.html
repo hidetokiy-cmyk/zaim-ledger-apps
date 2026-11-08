@@ -5968,7 +5968,8 @@ function svgEl(tag, attrs) {
       if (future) cell.disabled = true;
       else cell.addEventListener("click", () => {
         state.txFilter = null;
-        state.txPeriod = { mode: "day", anchor: +d, start: d, end: addDays(d, 1), label: md(d), key: null };
+        // 明細側の絞り込み（activeTxPeriod）は「選択中の期間モード・基準日と一致するときだけ」効く。基準日は動かさず、同じモード・基準日のまま1日分に絞る
+        state.txPeriod = { mode: state.periodMode, anchor: +state.periodAnchor, start: d, end: addDays(d, 1), label: md(d), key: null };
         state.page = 0;
         drilledIn = true;
         activateTab("tx", "in");
