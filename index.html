@@ -890,6 +890,22 @@
   .cal-legend { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 10px; font-size: 12px; color: var(--ink-soft); }
   .cal-legend i { width: 16px; height: 16px; border-radius: 4px; border: 1px solid var(--rule); background: color-mix(in srgb, var(--gold) calc(var(--t) * 100%), var(--paper-raised)); }
   @media (max-width: 640px) { .cal-cell { min-height: 42px; } .cal-cell .v { font-size: 10px; } }
+  .whatif { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--rule); }
+  .whatif[hidden] { display: none; }
+  .whatif-title { font-size: 17px; margin-bottom: 8px; }
+  .whatif-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+  .wi-chip { min-height: 44px; padding: 0 14px; border: 1px solid var(--rule); border-radius: 999px; background: var(--paper-raised); color: var(--ink); font: inherit; cursor: pointer; }
+  .wi-chip:hover { border-color: var(--gold); }
+  .whatif-ctl { display: grid; grid-template-columns: max-content 1fr; gap: 2px 14px; align-items: center; }
+  .whatif-ctl label { font-size: 14px; color: var(--ink-soft); }
+  .whatif-ctl b { color: var(--ink); margin-left: 6px; }
+  .whatif-ctl input[type="range"] { width: 100%; min-height: 44px; accent-color: var(--gold); }
+  .whatif-ctl .pw-input { max-width: 180px; }
+  .wi-line { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; font-size: 14.5px; padding: 3px 0; }
+  .wi-k { color: var(--ink-soft); }
+  .wi-bad { color: var(--red); font-weight: 700; }
+  .wi-ok { color: var(--green); font-weight: 700; }
+  @media (max-width: 640px) { .whatif-ctl { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -1428,6 +1444,22 @@
 <span id="forecastCopyMsg" class="cash-note"></span>
 </div>
 <div class="line-chart" id="forecastChart"></div>
+
+<div class="whatif no-print" id="whatIf" hidden>
+  <div class="whatif-title serif">仮の支出を置いてみる</div>
+  <div class="whatif-chips">
+    <button type="button" class="wi-chip" data-a="-150000" data-m="2">旅行 −¥150,000</button>
+    <button type="button" class="wi-chip" data-a="-80000" data-m="1">家電 −¥80,000</button>
+    <button type="button" class="wi-chip" data-a="100000" data-m="3">臨時収入 +¥100,000</button>
+    <button type="button" class="wi-chip" data-a="0">仮を外す</button>
+  </div>
+  <div class="whatif-ctl">
+    <label for="wiAmt">金額 <b id="wiAmtV"></b></label><input id="wiAmt" type="range" min="-500000" max="300000" step="5000">
+    <label for="wiMonth">月度 <b id="wiMonthV"></b></label><input id="wiMonth" type="range" min="1" max="6" step="1">
+    <label for="wiSafe">下回りたくない残高（円）</label><input id="wiSafe" class="pw-input" type="number" inputmode="numeric" min="0" step="10000">
+  </div>
+  <div class="whatif-result" id="wiResult" aria-live="polite"></div>
+</div>
 
         <div class="modal-section-title" style="margin-top:24px;">予測の前提</div>
         <div id="forecastBasisBox" style="margin-top:8px;"></div>
@@ -5144,6 +5176,64 @@
     wrap.appendChild(el("table", { class: "compare-table" }, [el("thead", null, [head]), el("tbody", null, body)]));
   }
 
+  // ---- 仮の支出（What-if）：予測の月ごとの残高に「この月度から金額を足し引き」して、仮を入れた場合の線を重ねる。保存はしない（画面を開いている間だけ） ----
+  let lastForecast = null;
+  const whatIf = { amt: 0, idx: 1 };
+  function safeLineValue() { try { return Math.max(0, Number(localStorage.getItem("zaimLedger.safeLine")) || 0); } catch (e) { return 0; } }
+  function drawForecastChart(forecast) {
+    const chartEl = document.getElementById("forecastChart");
+    const n = forecast.months.length;
+    const idx = Math.min(Math.max(1, whatIf.idx), n);
+    const on = whatIf.amt !== 0;
+    const shift = (arr) => arr.map((v, i) => (on && i >= idx ? v + whatIf.amt : v));
+    const labels = ["現在", ...forecast.months.map((m) => m.label)];
+    const upper = [forecast.startBalance, ...forecast.months.map((m) => m.upper)];
+    const center = [forecast.startBalance, ...forecast.months.map((m) => m.balance)];
+    const lower = [forecast.startBalance, ...forecast.months.map((m) => m.lower)];
+    const last = labels[labels.length - 1];
+    const series = [
+      { name: "上振れ目安", color: "var(--gold)", values: shift(upper), width: 1.2, dash: "4 4", opacity: 0.6, noDots: true,
+        endLabel: (v) => `上振れ ${YEN(v)}`, labelSide: "above", labelPriority: 1, labelColor: "var(--ink-soft)" },
+      { name: on ? "予測残高（仮を入れた場合）" : "予測残高", color: "var(--gold)", values: shift(center), width: 3,
+        endLabel: (v) => `${on ? "仮 " : ""}${last} ${YEN(v)}`, labelPriority: 4, labelColor: "var(--ink)" },
+      { name: "下振れ目安", color: "var(--red)", values: shift(lower), width: 1.2, dash: "4 4", opacity: 0.6, noDots: true,
+        endLabel: (v) => `下振れ ${YEN(v)}`, labelSide: "below", labelPriority: 2, labelColor: "var(--ink-soft)" },
+    ];
+    if (on) series.push({ name: "仮を入れない場合", color: "var(--ink-soft)", values: center, width: 1.6, dash: "5 4", opacity: 0.85, noDots: true,
+      endLabel: (v) => `仮なし ${YEN(v)}`, labelSide: "below", labelPriority: 3, labelColor: "var(--ink-soft)" });
+    renderLineChartSVG(chartEl, labels, series, { valueFormatter: (v) => YEN(v), axisValueFormatter: YEN_COMPACT, band: { upper: 0, lower: 2 } });
+
+    // 操作部と結果
+    const wi = document.getElementById("whatIf");
+    wi.hidden = false;
+    const amtEl = document.getElementById("wiAmt"), monEl = document.getElementById("wiMonth"), safeEl = document.getElementById("wiSafe");
+    monEl.max = String(n); monEl.value = String(idx); amtEl.value = String(whatIf.amt);
+    if (document.activeElement !== safeEl) safeEl.value = String(safeLineValue() || "");
+    document.getElementById("wiAmtV").textContent = on ? `${whatIf.amt > 0 ? "+" : ""}${YEN(whatIf.amt)}` : "なし";
+    document.getElementById("wiMonthV").textContent = forecast.months[idx - 1].label;
+    const minOf = (arr) => { let mi = 1; for (let i = 2; i < arr.length; i++) if (arr[i] < arr[mi]) mi = i; return { v: arr[mi], label: labels[mi] }; };
+    const safe = safeLineValue();
+    const c = minOf(shift(center)), lo = minOf(shift(lower));
+    const res = document.getElementById("wiResult");
+    res.textContent = "";
+    const line = (parts) => res.appendChild(el("div", { class: "wi-line" }, parts));
+    const flag = (v, label) => v < safe ? el("span", { class: "wi-bad" }, [`▼ ${label}に下回る見込み`]) : el("span", { class: "wi-ok" }, [`▲ ${safe > 0 ? "下回りたくない残高を維持" : "マイナスにならない見込み"}`]);
+    line([el("span", { class: "wi-k" }, ["予測の最低残高"]), el("span", { class: "num" }, [`${YEN(Math.round(c.v))}（${c.label}）`]), flag(c.v, c.label)]);
+    line([el("span", { class: "wi-k" }, ["下振れの場合の最低残高"]), el("span", { class: "num" }, [`${YEN(Math.round(lo.v))}（${lo.label}）`]), flag(lo.v, lo.label)]);
+    if (on) { const b = minOf(center); line([el("span", { class: "wi-k" }, ["仮を入れない場合の最低残高"]), el("span", { class: "num" }, [`${YEN(Math.round(b.v))}（${b.label}）`])]); }
+    if (!wi.dataset.bound) {
+      wi.dataset.bound = "1";
+      const redraw = () => { if (lastForecast) drawForecastChart(lastForecast); };
+      amtEl.addEventListener("input", () => { whatIf.amt = Number(amtEl.value) || 0; redraw(); });
+      monEl.addEventListener("input", () => { whatIf.idx = Number(monEl.value) || 1; redraw(); });
+      safeEl.addEventListener("input", () => { try { localStorage.setItem("zaimLedger.safeLine", String(Math.max(0, Number(safeEl.value) || 0))); } catch (e) {} redraw(); });
+      wi.querySelectorAll(".wi-chip").forEach((b) => b.addEventListener("click", () => {
+        whatIf.amt = Number(b.dataset.a) || 0;
+        if (b.dataset.m) whatIf.idx = Number(b.dataset.m);
+        redraw();
+      }));
+    }
+  }
   function renderForecastPanel() {
     const chartEl = document.getElementById("forecastChart");
     const noteEl = document.getElementById("forecastDataNote");
@@ -5166,24 +5256,14 @@
     if (!forecast.sufficientData) {
       chartEl.innerHTML = "";
       chartEl.appendChild(emptyState("実績月が2ヶ月に満たないため、まだ予測できません"));
+      lastForecast = null;
+      const wiEl = document.getElementById("whatIf"); if (wiEl) wiEl.hidden = true;
     } else {
-      const labels = ["現在", ...forecast.months.map((m) => m.label)];
-      const upperSeries = [forecast.startBalance, ...forecast.months.map((m) => m.upper)];
-      const balanceSeries = [forecast.startBalance, ...forecast.months.map((m) => m.balance)];
-      const lowerSeries = [forecast.startBalance, ...forecast.months.map((m) => m.lower)];
-      const lastLabel = labels[labels.length - 1];
-      renderLineChartSVG(chartEl, labels, [
-        { name: "上振れ目安", color: "var(--gold)", values: upperSeries, width: 1.2, dash: "4 4", opacity: 0.6, noDots: true,
-          endLabel: (v) => `上振れ ${YEN(v)}`, labelSide: "above", labelPriority: 1, labelColor: "var(--ink-soft)" },
-        { name: "予測残高", color: "var(--gold)", values: balanceSeries, width: 3,
-          endLabel: (v) => `${lastLabel} ${YEN(v)}`, labelPriority: 3, labelColor: "var(--ink)" },
-        { name: "下振れ目安", color: "var(--red)", values: lowerSeries, width: 1.2, dash: "4 4", opacity: 0.6, noDots: true,
-          endLabel: (v) => `下振れ ${YEN(v)}`, labelSide: "below", labelPriority: 2, labelColor: "var(--ink-soft)" },
-      ], { valueFormatter: (v) => YEN(v), axisValueFormatter: YEN_COMPACT, band: { upper: 0, lower: 2 } });
+      lastForecast = forecast;
+      drawForecastChart(forecast);
     }
 
-    
-    const usedCount = forecast.usableCount;
+        const usedCount = forecast.usableCount;
     if (usedCount < 2) {
       noteEl.textContent = "実績データが足りません（会計月が2ヶ月以上必要）";
     } else if (forecast.seasonal) {
