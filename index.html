@@ -906,6 +906,29 @@
   .wi-bad { color: var(--red); font-weight: 700; }
   .wi-ok { color: var(--green); font-weight: 700; }
   @media (max-width: 640px) { .whatif-ctl { grid-template-columns: 1fr; } }
+  .ask-wrap { margin-bottom: 16px; }
+  .ask-form { display: flex; gap: 8px; }
+  .ask-form input { flex: 1; min-width: 0; min-height: 52px; border: 1px solid var(--rule); border-radius: 16px; background: var(--paper-raised); color: var(--ink); font: inherit; font-size: 16px; padding: 0 16px; box-shadow: 0 10px 30px -16px rgba(var(--ink-rgb), .32); }
+  .ask-go { min-height: 52px; padding: 0 20px; border: 0; border-radius: 16px; background: var(--ink); color: var(--paper-raised); font: inherit; font-weight: 700; cursor: pointer; }
+  .ask-chips { display: flex; gap: 8px; margin-top: 10px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+  .ask-chips::-webkit-scrollbar { display: none; }
+  .ask-chip { flex: 0 0 auto; min-height: 44px; padding: 0 14px; border: 1px solid var(--rule); border-radius: 999px; background: var(--paper-raised); color: var(--ink); font: inherit; cursor: pointer; white-space: nowrap; }
+  .ask-chip:hover, .ask-ins:hover { border-color: var(--gold); }
+  .ask-form input:focus-visible, .ask-go:focus-visible, .ask-chip:focus-visible, .ask-ins:focus-visible, .ask-x:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  #askStack { display: grid; gap: 12px; margin-top: 12px; perspective: 1100px; }
+  .ask-card { scroll-margin: 90px 0 24px; padding: 18px 20px; position: relative; margin: 0; transform-origin: 50% 0; animation: askFlip .55s cubic-bezier(.2,.8,.2,1) both; }
+  @keyframes askFlip { from { opacity: 0; transform: rotateX(-16deg) translateY(-10px); } to { opacity: 1; transform: none; } }
+  .ask-x { position: absolute; top: 4px; right: 4px; width: 44px; height: 44px; border: 0; background: transparent; color: var(--ink-soft); font-size: 22px; cursor: pointer; }
+  .ask-q { font-size: 13px; color: var(--ink-soft); padding-right: 40px; }
+  .ask-big { font-size: clamp(32px, 8vw, 46px); line-height: 1.2; margin: 2px 0; }
+  .ask-sub { font-size: 14px; color: var(--ink-soft); }
+  .ask-bad { color: var(--red); font-weight: 700; } .ask-ok { color: var(--green); font-weight: 700; }
+  .ask-svg { display: block; width: 100%; height: auto; margin-top: 10px; overflow: visible; }
+  .ask-ins { display: block; width: 100%; text-align: left; min-height: 44px; padding: 12px 16px; margin-top: 8px; border: 1px solid var(--rule); border-radius: 14px; background: var(--paper-raised); color: var(--ink); font: inherit; cursor: pointer; }
+  .ask-ins:first-child { margin-top: 0; }
+  .ask-ins b { font-weight: 700; } .ask-ins small { display: block; color: var(--ink-soft); font-size: 13px; }
+  .ask-insights[hidden] { display: none; }
+  @media (prefers-reduced-motion: reduce) { .ask-card { animation: none; } }
 </style>
 </head>
 <body>
@@ -1108,6 +1131,20 @@
 
       <div class="tab-page" id="tabOverview">
 
+      <div class="ask-wrap no-print" id="askWrap">
+        <form class="ask-form" id="askForm" autocomplete="off">
+          <input id="askInput" type="text" enterkeyhint="send" placeholder="台帳に聞く　例：来月末の残高　先月の食費" aria-label="台帳への問いかけ">
+          <button type="submit" class="ask-go">聞く</button>
+        </form>
+        <div class="ask-chips">
+          <button type="button" class="ask-chip" data-ask="来月末の残高">来月末の残高</button>
+          <button type="button" class="ask-chip" data-ask="先月の支出">先月の支出</button>
+          <button type="button" class="ask-chip" data-ask="来月に10万円の買い物">来月に10万円の買い物</button>
+          <button type="button" class="ask-chip" data-ask="今日使える額">今日使える額</button>
+        </div>
+        <div id="askStack" aria-live="polite"></div>
+      </div>
+
       <div class="card panel hero-card" id="heroCard" role="group" aria-label="今日使える額">
         <div class="hero-label">今日使える額</div>
         <div class="hero-value serif num" id="heroValue">¥0</div>
@@ -1128,6 +1165,11 @@
           <div class="hero-mini-sub num" id="heroFcSub"></div>
           <div class="hero-spark" id="heroFcSpark"></div>
         </div>
+      </div>
+
+      <div class="card panel ask-insights no-print" id="insightPanel" hidden>
+        <div class="panel-head" style="margin-bottom:8px;"><div class="section-title serif">気づき</div></div>
+        <div id="insightList"></div>
       </div>
 
       <div class="card panel spend-panel" id="spendPanel">
@@ -5976,6 +6018,151 @@ function svgEl(tag, attrs) {
     return sum;
   }
   // 「今日使える額」の下の小カード：現金・預金の残高と、次の月度の予測残高（上振れ〜下振れの帯つき）。タップで資金繰り予測へ
+  // ===== 台帳に聞く（日本語の問いかけ→答えのカード）と、データから作る「気づき」。解釈は端末内の単純な規則だけで、通信しない =====
+  let heroSnap = null;
+  const askEsc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const askNorm = (s) => s.replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 65248)).replace(/[，,\s]/g, "");
+  function askAmount(t) {
+    let m = t.match(/(\d+(?:\.\d+)?)万/); if (m) return Math.round(Number(m[1]) * 1e4);
+    m = t.match(/(\d+)千/); if (m) return Number(m[1]) * 1e3;
+    m = t.match(/(\d{3,})円?/); return m ? Number(m[1]) : null;
+  }
+  const askCurStart = () => getCycleBounds(startOfDay(new Date())).start;
+  function askCycleAt(k) { const s = askCurStart(); return getCycleBounds(new Date(s.getFullYear(), s.getMonth() + k, 28)); }
+  const askCycLabel = (k) => `${askCycleAt(k).start.getMonth() + 1}月度`;
+  function askOffset(t) {
+    if (/再来月/.test(t)) return 2; if (/来月/.test(t)) return 1; if (/先々月/.test(t)) return -2; if (/先月/.test(t)) return -1;
+    if (/今月|今日|現在/.test(t)) return 0;
+    const x = t.match(/(\d{1,2})月/); if (!x) return null;
+    const off = (Number(x[1]) - (askCurStart().getMonth() + 1) + 12) % 12; return off > 6 ? off - 12 : off;
+  }
+  function askSum(start, end, cat) {
+    let sum = 0;
+    for (const r of rowsInRange({ start, end })) { if (r.type !== "expense" || isExcludedRow(r, false)) continue; if (cat && r.category !== cat) continue; sum += r.amount; }
+    return sum;
+  }
+  function askCats() { const set = new Set(); for (const r of txSorted) if (r.type === "expense" && r.category) set.add(r.category); return [...set]; }
+  function askCat(t) {
+    const cats = askCats().sort((a, b) => b.length - a.length);
+    const hit = cats.find((c) => t.includes(c)); if (hit) return hit;
+    for (const [re, key] of [[/外食|食事/, "食"], [/電気|ガス|水道|光熱/, "光熱"], [/家賃/, "住"], [/電車|交通/, "交通"], [/日用/, "日用"], [/遊|趣味|娯楽/, "娯楽"]]) {
+      if (re.test(t)) { const c = cats.find((x) => x.includes(key)); if (c) return c; }
+    }
+    return null;
+  }
+  function askBalAt(j, fc) {
+    if (j >= 0 && fc && fc.sufficientData) { const m = fc.months.find((x) => x.label === askCycLabel(j)); if (m) return m.balance; }
+    if (j > 0) return null;
+    const asOf = parseAsofDate(); let d = addDays(startOfDay(askCycleAt(j).end), -1); if (d > asOf) d = asOf;
+    return sumCashFromMap(getAccountBalancesAsOf(d));
+  }
+  function askLine(a, labels, b, hi, ref) {
+    const all = a.concat(b || [], ref != null ? [ref] : []), mn = Math.min(...all), mx = Math.max(...all), rg = (mx - mn) || 1;
+    const y = (v) => 86 - (v - mn) / rg * 70, x = (i) => 12 + i * (296 / Math.max(1, a.length - 1));
+    const pl = (arr, st, w, d) => `<polyline points="${arr.map((v, i) => x(i) + "," + y(v)).join(" ")}" fill="none" stroke="${st}" stroke-width="${w}" ${d ? 'stroke-dasharray="5 4"' : ""} stroke-linejoin="round"/>`;
+    return `<svg viewBox="0 0 320 112" class="ask-svg" aria-hidden="true">` + (ref != null ? `<line x1="0" x2="320" y1="${y(ref)}" y2="${y(ref)}" stroke="var(--red)" stroke-dasharray="2 4" opacity=".7"/>` : "") +
+      pl(a, b ? "var(--ink-soft)" : "var(--gold)", b ? 1.6 : 3, !!b) + (b ? pl(b, "var(--gold)", 3) : "") +
+      (hi != null ? `<circle cx="${x(hi)}" cy="${y((b || a)[hi])}" r="5" fill="var(--gold)" stroke="var(--paper-raised)" stroke-width="2"/>` : "") +
+      labels.map((l, i) => `<text x="${x(i)}" y="106" font-size="11" text-anchor="middle" fill="var(--ink-soft)">${askEsc(l)}</text>`).join("") + `</svg>`;
+  }
+  function askBars(v, hi, labels) {
+    const mx = Math.max(...v, 1) * 1.2, w = 320 / v.length;
+    return `<svg viewBox="0 0 320 112" class="ask-svg" aria-hidden="true">` + v.map((x, i) => { const h = x / mx * 76;
+      return `<rect x="${i * w + 9}" y="${88 - h}" width="${w - 18}" height="${h}" rx="5" fill="${i === hi ? "var(--gold)" : "var(--rule)"}"/><text x="${i * w + w / 2}" y="104" font-size="11" text-anchor="middle" fill="var(--ink-soft)">${askEsc(labels[i])}</text>` +
+        (i === hi ? `<text x="${i * w + w / 2}" y="${82 - h}" font-size="11" font-weight="700" text-anchor="middle" fill="var(--gold-t, var(--ink))">${YEN(Math.round(x))}</text>` : ""); }).join("") + `</svg>`;
+  }
+  function askCard(q, body) {
+    const st = document.getElementById("askStack"), e = document.createElement("section");
+    e.className = "card ask-card";
+    e.innerHTML = `<button type="button" class="ask-x" aria-label="この答えを閉じる">×</button><div class="ask-q">${askEsc(q)}</div>${body}`;
+    st.prepend(e); while (st.children.length > 3) st.lastChild.remove();
+    e.scrollIntoView({ block: "nearest", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  }
+  function askBalance(t, q, fc) {
+    const off = askOffset(t), j = Math.max(-11, Math.min(6, off == null ? 0 : off)), plain = off == null || (/今月|今日|現在/.test(t) && !/末/.test(t));
+    const v = plain ? sumCashFromMap(getAccountBalancesAsOf(parseAsofDate())) : askBalAt(j, fc);
+    if (v == null) return askCard(q, `<div class="ask-sub">${askEsc(askCycLabel(j))}は予測の範囲外です。実績が増えると、先の月も答えられます。</div>`);
+    const now = sumCashFromMap(getAccountBalancesAsOf(parseAsofDate()));
+    const vals = [], labs = []; let hi = 0;
+    for (let k = Math.max(-5, j - 3); k <= j + 3; k++) { const b = askBalAt(k, fc); if (b == null) continue; if (k === j) hi = vals.length; vals.push(b); labs.push(askCycLabel(k).replace("月度", "月")); }
+    askCard(q, `<div class="ask-sub">${plain ? "現在" : `${askCycLabel(j)}末（${j > 0 ? "予測" : j < 0 ? "実績" : "見込み"}）`}の現金・預金</div><div class="ask-big serif num">${YEN(Math.round(v))}</div>` +
+      (plain ? `<div class="ask-sub num">${askEsc(accountBalanceAsOfLabel())}時点</div>` : `<div class="ask-sub num">現在との差 ${YEN(Math.round(v - now))}</div>`) + (vals.length > 1 ? askLine(vals, labs, null, hi, null) : ""));
+  }
+  function askSpend(t, q) {
+    const cat = askCat(t), k = Math.max(-11, Math.min(0, askOffset(t) ?? 0)), b = askCycleAt(k), today = startOfDay(new Date());
+    const live = k === 0, days = Math.max(1, Math.round((today - startOfDay(b.start)) / 864e5) + 1);
+    const cur = live ? askSum(b.start, addDays(b.start, days), cat) : askSum(b.start, b.end, cat);
+    const pb = askCycleAt(k - 1), prev = live ? askSum(pb.start, addDays(pb.start, days), cat) : askSum(pb.start, pb.end, cat);
+    const d = prev ? (cur - prev) / prev * 100 : 0, vals = [], labs = [];
+    for (let i = k - 5; i <= k; i++) { const bb = askCycleAt(i); vals.push(i === 0 ? askSum(bb.start, addDays(bb.start, days), cat) : askSum(bb.start, bb.end, cat)); labs.push(askCycLabel(i).replace("月度", "月")); }
+    askCard(q, `<div class="ask-sub">${askCycLabel(k)}${live ? `（${days}日目まで）` : ""}の${askEsc(cat || "支出の合計")}</div><div class="ask-big serif num">${YEN(Math.round(cur))}</div>` +
+      `<div class="ask-sub num">${live ? "前の月の同じ時点" : "前の月"}との差 <span class="${d > 10 ? "ask-bad" : d < -10 ? "ask-ok" : ""}">${d >= 0 ? "+" : ""}${d.toFixed(0)}%</span></div>` + askBars(vals, vals.length - 1, labs));
+  }
+  function askWhatIf(t, q, fc) {
+    if (!fc || !fc.sufficientData) return askCard(q, `<div class="ask-sub">実績が2か月に満たないため、まだ予測できません。</div>`);
+    const a = askAmount(t), off = Math.max(1, askOffset(t) ?? 1), n = fc.months.length;
+    let idx = fc.months.findIndex((m) => m.label === askCycLabel(off)) + 1; if (idx < 1) idx = Math.min(off, n);
+    const base = [fc.startBalance, ...fc.months.map((m) => m.balance)], low = [fc.startBalance, ...fc.months.map((m) => m.lower)];
+    const sc = base.map((v, i) => (i >= idx ? v - a : v)), sl = low.map((v, i) => (i >= idx ? v - a : v)), safe = safeLineValue();
+    let mi = 1; for (let i = 2; i <= n; i++) if (sc[i] < sc[mi]) mi = i;
+    let ml = 1; for (let i = 2; i <= n; i++) if (sl[i] < sl[ml]) ml = i;
+    const lab = (i) => fc.months[i - 1].label, flag = (v, i) => v < safe ? `<span class="ask-bad">▼ ${askEsc(lab(i))}末に ${YEN(Math.round(v))}。${safe > 0 ? `下回りたくない残高 ${YEN(safe)} を下回る見込み` : "マイナスになる見込み"}</span>` : `<span class="ask-ok">▲ 最低でも ${askEsc(lab(i))}末の ${YEN(Math.round(v))}${safe > 0 ? `。下回りたくない残高 ${YEN(safe)} を維持` : "。マイナスにはなりません"}</span>`;
+    askCard(q, `<div class="ask-sub">${askEsc(lab(idx))}に ${YEN(a)} 使うと</div><div class="ask-big serif num">${YEN(Math.round(sc[n]))}</div><div class="ask-sub num">${askEsc(lab(n))}末の残高（使わない場合 ${YEN(Math.round(base[n]))}）</div>` +
+      `<div class="ask-sub" style="margin-top:6px">${flag(sc[mi], mi)}</div>` + `<div class="ask-sub">${flag(sl[ml], ml).replace("▼ ", "▼ 下振れでは、").replace("▲ ", "▲ 下振れでも、")}</div>` +
+      askLine(base, ["現在", ...fc.months.map((m) => m.label.replace("月度", "月"))], sc, idx, safe));
+  }
+  function askAvailable(q) {
+    const h = heroSnap;
+    if (!h || !h.hasLimit) return askCard(q, `<div class="ask-sub">今月の給与が未記録のため、上限を計算できません。</div>`);
+    askCard(q, `<div class="ask-sub">今日使える額</div><div class="ask-big serif num ${h.todayLeft < 0 ? "ask-bad" : ""}">${h.todayLeft < 0 ? "超過 " + YEN(-h.todayLeft) : YEN(h.todayLeft)}</div><div class="ask-sub num">今日の上限 ${YEN(Math.round(h.perDay))} ・ 今月の残り ${YEN(h.monthLeft)} ・ 残り${h.daysLeftM}日</div>`);
+  }
+  function askRun(raw) {
+    const q = (raw || "").trim(); if (!q) return;
+    if (!state.transactions || !state.transactions.length) return askCard(q, `<div class="ask-sub">データを読み込むと、答えられます。</div>`);
+    const t = askNorm(q), a = askAmount(t); let fc = null;
+    try { fc = computeForecast(); } catch (e) { fc = null; }
+    try {
+      if (/使える|使っていい/.test(t)) return askAvailable(q);
+      if (a && /買|払|購入|旅行|使う|出費|もし/.test(t) && !/使った/.test(t)) return askWhatIf(t, q, fc);
+      if (/残高|手元|いくら(ある|残)/.test(t)) return askBalance(t, q, fc);
+      if (askCat(t) || /使った|支出|出費|費/.test(t)) return askSpend(t, q);
+    } catch (e) { console.error("問いかけの処理に失敗", e); return askCard(q, `<div class="ask-sub">うまく計算できませんでした。聞き方を変えてみてください。</div>`); }
+    askCard(q, `<div class="ask-sub">うまく読み取れませんでした。たとえばこう聞いてみてください。</div><div class="ask-chips" style="margin-top:8px"><button type="button" class="ask-chip" data-ask="来月末の残高">来月末の残高</button><button type="button" class="ask-chip" data-ask="先月の支出">先月の支出</button><button type="button" class="ask-chip" data-ask="今日使える額">今日使える額</button></div>`);
+  }
+  function wireAsk() {
+    const f = document.getElementById("askForm"); if (!f || f.dataset.bound) return; f.dataset.bound = "1";
+    f.addEventListener("submit", (e) => { e.preventDefault(); const i = document.getElementById("askInput"); const v = i.value; i.value = ""; askRun(v); });
+    document.getElementById("askWrap").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-ask]"); if (b) { askRun(b.dataset.ask); return; }
+      const x = e.target.closest(".ask-x"); if (x) x.closest(".ask-card").remove();
+    });
+    document.getElementById("insightList").addEventListener("click", (e) => { const b = e.target.closest("[data-ask]"); if (b) askRun(b.dataset.ask); });
+  }
+  function renderInsights() {
+    const panel = document.getElementById("insightPanel"); if (!panel) return;
+    wireAsk();
+    const items = [];
+    if (state.transactions && state.transactions.length) {
+      const fc = computeForecast();
+      if (fc.sufficientData && fc.months.length) {
+        let w = fc.months[0]; fc.months.forEach((m) => { if (m.net < w.net) w = m; });
+        items.push([`<b>${askEsc(w.label)}は、この先で${w.net < 0 ? "いちばん赤字が大きく" : "いちばん黒字が小さく"}なる見込み</b><small class="num">収支 ${YEN(Math.round(w.net))}（${askEsc(w.label)}末の残高 ${YEN(Math.round(w.balance))}）</small>`, `${w.label}末の残高`]);
+        const safe = safeLineValue(), br = fc.months.find((m) => m.lower < safe);
+        if (br) items.push([`<b class="ask-bad">下振れの場合、${askEsc(br.label)}に${safe > 0 ? "下回りたくない残高" : "残高ゼロ"}を割る可能性</b><small class="num">下振れの残高 ${YEN(Math.round(br.lower))}</small>`, `${br.label}末の残高`]);
+      }
+      const b0 = askCycleAt(0), days = Math.max(1, Math.round((startOfDay(new Date()) - startOfDay(b0.start)) / 864e5) + 1);
+      let best = null;
+      for (const c of askCats()) {
+        const cur = askSum(b0.start, addDays(b0.start, days), c); let sum = 0;
+        for (let k = 1; k <= 3; k++) { const b = askCycleAt(-k); sum += askSum(b.start, addDays(b.start, days), c); }
+        const avg = sum / 3;
+        if (avg >= 3000 && cur - avg > 2000 && (!best || cur - avg > best.d)) best = { c, cur, avg, d: cur - avg };
+      }
+      if (best) items.push([`<b>${askEsc(best.c)}が、直近3か月の同じ時点より ${Math.round((best.cur / best.avg - 1) * 100)}% 多いペース</b><small class="num">ここまで ${YEN(Math.round(best.cur))}（平均 ${YEN(Math.round(best.avg))}）</small>`, `${best.c}を今月使った額`]);
+    }
+    panel.hidden = items.length === 0;
+    document.getElementById("insightList").innerHTML = items.map((x) => `<button type="button" class="ask-ins" data-ask="${askEsc(x[1])}">${x[0]}</button>`).join("");
+  }
   function renderHeroMini() {
     const balVal = document.getElementById("heroBalVal");
     if (!balVal) return;
@@ -6109,6 +6296,7 @@ function svgEl(tag, attrs) {
       const heroOver = hasLimit && todayLeft < 0;
       heroValue.textContent = hasLimit ? (heroOver ? `超過 ${YEN(-todayLeft)}` : YEN(todayLeft)) : "—";
       heroValue.classList.toggle("over", heroOver);
+      heroSnap = { hasLimit, todayLeft, perDay, monthLeft, daysLeftM };
       // 文の途中で折り返されないよう、区切りごとに折り返し禁止のかたまりにする
       const subParts = !hasLimit ? ["今月の給与が未記録のため、上限を計算できません"]
         : perDay < 0 || monthLeft < 0 ? [`今月は ${YEN(-Math.min(monthLeft, 0))} 超過`, `残り${daysLeftM}日`]
@@ -6855,6 +7043,7 @@ function svgEl(tag, attrs) {
     renderPeriodControls();
     try { renderSpendPanel(); } catch (e) { console.error("使ったお金の表示に失敗", e); }
     try { renderHeroMini(); } catch (e) { console.error("残高・予測カードの表示に失敗", e); }
+    try { renderInsights(); } catch (e) { console.error("気づきの表示に失敗", e); }
     try { renderSpendCalendar(); } catch (e) { console.error("日別の支出カレンダーの表示に失敗", e); }
     renderPeriodCompareTable();
     renderFilterChip();
