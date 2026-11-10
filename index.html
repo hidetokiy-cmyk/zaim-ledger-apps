@@ -6097,14 +6097,32 @@ function svgEl(tag, attrs) {
       let j = -1; for (let q = 0; q <= 9; q++) if (askCycLabel(q) === m.label) { j = q; break; }
       if (j < 0) continue;
       const d = idxOf(addDays(startOfDay(askCycleAt(j).end), -1));
-      if (d > pts[pts.length - 1].d) pts.push({ d, b: m.balance, u: m.upper, l: m.lower });
+      if (d > pts[pts.length - 1].d) pts.push({ d, b: m.balance, u: m.upper, l: m.lower, m });
     }
+    // 未来の線：月末の値は資金繰り予測と必ず一致させ、月の中は「給与日」「現金払いの月次固定費の日」で段差をつける。
+    // 段差にできないもの（変動費・カード払いの固定費・年払いなど）は、残りとして日割りでなだらかに減らす
+    const payDay = fc && fc.sufficientData && fc.basis ? tlPayDay(fc.basis.incomeRows) : null;
+    const subs = fc && fc.sufficientData && fc.basis ? (fc.basis.activeSubs || []).filter((x) => x.freq === "month" && x.cashPaid && x.nextExpected) : [];
+    const dateOf = (d) => new Date(asOf.getFullYear(), asOf.getMonth(), asOf.getDate() + d);
+    const findDay = (d0, d1, dom) => { for (let d = d0 + 1; d <= d1; d++) if (dateOf(d).getDate() === dom) return d; return null; };
     const fut = {}, maxD = pts[pts.length - 1].d;
-    for (let i = 1; i < pts.length; i++) for (let d = pts[i - 1].d + 1; d <= pts[i].d; d++) {
-      const t = (d - pts[i - 1].d) / (pts[i].d - pts[i - 1].d), mix = (a, b) => a + (b - a) * t;
-      fut[d] = { b: mix(pts[i - 1].b, pts[i].b), u: mix(pts[i - 1].u, pts[i].u), l: mix(pts[i - 1].l, pts[i].l) };
+    for (let i = 1; i < pts.length; i++) {
+      const p0 = pts[i - 1], p1 = pts[i], steps = [];
+      if (payDay && p1.m && p1.m.income > 0) { const d = findDay(p0.d, p1.d, payDay); if (d) steps.push([d, p1.m.income]); }
+      for (const x of subs) { const d = findDay(p0.d, p1.d, x.nextExpected.getDate()); if (d) steps.push([d, -x.amount]); }
+      const sum = steps.reduce((q, z) => q + z[1], 0), rest = (p1.b - p0.b) - sum, hw0 = p0.u - p0.b, hw1 = p1.u - p1.b;
+      for (let d = p0.d + 1; d <= p1.d; d++) {
+        const t = (d - p0.d) / (p1.d - p0.d), v = p0.b + rest * t + steps.reduce((q, z) => q + (z[0] <= d ? z[1] : 0), 0), hw = hw0 + (hw1 - hw0) * t;
+        fut[d] = { b: v, u: v + hw, l: v - hw };
+      }
     }
     return { asOf, minD, maxD, bal, fut, fin, fout };
+  }
+  function tlPayDay(rows) {
+    const by = new Map();
+    for (const r of rows || []) { const k = r.date.getFullYear() * 100 + r.date.getMonth(), c = by.get(k); if (!c || r.amount > c.amount) by.set(k, r); }
+    const days = [...by.values()].map((r) => r.date.getDate()).sort((a, b) => a - b);
+    return days.length ? days[Math.floor(days.length / 2)] : null;
   }
   const tlB = (d) => (d <= 0 ? TL.d.bal[d] : TL.d.fut[d].b);
   const tlSig = (d) => (d > 0 ? (TL.d.fut[d].u - TL.d.fut[d].l) / 2 : 0);
