@@ -211,6 +211,7 @@
   .tab-btn.active { color: var(--ink); background: var(--paper-raised); border-color: var(--rule-strong); border-bottom-color: var(--paper-raised); }
   .tab-btn.active svg { opacity: 1; }
   .tab-btn[data-tab="overview"].active { border-top-color: var(--gold); }
+  .tab-btn[data-tab="timeline"].active { border-top-color: var(--green); }
   .tab-btn[data-tab="charts"].active { border-top-color: var(--cat-3); }
   .tab-btn[data-tab="statements"].active { border-top-color: var(--cat-4); }
   .tab-btn[data-tab="tx"].active { border-top-color: var(--red); }
@@ -929,6 +930,28 @@
   .ask-ins b { font-weight: 700; } .ask-ins small { display: block; color: var(--ink-soft); font-size: 13px; }
   .ask-insights[hidden] { display: none; }
   @media (prefers-reduced-motion: reduce) { .ask-card { animation: none; } }
+  .tl-stats { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+  .tl-stats .card { margin: 0; }
+  .tl-lbl { font-size: 13px; color: var(--ink-soft); }
+  .tl-big { font-size: clamp(30px, 7vw, 44px); line-height: 1.2; margin-top: 2px; }
+  .tl-mid { font-size: clamp(19px, 4.6vw, 26px); line-height: 1.3; margin-top: 4px; }
+  .tl-sub { font-size: 13px; color: var(--ink-soft); }
+  .tl-bad { color: var(--red); }
+  .tl-bar { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 8px; }
+  .tl-seg { display: flex; background: var(--rule); border-radius: 999px; padding: 3px; }
+  .tl-seg button { min-height: 44px; padding: 0 16px; border: 0; border-radius: 999px; background: transparent; color: var(--ink-soft); font: inherit; font-weight: 500; cursor: pointer; }
+  .tl-seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper-raised); font-weight: 700; }
+  .tl-ghost, .tl-chip { min-height: 44px; padding: 0 14px; border: 1px solid var(--rule); border-radius: 12px; background: var(--paper-raised); color: var(--ink); font: inherit; cursor: pointer; }
+  .tl-chip { border-radius: 999px; } .tl-ghost:hover, .tl-chip:hover { border-color: var(--gold); }
+  #tlChart { width: 100%; height: 320px; touch-action: pan-y; cursor: grab; border-radius: 12px; outline: none; user-select: none; -webkit-user-select: none; }
+  #tlChart svg { display: block; width: 100%; height: 100%; overflow: visible; }
+  #tlChart:focus-visible, .tl-seg button:focus-visible, .tl-ghost:focus-visible, .tl-chip:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .tl-ctl { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 20px; margin-top: 14px; }
+  .tl-ctl[hidden] { display: none; }
+  .tl-chips { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
+  .tl-ctl label { display: block; font-size: 13px; color: var(--ink-soft); } .tl-ctl label b { color: var(--ink); margin-left: 6px; }
+  .tl-ctl input[type="range"] { width: 100%; min-height: 44px; accent-color: var(--gold); }
+  @media (max-width: 640px) { .tl-stats { grid-template-columns: 1fr 1fr; } .tl-stats > .card:first-child { grid-column: 1 / -1; } .tl-ctl { grid-template-columns: 1fr; } #tlChart { height: 300px; } }
 </style>
 </head>
 <body>
@@ -1124,6 +1147,7 @@
       </div>
       <div class="tab-bar" id="tabBar">
         <button class="tab-btn active" data-tab="overview"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>概要</button>
+        <button class="tab-btn" data-tab="timeline"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg>時間軸</button>
         <button class="tab-btn" data-tab="charts"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>グラフ</button>
         <button class="tab-btn" data-tab="statements"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M3 9h18"/><path d="M12 9v12"/></svg>財務三表</button>
         <button class="tab-btn" data-tab="tx"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>取引明細</button>
@@ -1295,6 +1319,31 @@
         <div id="furusatoList"></div>
       </div>
 
+      </div>
+
+      <div class="tab-page hidden" id="tabTimeline">
+        <div class="tl-stats">
+          <div class="card panel"><div class="tl-lbl" id="tlDate">—</div><div class="tl-big serif num" id="tlVal">—</div><div class="tl-sub num" id="tlSub"></div></div>
+          <div class="card panel"><div class="tl-lbl">仮の支出の影響</div><div class="tl-mid serif num" id="tlDVal">—</div><div class="tl-sub num" id="tlDSub"></div></div>
+          <div class="card panel"><div class="tl-lbl">この先の最低残高</div><div class="tl-mid serif num" id="tlMVal">—</div><div class="tl-sub num" id="tlMSub"></div></div>
+        </div>
+        <div class="card panel">
+          <div class="tl-bar">
+            <div class="tl-seg" role="group" aria-label="表示の細かさ"><button type="button" data-z="14">日</button><button type="button" data-z="45">週</button><button type="button" data-z="120">月</button><button type="button" data-z="360">年</button></div>
+            <button type="button" class="tl-ghost" id="tlHome">現在へ</button>
+          </div>
+          <div id="tlChart" tabindex="0" role="application" aria-label="現金・預金残高の時間軸。左右の矢印で日を移動、プラスとマイナスで拡大縮小"></div>
+        </div>
+        <div class="card panel tl-ctl no-print" id="tlCtl">
+          <div class="tl-chips">
+            <button type="button" class="tl-chip" data-a="-150000" data-d="21">旅行 −¥150,000</button>
+            <button type="button" class="tl-chip" data-a="-80000" data-d="45">家電 −¥80,000</button>
+            <button type="button" class="tl-chip" data-a="100000" data-d="60">臨時収入 +¥100,000</button>
+            <button type="button" class="tl-chip" data-a="0">仮を外す</button>
+          </div>
+          <div><label for="tlAmt">金額 <b id="tlAmtV"></b></label><input id="tlAmt" type="range" min="-500000" max="300000" step="5000"></div>
+          <div><label for="tlDay">日付 <b id="tlDayV"></b></label><input id="tlDay" type="range" min="1" max="180" step="1"></div>
+        </div>
       </div>
 
       <div class="tab-page hidden" id="tabCharts">
@@ -6018,6 +6067,163 @@ function svgEl(tag, attrs) {
     return sum;
   }
   // 「今日使える額」の下の小カード：現金・預金の残高と、次の月度の予測残高（上振れ〜下振れの帯つき）。タップで資金繰り予測へ
+  // ===== 時間軸タブ：日々の現金・預金残高（実績）から予測までを一本の線に。拡大縮小で見え方が変わり、仮の支出を置いて未来を試せる =====
+  // 実績は、残高の確定日（asOf）から取引を逆にたどって復元。予測は月ごとの予測残高（上振れ・下振れつき）を日割りで結んだ線
+  const TL = { z: 120, c: 30, sel: 0, day: 21, amt: 0, d: null, wired: false };
+  const TL_DAY = 864e5;
+  function tlBuild() {
+    if (!state.transactions || !state.transactions.length) return null;
+    const asOf = startOfDay(parseAsofDate()), cash = new Set();
+    CF_CASH_ACCOUNTS.forEach((a) => cash.add(a));
+    const idxOf = (d) => Math.round((startOfDay(d) - asOf) / TL_DAY);
+    const eff = new Map(), fin = new Map(), fout = new Map();
+    let minD = 0;
+    for (const r of state.transactions) {
+      if (r.date > asOf) continue;
+      const k = idxOf(r.date); let e = 0;
+      if (r.type === "income") { if (cash.has(r.toAccount)) { e = r.amount; fin.set(k, (fin.get(k) || 0) + r.amount); } }
+      else if (r.type === "expense") { if (cash.has(r.fromAccount)) { e = -r.amount; fout.set(k, (fout.get(k) || 0) + r.amount); } }
+      else if (r.type === "transfer") { if (cash.has(r.fromAccount)) e -= r.amount; if (cash.has(r.toAccount)) e += r.amount; }
+      else if (r.type === "balance") { if (r.fromAccount && cash.has(r.fromAccount)) e = -r.amount; else if (r.toAccount && cash.has(r.toAccount)) e = r.amount; }
+      if (e) eff.set(k, (eff.get(k) || 0) + e);
+      if (k < minD) minD = k;
+    }
+    minD = Math.max(minD, -540);
+    const B0 = sumCashFromMap(getAccountBalancesAsOf(asOf)), bal = { 0: B0 };
+    for (let d = 0; d > minD; d--) bal[d - 1] = bal[d] - (eff.get(d) || 0);
+    const pts = [{ d: 0, b: B0, u: B0, l: B0 }];
+    let fc = null; try { fc = computeForecast(); } catch (e) { fc = null; }
+    if (fc && fc.sufficientData) for (const m of fc.months) {
+      let j = -1; for (let q = 0; q <= 9; q++) if (askCycLabel(q) === m.label) { j = q; break; }
+      if (j < 0) continue;
+      const d = idxOf(addDays(startOfDay(askCycleAt(j).end), -1));
+      if (d > pts[pts.length - 1].d) pts.push({ d, b: m.balance, u: m.upper, l: m.lower });
+    }
+    const fut = {}, maxD = pts[pts.length - 1].d;
+    for (let i = 1; i < pts.length; i++) for (let d = pts[i - 1].d + 1; d <= pts[i].d; d++) {
+      const t = (d - pts[i - 1].d) / (pts[i].d - pts[i - 1].d), mix = (a, b) => a + (b - a) * t;
+      fut[d] = { b: mix(pts[i - 1].b, pts[i].b), u: mix(pts[i - 1].u, pts[i].u), l: mix(pts[i - 1].l, pts[i].l) };
+    }
+    return { asOf, minD, maxD, bal, fut, fin, fout };
+  }
+  const tlB = (d) => (d <= 0 ? TL.d.bal[d] : TL.d.fut[d].b);
+  const tlSig = (d) => (d > 0 ? (TL.d.fut[d].u - TL.d.fut[d].l) / 2 : 0);
+  const tlS = (d) => tlB(d) + (TL.amt && d >= TL.day ? TL.amt : 0);
+  const tlDate = (d) => new Date(TL.d.asOf.getFullYear(), TL.d.asOf.getMonth(), TL.d.asOf.getDate() + d);
+  const tlLab = (d) => { const x = tlDate(d); return d === 0 ? "現在" : `${x.getMonth() + 1}/${x.getDate()}（${"日月火水木金土"[x.getDay()]}）`; };
+  function tlFix() {
+    const D = TL.d, range = D.maxD - D.minD;
+    TL.z = Math.max(7, Math.min(TL.z, range));
+    TL.c = Math.min(D.maxD - TL.z / 2, Math.max(D.minD + TL.z / 2, TL.c));
+  }
+  function tlInvalidate() { TL.d = null; const pg = document.getElementById("tabTimeline"); if (pg && !pg.classList.contains("hidden")) tlRender(); }
+  function tlRender() {
+    if (!TL.d) { TL.d = tlBuild(); if (TL.d) { TL.day = Math.min(Math.max(1, TL.day), Math.max(1, TL.d.maxD)); } }
+    tlWire();
+    const ctl = document.getElementById("tlCtl");
+    if (!TL.d) { document.getElementById("tlChart").textContent = ""; document.getElementById("tlChart").appendChild(emptyState("データを読み込むと、時間軸が表示されます")); ctl.hidden = true; return; }
+    ctl.hidden = TL.d.maxD === 0;
+    document.getElementById("tlDay").max = String(Math.max(1, TL.d.maxD));
+    tlFix(); tlDraw(); tlReadout();
+  }
+  function tlDraw() {
+    const box = document.getElementById("tlChart"), D = TL.d; if (!box || !D) return;
+    const W = box.clientWidth, H = box.clientHeight; if (!W) return;
+    const M = { l: 8, r: 8, t: 18, b: 34 }, pw = W - M.l - M.r, v0 = TL.c - TL.z / 2, v1 = TL.c + TL.z / 2, x = (d) => M.l + (d - v0) / TL.z * pw;
+    const a = Math.max(D.minD, Math.ceil(v0)), b = Math.min(D.maxD, Math.floor(v1)), safe = Math.max(0, safeLineValue());
+    let lo = safe, hi = safe;
+    for (let d = a; d <= b; d++) { const s = tlS(d), g = tlSig(d), v = tlB(d); lo = Math.min(lo, v - g, s - g); hi = Math.max(hi, v + g, s + g); }
+    const pad = (hi - lo) * 0.1 + 1, y0 = lo - pad, y1 = hi + pad, base = H - M.b, top = M.t, y = (v) => base - (v - y0) / (y1 - y0) * (base - top);
+    let o = "";
+    for (let i = 0; i < 4; i++) { const v = y0 + (y1 - y0) * (i + 0.5) / 4, yy = y(v); o += `<line x1="${M.l}" x2="${W - M.r}" y1="${yy}" y2="${yy}" stroke="var(--rule)"/><text x="${M.l + 2}" y="${yy - 4}" font-size="11" fill="var(--ink-soft)">${YEN_COMPACT(v)}</text>`; }
+    if (TL.z <= 60) {
+      let mx = 1; for (let d = a; d <= Math.min(b, 0); d++) mx = Math.max(mx, Math.abs((D.fin.get(d) || 0) - (D.fout.get(d) || 0)));
+      for (let d = a; d <= Math.min(b, 0); d++) {
+        const f = (D.fin.get(d) || 0) - (D.fout.get(d) || 0); if (!f) continue;
+        const h = Math.max(1.5, Math.abs(f) / mx * 30), w = Math.max(2, pw / TL.z * 0.6);
+        o += `<rect x="${x(d) - w / 2}" y="${base - h}" width="${w}" height="${h}" rx="1.5" fill="${f > 0 ? "var(--green)" : "var(--red)"}" opacity=".45"/>`;
+      }
+    }
+    const step = [1, 2, 5, 7, 14, 30, 60].find((q) => TL.z / q <= 7) || 60;
+    for (let d = a; d <= b; d++) {
+      const t = tlDate(d), show = TL.z >= 90 ? t.getDate() === 1 : (d % step === 0 || (t.getDate() === 1 && TL.z > 45));
+      if (show) o += `<text x="${x(d)}" y="${H - 12}" font-size="11" text-anchor="middle" fill="var(--ink-soft)">${TL.z >= 90 ? (t.getMonth() + 1) + "月" : (t.getMonth() + 1) + "/" + t.getDate()}</text>`;
+    }
+    const ys = y(safe); o += `<line x1="${M.l}" x2="${W - M.r}" y1="${ys}" y2="${ys}" stroke="var(--red)" stroke-dasharray="2 4" opacity=".7"/><text x="${W - M.r - 2}" y="${ys - 4}" font-size="11" text-anchor="end" fill="var(--red)">${safe > 0 ? "下回りたくない残高 " + YEN_COMPACT(safe) : "残高ゼロ"}</text>`;
+    const f0 = Math.max(a, 0);
+    if (b > 0) { let up = "", dn = ""; for (let d = f0; d <= b; d++) { up += `${x(d)},${y(tlB(d) + tlSig(d))} `; dn = `${x(d)},${y(tlB(d) - tlSig(d))} ` + dn; } o += `<polygon points="${up}${dn}" fill="var(--gold)" opacity=".16"/>`; }
+    if (a <= 0) { let q = ""; for (let d = a; d <= Math.min(0, b); d++) q += `${x(d)},${y(tlB(d))} `; o += `<polyline points="${q}" fill="none" stroke="var(--ink)" stroke-width="2.2" stroke-linejoin="round"/>`; }
+    if (b > 0) { let q = ""; for (let d = f0; d <= b; d++) q += `${x(d)},${y(tlB(d))} `; o += `<polyline points="${q}" fill="none" stroke="var(--ink-soft)" stroke-width="${TL.amt ? 1.5 : 2.4}" stroke-dasharray="5 4" opacity="${TL.amt ? 0.7 : 1}"/>`; }
+    const hx = x(TL.day), hy = D.maxD > 0 ? y(tlS(Math.min(TL.day, D.maxD))) : 0;
+    if (TL.amt && D.maxD > 0) {
+      if (b >= TL.day) { let q = ""; for (let d = Math.max(TL.day - 1, f0); d <= b; d++) q += `${x(d)},${y(tlS(d))} `; o += `<polyline points="${q}" fill="none" stroke="var(--gold)" stroke-width="3.2" stroke-linejoin="round"/>`; }
+      o += `<line x1="${hx}" x2="${hx}" y1="${top}" y2="${base}" stroke="var(--gold)" stroke-dasharray="3 3"/><circle cx="${hx}" cy="${hy}" r="9" fill="var(--gold)" stroke="var(--paper-raised)" stroke-width="3" style="cursor:ew-resize"/><text x="${Math.min(W - 50, Math.max(50, hx))}" y="${top - 4}" font-size="12" font-weight="700" text-anchor="middle" fill="var(--ink)">仮 ${TL.amt > 0 ? "+" : ""}${YEN(TL.amt)}</text>`;
+    }
+    const tx0 = x(0); if (tx0 > 0 && tx0 < W) o += `<line x1="${tx0}" x2="${tx0}" y1="${top}" y2="${base}" stroke="var(--ink)" opacity=".5"/><text x="${tx0 + 4}" y="${top + 10}" font-size="11" fill="var(--ink-soft)">現在</text>`;
+    const sx = x(TL.sel); if (sx >= 0 && sx <= W) o += `<line x1="${sx}" x2="${sx}" y1="${top}" y2="${base}" stroke="var(--ink)" opacity=".35"/><circle cx="${sx}" cy="${y(tlS(TL.sel))}" r="5" fill="var(--ink)" stroke="var(--paper-raised)" stroke-width="2"/>`;
+    box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" aria-hidden="true">${o}</svg>`;
+    box._m = { v0, pw, hx, hy, M };
+    document.querySelectorAll("#tabTimeline .tl-seg button").forEach((e) => e.setAttribute("aria-pressed", String(Math.abs(TL.z - Number(e.dataset.z)) < 2)));
+  }
+  function tlReadout() {
+    const D = TL.d, d = TL.sel, s = tlS(d), on = TL.amt && d >= TL.day, safe = Math.max(0, safeLineValue()), $t = (id, v) => { document.getElementById(id).textContent = v; };
+    $t("tlDate", tlLab(d) + (d === 0 ? "" : d < 0 ? "　実績" : "　予測")); $t("tlVal", YEN(Math.round(s)));
+    $t("tlSub", on ? `仮を入れない場合 ${YEN(Math.round(tlB(d)))}` : d > 0 ? `予測の幅 ±${YEN(Math.round(tlSig(d)))}` : "");
+    $t("tlDVal", TL.amt ? `${TL.amt > 0 ? "+" : ""}${YEN(TL.amt)}` : "なし"); $t("tlDSub", TL.amt ? `${tlLab(TL.day)}に反映` : "下で金額と日付を選ぶ");
+    const mv = document.getElementById("tlMVal"), ms = document.getElementById("tlMSub");
+    if (D.maxD === 0) { mv.textContent = "—"; mv.className = "tl-mid serif num"; ms.textContent = "予測には、実績が2か月以上必要です"; }
+    else {
+      let mn = Infinity, md = 1, ml = Infinity, mld = 1;
+      for (let k = 1; k <= D.maxD; k++) { const v = tlS(k), w = v - tlSig(k); if (v < mn) { mn = v; md = k; } if (w < ml) { ml = w; mld = k; } }
+      mv.textContent = YEN(Math.round(mn)); mv.className = "tl-mid serif num" + (mn < safe ? " tl-bad" : "");
+      ms.textContent = `${mn < safe ? "▼ 下回る見込み " : "▲ 維持 "}${tlLab(md)} ・ 下振れでは ${YEN(Math.round(ml))}（${tlLab(mld)}）`;
+    }
+    document.getElementById("tlAmt").value = String(TL.amt); document.getElementById("tlDay").value = String(TL.day);
+    $t("tlAmtV", TL.amt ? `${TL.amt > 0 ? "+" : ""}${YEN(TL.amt)}` : "なし"); $t("tlDayV", tlLab(TL.day));
+  }
+  function tlWire() {
+    const box = document.getElementById("tlChart"); if (TL.wired || !box) return; TL.wired = true;
+    const upd = () => { tlFix(); tlDraw(); tlReadout(); }, pts = new Map(); let drag = null, pin = null;
+    const dist = () => { const q = [...pts.values()]; return Math.hypot(q[0][0] - q[1][0], q[0][1] - q[1][1]) || 1; };
+    const dayAt = (px) => Math.round(box._m.v0 + (px - box._m.M.l) / box._m.pw * TL.z);
+    box.addEventListener("pointerdown", (e) => {
+      box.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]);
+      if (pts.size === 2) { pin = { d: dist(), z: TL.z }; drag = null; return; }
+      const r = box.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top, m = box._m;
+      drag = TL.amt && TL.d.maxD > 0 && Math.hypot(px - m.hx, py - m.hy) < 24 ? { t: "pin" } : { t: "pan", x: e.clientX, c: TL.c, mv: false };
+      box.style.cursor = "grabbing";
+    });
+    box.addEventListener("pointermove", (e) => {
+      const r = box.getBoundingClientRect(), px = e.clientX - r.left;
+      if (pts.has(e.pointerId)) pts.set(e.pointerId, [e.clientX, e.clientY]);
+      if (pts.size === 2 && pin) { TL.z = pin.z * pin.d / dist(); upd(); return; }
+      if (drag && drag.t === "pin") { TL.day = Math.min(TL.d.maxD, Math.max(1, dayAt(px))); TL.sel = TL.day; upd(); return; }
+      if (drag && drag.t === "pan") { const dx = e.clientX - drag.x; if (Math.abs(dx) > 3) drag.mv = true; TL.c = drag.c - dx / box._m.pw * TL.z; upd(); return; }
+      if (e.pointerType === "mouse") { TL.sel = Math.min(TL.d.maxD, Math.max(TL.d.minD, dayAt(px))); tlDraw(); tlReadout(); }
+    });
+    const end = (e) => {
+      const r = box.getBoundingClientRect();
+      if (drag && drag.t === "pan" && !drag.mv) { TL.sel = Math.min(TL.d.maxD, Math.max(TL.d.minD, dayAt(e.clientX - r.left))); upd(); }
+      pts.delete(e.pointerId); if (pts.size < 2) pin = null; if (!pts.size) { drag = null; box.style.cursor = "grab"; }
+    };
+    box.addEventListener("pointerup", end); box.addEventListener("pointercancel", end);
+    box.addEventListener("wheel", (e) => {
+      if (e.ctrlKey || e.metaKey) { e.preventDefault(); TL.z *= e.deltaY > 0 ? 1.15 : 0.87; upd(); }
+      else if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) { e.preventDefault(); TL.c += e.deltaX / box._m.pw * TL.z; upd(); }
+    }, { passive: false });
+    box.addEventListener("keydown", (e) => {
+      const k = e.key;
+      if (k === "ArrowLeft" || k === "ArrowRight") { TL.sel = Math.min(TL.d.maxD, Math.max(TL.d.minD, TL.sel + (k === "ArrowRight" ? 1 : -1))); if (TL.sel < TL.c - TL.z / 2 || TL.sel > TL.c + TL.z / 2) TL.c = TL.sel; }
+      else if (k === "+" || k === "=") TL.z *= 0.8; else if (k === "-") TL.z *= 1.25; else if (k === "Home") { TL.sel = 0; TL.c = TL.z / 2 - 8; } else return;
+      e.preventDefault(); upd();
+    });
+    document.querySelectorAll("#tabTimeline .tl-seg button").forEach((b) => b.addEventListener("click", () => { TL.z = Number(b.dataset.z); TL.c = TL.sel; upd(); }));
+    document.getElementById("tlHome").addEventListener("click", () => { TL.sel = 0; TL.c = Math.max(TL.z / 2 - 8, 0); upd(); });
+    document.querySelectorAll("#tabTimeline .tl-chip").forEach((b) => b.addEventListener("click", () => { TL.amt = Number(b.dataset.a) || 0; if (b.dataset.d) { TL.day = Math.min(Number(b.dataset.d), Math.max(1, TL.d.maxD)); TL.sel = TL.day; } upd(); }));
+    document.getElementById("tlAmt").addEventListener("input", (e) => { TL.amt = Number(e.target.value) || 0; upd(); });
+    document.getElementById("tlDay").addEventListener("input", (e) => { TL.day = Number(e.target.value) || 1; TL.sel = TL.day; upd(); });
+    new ResizeObserver(() => { if (TL.d) tlDraw(); }).observe(box);
+  }
   // ===== 台帳に聞く（日本語の問いかけ→答えのカード）と、データから作る「気づき」。解釈は端末内の単純な規則だけで、通信しない =====
   let heroSnap = null;
   const askEsc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -7044,6 +7250,7 @@ function svgEl(tag, attrs) {
     try { renderSpendPanel(); } catch (e) { console.error("使ったお金の表示に失敗", e); }
     try { renderHeroMini(); } catch (e) { console.error("残高・予測カードの表示に失敗", e); }
     try { renderInsights(); } catch (e) { console.error("気づきの表示に失敗", e); }
+    try { tlInvalidate(); } catch (e) { console.error("時間軸の更新に失敗", e); }
     try { renderSpendCalendar(); } catch (e) { console.error("日別の支出カレンダーの表示に失敗", e); }
     renderPeriodCompareTable();
     renderFilterChip();
@@ -8255,11 +8462,12 @@ function svgEl(tag, attrs) {
   function activateTab(target, dir) {
     document.querySelectorAll(".tab-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === target));
     syncTabAria();
-    ["overview", "charts", "statements", "tx"].forEach((t) => {
+    ["overview", "timeline", "charts", "statements", "tx"].forEach((t) => {
       const id = "tab" + t.charAt(0).toUpperCase() + t.slice(1);
       if (t === target) showPageWithFade(id, dir);
       else document.getElementById(id).classList.add("hidden");
     });
+    if (target === "timeline") { try { tlRender(); } catch (e) { console.error("時間軸の表示に失敗", e); } }
   }
 
   // 概要カードがポインタに追従して傾く（マウス操作時のみ）
@@ -9125,7 +9333,7 @@ function svgEl(tag, attrs) {
   let cmdItemsShown = [], cmdSel = 0;
   const clickEl = (sel) => { const b = document.querySelector(sel); if (b) b.click(); };
   function cmdBuildItems(q) {
-    const tabs = [["概要", "overview"], ["グラフ", "charts"], ["財務三表", "statements"], ["取引明細", "tx"]];
+    const tabs = [["概要", "overview"], ["時間軸", "timeline"], ["グラフ", "charts"], ["財務三表", "statements"], ["取引明細", "tx"]];
     const subs = [["貸借対照表（B/S）", "bs"], ["損益計算書（P/L）", "pl"], ["キャッシュフロー計算書（C/F）", "cf"], ["財務指標", "ratios"], ["資金繰り予測", "forecast"], ["仕訳・試算表", "journal"]];
     const modes = [["日次", "day"], ["週次", "week"], ["月次", "month"], ["年次", "year"], ["全期間", "all"]];
     const items = [];
@@ -9239,7 +9447,7 @@ function svgEl(tag, attrs) {
 <script>
 (function () {   // 公開版（HTTPS・PWA）向けの機能：永続ストレージ／画面指定リンク／オフライン表示／追加案内／トークン貼り付け
   const $ = (id) => document.getElementById(id);
-  const TABS = ["overview", "charts", "statements", "tx"];
+  const TABS = ["overview", "timeline", "charts", "statements", "tx"];
 
   // 1. 永続ストレージ：端末の容量が逼迫しても、キャッシュを勝手に消されにくくする
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) { /* 未対応でも影響なし */ }
