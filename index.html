@@ -7215,9 +7215,27 @@ function svgEl(tag, attrs) {
   // 1回の描画の間だけ、定期支払いの検出結果を使い回す（各パネルが何度も全取引を走査して重くなるのを防ぐ）。
   // 描画が終われば捨てるので、設定変更後の描画では必ず計算し直される
   let subsCache = null, subsCacheOn = false;
+  // 期間（月・週など）を前後に動かしたとき、台帳のページをめくるように表示中のタブが立体的に切り替わる。「動きを減らす」設定のときは動かさない
+  let lastPeriodKey = null;
+  function turnPage() {
+    const key = state.periodMode + ":" + (+state.periodAnchor), prev = lastPeriodKey;
+    lastPeriodKey = key;
+    if (!prev || prev === key || !window.matchMedia || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const i = prev.indexOf(":");
+    if (prev.slice(0, i) !== state.periodMode) return;
+    const dir = +state.periodAnchor > Number(prev.slice(i + 1)) ? 1 : -1;
+    const pg = document.querySelector(".tab-page:not(.hidden)");
+    if (!pg || !pg.animate) return;
+    pg.style.transformOrigin = dir > 0 ? "0% 40%" : "100% 40%";
+    pg.animate([
+      { transform: `perspective(1600px) rotateY(${dir > 0 ? -11 : 11}deg) translateX(${dir > 0 ? 26 : -26}px)`, opacity: 0.3 },
+      { transform: "perspective(1600px) rotateY(0deg) translateX(0)", opacity: 1 },
+    ], { duration: 560, easing: "cubic-bezier(.2,.8,.2,1)" });
+  }
   function render() {
     subsCacheOn = true; subsCache = null;
     try { renderBody(); } finally { subsCacheOn = false; subsCache = null; }
+    try { turnPage(); } catch (e) { console.error("ページめくりの動きに失敗", e); }
   }
   function renderBody() {
     if (!state.transactions) return;
