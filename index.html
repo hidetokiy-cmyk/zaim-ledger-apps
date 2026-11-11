@@ -789,6 +789,13 @@
   #cmdList .x-cmd { display: flex; justify-content: space-between; gap: 10px; padding: 9px 12px; cursor: pointer; border-radius: 4px; }
   #cmdList .x-cmd.sel { background: rgba(var(--ink-rgb), 0.09); }
   #cmdList .x-cmd small { color: var(--ink-faint); white-space: nowrap; }
+  /* ---- 気づきフィード（健康診断・気になる動き・月次チェック・気づきを1本に集約） ---- */
+  .feed-row.read { opacity: 0.45; }
+  .feed-src { font-size: 11.5px; color: var(--ink-soft); border: 1px solid var(--rule); border-radius: 3px; padding: 0 5px; margin-right: 7px; white-space: nowrap; vertical-align: 2px; }
+  .feed-read-btn { flex-shrink: 0; align-self: center; border: 1px solid var(--rule); background: var(--paper-raised); color: var(--ink-soft); font: inherit; font-size: 11.5px; border-radius: 999px; padding: 3px 10px; cursor: pointer; }
+  .feed-row[data-ask] { cursor: pointer; }
+  .feed-score-num { font-size: 30px; font-weight: 700; line-height: 1.1; }
+  .feed-summary { align-items: center; }
 
   /* ---------- 奥行きのあるモーション ---------- */
   @keyframes depthIn { from { opacity: 0; transform: perspective(1000px) translate3d(0,22px,-60px) rotateX(-9deg); } to { opacity: 1; transform: perspective(1000px) translate3d(0,0,0) rotateX(0deg); } }
@@ -1155,6 +1162,24 @@
 
       <div class="tab-page" id="tabOverview">
 
+      <div class="card panel hero-card" id="assetsHeroCard" role="group" aria-label="総資産">
+        <div class="hero-label">総資産</div>
+        <div class="hero-value serif num" id="assetsHeroValue">—</div>
+        <div class="hero-sub num" id="assetsHeroSub"></div>
+        <div id="assetsHeroMvRow" style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <label style="cursor:pointer; font-size:14px;"><input type="checkbox" id="assetsHeroMV" checked> 証券を時価で表示</label>
+          <span id="assetsHeroGain" style="font-size:13px;color:var(--ink-soft);"></span>
+        </div>
+      </div>
+
+      <div class="card panel" id="insightFeedPanel">
+        <div class="panel-head">
+          <div class="section-title serif">気づきフィード</div>
+          <div class="sub-meta" id="insightFeedMeta"></div>
+        </div>
+        <div id="insightFeedList"></div>
+      </div>
+
       <div class="ask-wrap no-print" id="askWrap">
         <form class="ask-form" id="askForm" autocomplete="off">
           <input id="askInput" type="text" enterkeyhint="send" placeholder="台帳に聞く　例：来月末の残高　先月の食費" aria-label="台帳への問いかけ">
@@ -1189,11 +1214,6 @@
           <div class="hero-mini-sub num" id="heroFcSub"></div>
           <div class="hero-spark" id="heroFcSpark"></div>
         </div>
-      </div>
-
-      <div class="card panel ask-insights no-print" id="insightPanel" hidden>
-        <div class="panel-head" style="margin-bottom:8px;"><div class="section-title serif">気づき</div></div>
-        <div id="insightList"></div>
       </div>
 
       <div class="card panel spend-panel" id="spendPanel">
@@ -1250,30 +1270,6 @@
       <div class="card panel" id="periodComparePanel" style="margin-top:18px;">
         <div class="panel-head"><div class="section-title serif" id="periodCompareTitle">期間比較</div></div>
         <div id="periodCompareTable"></div>
-      </div>
-
-      <div class="card panel" id="healthPanel" style="margin-top:18px;">
-        <div class="panel-head">
-          <div class="section-title serif">家計の健康診断</div>
-          <div class="sub-meta" id="healthScore"></div>
-        </div>
-        <div id="healthBody"></div>
-      </div>
-
-      <div class="card panel" id="anomalyPanel" style="margin-top:18px;">
-        <div class="panel-head">
-          <div class="section-title serif">今月の気になる動き</div>
-          <div class="sub-meta" id="anomalyMeta"></div>
-        </div>
-        <div id="anomalyBody"></div>
-      </div>
-
-      <div class="card panel" id="monthCheckPanel" style="margin-top:18px;">
-        <div class="panel-head">
-          <div class="section-title serif">月次チェック</div>
-          <div class="sub-meta" id="monthCheckMeta"></div>
-        </div>
-        <div id="monthCheckBody"></div>
       </div>
 
       <div class="card panel" id="cardSchedulePanel" style="margin-top:18px;">
@@ -1915,6 +1911,8 @@
     statementsSubTab: "bs",    // 財務三表タブ内のサブタブ: 'bs' | 'pl' | 'cf' | 'ratios' | 'forecast' | 'journal'
     assetsHistoryHidden: new Set(),   // 資産構成の推移グラフで非表示にしたグループ名
     assetsHistorySecuritiesMV: true,   // 資産構成の推移で証券を時価表示するか（履歴がある日は含み損益で調整。既定ON）
+    assetsHeroSecuritiesMV: true,   // 総資産ヒーローで証券を時価表示するか（最新の含み損益を加算。既定ON）
+    insightFeedRead: new Set(),   // 気づきフィードで既読にした項目ID（セッション内のみ保持し、永続化しない）
     txPeriod: null,            // グラフの点から開いた期間の明細（基準日は動かさない）{ mode, anchor, start, end, label, key }
     txFilter: null,            // 財務諸表等からのドリルダウン用 { mode: 'account'|'category', value, label } または資金繰り予測からの { mode: 'rows', rows, label }
     csvParseWarning: null,     // CSV取込時に一部行を除外した場合の注記
@@ -6419,11 +6417,12 @@ function svgEl(tag, attrs) {
       const b = e.target.closest("[data-ask]"); if (b) { askRun(b.dataset.ask); return; }
       const x = e.target.closest(".ask-x"); if (x) x.closest(".ask-card").remove();
     });
-    document.getElementById("insightList").addEventListener("click", (e) => { const b = e.target.closest("[data-ask]"); if (b) askRun(b.dataset.ask); });
+    const feedList = document.getElementById("insightFeedList");
+    if (feedList) feedList.addEventListener("click", (e) => { const b = e.target.closest("[data-ask]"); if (b) askRun(b.dataset.ask); });
   }
-  function renderInsights() {
-    const panel = document.getElementById("insightPanel"); if (!panel) return;
-    wireAsk();
+  // 「気づき」の計算だけを行う（描画はしない。気づきフィードが使う）。
+  // 戻り値は [{ html, ask }]（html は見出しHTML、ask はクリック時に台帳へ投げる問いかけ）。
+  function xInsights() {
     const items = [];
     if (state.transactions && state.transactions.length) {
       const fc = computeForecast();
@@ -6443,9 +6442,164 @@ function svgEl(tag, attrs) {
       }
       if (best) items.push([`<b>${askEsc(best.c)}が、直近3か月の同じ時点より ${Math.round((best.cur / best.avg - 1) * 100)}% 多いペース</b><small class="num">ここまで ${YEN(Math.round(best.cur))}（平均 ${YEN(Math.round(best.avg))}）</small>`, `${best.c}を今月使った額`]);
     }
-    panel.hidden = items.length === 0;
-    document.getElementById("insightList").innerHTML = items.map((x) => `<button type="button" class="ask-ins" data-ask="${askEsc(x[1])}">${x[0]}</button>`).join("");
+    return items.map((x) => ({ html: x[0], ask: x[1] }));
   }
+  // ===== 総資産ヒーロー（概要タブの最上部） =====
+  // 表示値を決める純粋計算：簿価の純資産に、時価表示ONなら含み損益を加算する。
+  function heroAssetsValue(netAssets, gain, mvOn) { return netAssets + (mvOn ? gain : 0); }
+  // 前月末比も同じ条件同士で比べる（両時点とも簿価＋、ONのときは各時点の含み損益でも調整）。
+  // 前月側が算出できない（null）ときは null を返す＝前月比は表示しない。
+  function heroAssetsDiff(curNet, curGain, prevNet, prevGain, mvOn) {
+    if (prevNet == null) return null;
+    return heroAssetsValue(curNet, curGain, mvOn) - heroAssetsValue(prevNet, prevGain, mvOn);
+  }
+
+  function renderAssetsHero() {
+    const valEl = document.getElementById("assetsHeroValue");
+    if (!valEl) return;
+    const subEl = document.getElementById("assetsHeroSub");
+    const mvRow = document.getElementById("assetsHeroMvRow");
+    const gainEl = document.getElementById("assetsHeroGain");
+    let base = null;
+    try { base = computeBalanceSheet(startOfDay(new Date())).netAssets; } catch (e) { base = null; }
+    const hist = settings.securitiesHistory || [];
+    const hasHist = hist.length > 0;
+    if (mvRow) mvRow.style.display = hasHist ? "" : "none";   // 履歴が無ければ時価トグル自体を出さない
+    const gain = hasHist ? securitiesGainOnOrBefore(hist, jstDateKey(new Date())) : 0;
+    const mvOn = hasHist && state.assetsHeroSecuritiesMV;
+    valEl.textContent = base == null ? "—" : YEN(Math.round(heroAssetsValue(base, gain, mvOn)));
+    if (gainEl) gainEl.textContent = mvOn ? `含み損益 ${gain < 0 ? "−" : "+"}${YEN(Math.abs(Math.round(gain)))}（${hist[hist.length - 1].date} 時点）` : "";
+    // 前月比：前月末時点の純資産と比較する。前月末以前の取引が無い（＝その時点の残高を復元できない）場合は出さない。
+    let sub = "";
+    try {
+      const now = new Date();
+      const prevEnd = startOfDay(new Date(now.getFullYear(), now.getMonth(), 0));   // 前月末日
+      const hasPrevData = (state.transactions || []).some((r) => r.date <= prevEnd);
+      if (base != null && hasPrevData) {
+        const prevNet = computeBalanceSheet(prevEnd).netAssets;
+        const prevGain = hasHist ? securitiesGainOnOrBefore(hist, jstDateKey(prevEnd)) : 0;
+        const diff = heroAssetsDiff(base, gain, prevNet, prevGain, mvOn);
+        if (diff != null) sub = `前月末比 ${diff < 0 ? "−" : "+"}${YEN(Math.abs(Math.round(diff)))}`;
+      }
+    } catch (e) { /* 前月比が出せない場合は無理に出さない */ }
+    if (subEl) subEl.textContent = sub;
+  }
+
+  // ===== 気づきフィード（診断系4機能の集約） =====
+  // 項目の並びを決める純粋計算：サマリ行を先頭に固定し、残りは要注意（warn）→情報（info）
+  // →問題なし（ok/good）の順。同順位内は元の順序を保つ（安定ソート）。
+  function sortInsightFeedItems(items) {
+    const rank = { warn: 0, info: 1, ok: 2, good: 2 };
+    const head = items.filter((x) => x.summary);
+    const rest = items.filter((x) => !x.summary);
+    rest.sort((a, b) => (rank[a.level] != null ? rank[a.level] : 3) - (rank[b.level] != null ? rank[b.level] : 3));
+    return head.concat(rest);
+  }
+
+  // 診断系4機能（家計の健康診断／気づき／今月の気になる動き／月次チェック）の計算結果を
+  // フィード項目の配列に集約する。計算は各機能の既存の計算関数をそのまま使う（描画はしない）。
+  function buildInsightFeedItems() {
+    const out = [];
+    // 家計の健康診断：先頭サマリ＋個別項目
+    try {
+      const h = xHealth();
+      if (!h.insufficient) {
+        out.push({ id: "health:summary", summary: true, source: "健康診断", level: h.items.some((i) => i.level === "warn") ? "warn" : "good",
+          scoreText: `${h.goodN} / ${h.items.length}`, scoreLabel: `良好な項目の数（直近${h.months}か月）` });
+        h.items.forEach((it) => {
+          const [t, c] = xLevels[it.level];
+          out.push({ id: "health:" + it.label, source: "健康診断", level: it.level, title: it.label, detail: it.note, value: it.value, chip: { text: t, color: c } });
+        });
+      } else {
+        out.push({ id: "health:insufficient", source: "健康診断", level: "info", title: "家計の健康診断", detail: "診断には2か月以上の取引データが必要です" });
+      }
+    } catch (e) { console.error("健康診断の計算に失敗", e); }
+    // 気づき（予測ベースの指摘。行のクリックで台帳に聞く）
+    try {
+      xInsights().forEach((x) => out.push({ id: "insight:" + x.ask, source: "気づき", level: "info", titleHtml: x.html, ask: x.ask }));
+    } catch (e) { console.error("気づきの計算に失敗", e); }
+    // 今月の気になる動き（カテゴリ・お店とも元パネルと同じドリルダウンを保つ）
+    try {
+      const a = xAnomalies();
+      if (!a.insufficient) {
+        const today = startOfDay(new Date());
+        const ongoing = today >= a.range.start && today < a.range.end;
+        const when = cycleLabel(a.range.key) + (ongoing ? "（進行中・途中経過）" : "");
+        a.cats.forEach((x) => out.push({ id: "anomaly-cat:" + x.cat, source: "今月の動き", level: "warn", title: x.cat, tag: `平均の${(x.cur / x.mean).toFixed(1)}倍`, tagClass: "sub-tag-up",
+          detail: `${when}：過去の月平均 ${YEN(x.mean)} → 今月 ${YEN(x.cur)}（+${YEN(x.diff)}）`, value: YEN(x.cur), drill: { category: x.cat } }));
+        a.stores.forEach((x) => out.push({ id: "anomaly-store:" + x.store, source: "今月の動き", level: "info", title: x.store, tag: "初めてのお店", tagClass: "bal-tag",
+          detail: `${when}：これまでの取引に出てこないお店での高額支出`, value: YEN(x.amount), drill: { store: x.store } }));
+      }
+    } catch (e) { console.error("気になる動きの計算に失敗", e); }
+    // 月次チェック（各項目のアクションもそのまま運ぶ）
+    let monthCheck = null;
+    try {
+      monthCheck = xMonthChecks();
+      monthCheck.checks.forEach((c) => out.push({ id: "month:" + c.title, source: "月次チェック", level: c.status, title: c.title, detail: c.detail, act: c.act }));
+    } catch (e) { console.error("月次チェックの計算に失敗", e); }
+    return { items: sortInsightFeedItems(out), monthCheck };
+  }
+
+  function renderInsightFeed() {
+    const panel = document.getElementById("insightFeedPanel");
+    const host = document.getElementById("insightFeedList");
+    if (!panel || !host) return;
+    wireAsk();
+    host.innerHTML = "";
+    const metaEl = document.getElementById("insightFeedMeta");
+    const { items, monthCheck } = buildInsightFeedItems();
+    const marks = { ok: "✓", good: "✓", warn: "!", info: "i" };
+    const unread = items.filter((x) => !x.summary && !state.insightFeedRead.has(x.id)).length;
+    const meta = [];
+    if (monthCheck && monthCheck.warnN) meta.push(`月次チェック：要確認 ${monthCheck.warnN}件`);
+    if (unread) meta.push(`未読 ${unread}件`);
+    if (metaEl) {
+      metaEl.textContent = meta.join("　");
+      metaEl.style.color = monthCheck && monthCheck.warnN ? "var(--red)" : "";
+    }
+    if (items.length === 0) { host.appendChild(emptyState("いまは目立った気づきはありません")); return; }
+    items.forEach((x) => {
+      if (x.summary) {
+        host.appendChild(el("div", { class: "x-check feed-row feed-summary" }, [
+          el("div", { class: "feed-score-num num" }, [x.scoreText]),
+          el("div", { class: "x-body" }, [
+            el("div", { class: "x-title" }, [el("span", { class: "feed-src" }, [x.source]), "家計の健康診断"]),
+            el("div", { class: "x-detail" }, [x.scoreLabel]),
+          ]),
+        ]));
+        return;
+      }
+      const read = state.insightFeedRead.has(x.id);
+      const titleKids = [el("span", { class: "feed-src" }, [x.source])];
+      if (x.drill) {
+        titleKids.push(el("span", { class: "name drill", onclick: () => { state.periodMode = "month"; jumpToTx(x.drill); } }, [x.title]));
+      } else if (x.titleHtml) {
+        const t = el("span", null, []); t.innerHTML = x.titleHtml; titleKids.push(t);
+      } else if (x.title) {
+        titleKids.push(x.title);
+      }
+      if (x.tag) titleKids.push(el("span", { class: x.tagClass || "bal-tag" }, [x.tag]));
+      const body = el("div", { class: "x-body" }, [
+        el("div", { class: "x-title" }, titleKids),
+        x.detail ? el("div", { class: "x-detail" }, [x.detail]) : null,
+      ]);
+      const rowAttrs = { class: "x-check feed-row" + (read ? " read" : "") };
+      if (x.ask) rowAttrs["data-ask"] = x.ask;   // クリックで台帳に聞く（wireAsk の委譲が拾う）
+      const row = el("div", rowAttrs, [el("div", { class: "x-mark " + (x.level === "good" ? "ok" : x.level) }, [marks[x.level] || "i"]), body]);
+      if (x.act) {
+        row.appendChild(el("button", { class: "btn", type: "button", style: "cursor:pointer;flex-shrink:0;", onclick: x.act[1] }, [x.act[0]]));
+      } else if (x.value) {
+        const v = el("div", { class: "num amt", style: "text-align:right;white-space:nowrap;" }, [x.value]);
+        if (x.chip) v.appendChild(el("span", { class: "x-chip", style: `color:${x.chip.color};border-color:${x.chip.color}` }, [x.chip.text]));
+        row.appendChild(v);
+      }
+      if (!read) {
+        row.appendChild(el("button", { class: "feed-read-btn", type: "button", onclick: (ev) => { if (ev) ev.stopPropagation(); state.insightFeedRead.add(x.id); renderInsightFeed(); } }, ["既読"]));
+      }
+      host.appendChild(row);
+    });
+  }
+
   function renderHeroMini() {
     const balVal = document.getElementById("heroBalVal");
     if (!balVal) return;
@@ -7344,7 +7498,8 @@ function svgEl(tag, attrs) {
     renderPeriodControls();
     try { renderSpendPanel(); } catch (e) { console.error("使ったお金の表示に失敗", e); }
     try { renderHeroMini(); } catch (e) { console.error("残高・予測カードの表示に失敗", e); }
-    try { renderInsights(); } catch (e) { console.error("気づきの表示に失敗", e); }
+    try { renderAssetsHero(); } catch (e) { console.error("総資産の表示に失敗", e); }
+    try { renderInsightFeed(); } catch (e) { console.error("気づきフィードの表示に失敗", e); }
     try { tlInvalidate(); } catch (e) { console.error("時間軸の更新に失敗", e); }
     try { renderSpendCalendar(); } catch (e) { console.error("日別の支出カレンダーの表示に失敗", e); }
     renderPeriodCompareTable();
@@ -7901,6 +8056,12 @@ function svgEl(tag, attrs) {
   document.getElementById("assetsHistorySecuritiesMV").addEventListener("change", (e) => {
     state.assetsHistorySecuritiesMV = e.target.checked;
     renderAssetsHistoryChart();
+  });
+
+  // 総資産ヒーローの「証券を時価で表示」トグル（状態はセッション内のみ保持。既定ON）
+  document.getElementById("assetsHeroMV").addEventListener("change", (e) => {
+    state.assetsHeroSecuritiesMV = e.target.checked;
+    renderAssetsHero();
   });
 
   // 「固定費（手動登録）」：一致タイプの切り替えに応じて、お店名／カテゴリ・内訳の入力欄を出し分ける
@@ -9169,13 +9330,11 @@ function svgEl(tag, attrs) {
   }
 
   // ---------- 家計の健康診断 ----------
-  function renderHealthPanel() {
-    const host = document.getElementById("healthBody");
-    if (!host) return;
-    host.innerHTML = "";
-    const scoreEl = document.getElementById("healthScore");
+  // 家計の健康診断の計算だけを行う（描画はしない。気づきフィードが使う）。
+  // データ不足・診断項目なしのときは insufficient: true を返す。
+  function xHealth() {
     const ms = xMonthly(6);
-    if (ms.length < 2) { scoreEl.textContent = ""; host.appendChild(emptyState("診断には2か月以上の取引データが必要です")); return; }
+    if (ms.length < 2) return { insufficient: true, months: ms.length, items: [], goodN: 0 };
     const rev = ms.reduce((s, m) => s + m.revenue, 0), cost = ms.reduce((s, m) => s + m.cost, 0);
     const costs = ms.map((m) => m.cost);
     const items = [];
@@ -9210,16 +9369,9 @@ function svgEl(tag, attrs) {
       const ratio = (monthlyFixed / (rev / revMonths.length)) * 100;
       items.push({ label: "固定費比率", value: ratio.toFixed(1) + "%", level: ratio <= 30 ? "good" : ratio <= 50 ? "ok" : "warn", note: `定期支払いの月換算 ${YEN(monthlyFixed)} ÷ 月平均の収益` });
     }
-    if (items.length === 0) { scoreEl.textContent = ""; host.appendChild(emptyState("診断できる項目がありません")); return; }
+    if (items.length === 0) return { insufficient: true, months: ms.length, items: [], goodN: 0 };
     const goodN = items.filter((i) => i.level === "good").length;
-    scoreEl.textContent = `良好 ${goodN} / ${items.length}（直近${ms.length}か月）`;
-    items.forEach((it) => {
-      const [t, c] = xLevels[it.level];
-      host.appendChild(el("div", { class: "sub-row" }, [
-        el("div", null, [el("div", { class: "sub-name" }, [it.label]), it.note ? el("div", { class: "sub-meta-line" }, [it.note]) : null]),
-        el("div", { class: "num amt", style: "text-align:right;white-space:nowrap;" }, [it.value, el("span", { class: "x-chip", style: `color:${c};border-color:${c}` }, [t])]),
-      ]));
-    });
+    return { insufficient: false, months: ms.length, items, goodN };
   }
 
   // ---------- 今月の気になる動き ----------
@@ -9255,44 +9407,10 @@ function svgEl(tag, attrs) {
     stores.sort((a, b) => b.amount - a.amount);
     return { range, insufficient: false, cats, stores };
   }
-  function renderAnomalyPanel() {
-    const host = document.getElementById("anomalyBody");
-    if (!host) return;
-    host.innerHTML = "";
-    const metaEl = document.getElementById("anomalyMeta");
-    const a = xAnomalies();
-    const today = startOfDay(new Date());
-    const ongoing = today >= a.range.start && today < a.range.end;
-    metaEl.textContent = cycleLabel(a.range.key) + (ongoing ? "（進行中・途中経過）" : "");
-    if (a.insufficient) { host.appendChild(emptyState("比較できる過去の月が3か月分に足りません")); return; }
-    if (a.cats.length === 0 && a.stores.length === 0) { host.appendChild(emptyState("目立った動きはありません")); return; }
-    const toMonth = () => { state.periodMode = "month"; };
-    a.cats.forEach((x) => {
-      host.appendChild(el("div", { class: "sub-row" }, [
-        el("div", null, [
-          el("div", { class: "sub-name" }, [el("span", { class: "name drill", onclick: () => { toMonth(); jumpToTx({ category: x.cat }); } }, [x.cat]), el("span", { class: "sub-tag-up" }, [`平均の${(x.cur / x.mean).toFixed(1)}倍`])]),
-          el("div", { class: "sub-meta-line" }, [`過去の月平均 ${YEN(x.mean)} → 今月 ${YEN(x.cur)}（+${YEN(x.diff)}）`]),
-        ]),
-        el("div", { class: "num amt" }, [YEN(x.cur)]),
-      ]));
-    });
-    a.stores.forEach((x) => {
-      host.appendChild(el("div", { class: "sub-row" }, [
-        el("div", null, [
-          el("div", { class: "sub-name" }, [el("span", { class: "name drill", onclick: () => { toMonth(); jumpToTx({ store: x.store }); } }, [x.store]), el("span", { class: "bal-tag" }, ["初めてのお店"])]),
-          el("div", { class: "sub-meta-line" }, ["これまでの取引に出てこないお店での高額支出"]),
-        ]),
-        el("div", { class: "num amt" }, [YEN(x.amount)]),
-      ]));
-    });
-  }
-
   // ---------- 月次チェック ----------
-  function renderMonthCheckPanel() {
-    const host = document.getElementById("monthCheckBody");
-    if (!host) return;
-    host.innerHTML = "";
-    const metaEl = document.getElementById("monthCheckMeta");
+  // 月次チェックの計算だけを行う（描画はしない。気づきフィードが使う）。
+  // 戻り値の checks は元パネルの1項目分（status / title / detail / act=[ラベル, 関数]）をそのまま保持する。
+  function xMonthChecks() {
     const range = periodRangeForMode("month", state.periodAnchor, 0);
     const lastDay = addDays(range.end, -1);
     const today = startOfDay(new Date());
@@ -9338,15 +9456,7 @@ function svgEl(tag, attrs) {
     }
 
     const warnN = checks.filter((c) => c.status === "warn").length;
-    metaEl.textContent = cycleLabel(range.key) + "：" + (warnN ? `要確認 ${warnN}件` : "要確認の項目なし");
-    metaEl.style.color = warnN ? "var(--red)" : "var(--green)";
-    const marks = { ok: "✓", warn: "!", info: "i" };
-    checks.forEach((c) => {
-      const body = el("div", { class: "x-body" }, [el("div", { class: "x-title" }, [c.title]), el("div", { class: "x-detail" }, [c.detail])]);
-      const node = el("div", { class: "x-check" }, [el("div", { class: "x-mark " + c.status }, [marks[c.status]]), body]);
-      if (c.act) node.appendChild(el("button", { class: "btn", type: "button", style: "cursor:pointer;flex-shrink:0;", onclick: c.act[1] }, [c.act[0]]));
-      host.appendChild(node);
-    });
+    return { range, warnN, checks };
   }
 
   // ---------- 資産推移シミュレーション ----------
@@ -9482,7 +9592,7 @@ function svgEl(tag, attrs) {
 
   // ---------- 追加パネルの一括描画（render() から呼ぶ） ----------
   function renderExtraPanels() {
-    [renderHealthPanel, renderAnomalyPanel, renderMonthCheckPanel, renderSimPanel].forEach((fn) => {
+    [renderSimPanel].forEach((fn) => {
       try { fn(); } catch (e) { console.error("追加パネルの表示に失敗：" + fn.name, e); }
     });
     if (state.statementsSubTab === "journal") { try { renderJournalPanel(); } catch (e) { console.error("仕訳・試算表の表示に失敗", e); } }
@@ -9503,7 +9613,7 @@ function svgEl(tag, attrs) {
     items.push({ label: "前の期間へ", hint: "期間", run: () => clickEl("#periodPrev") });
     items.push({ label: "次の期間へ", hint: "期間", run: () => clickEl("#periodNext") });
     items.push({ label: "今日を含む期間に戻る", hint: "期間", run: () => { state.periodAnchor = startOfDay(new Date()); state.page = 0; render(); } });
-    items.push({ label: "月次チェックを見る", hint: "概要", run: () => { clickEl('.tab-btn[data-tab="overview"]'); const p = document.getElementById("monthCheckPanel"); if (p) p.scrollIntoView({ behavior: "smooth", block: "start" }); } });
+    items.push({ label: "月次チェックを見る", hint: "概要", run: () => { clickEl('.tab-btn[data-tab="overview"]'); const p = document.getElementById("insightFeedPanel"); if (p) p.scrollIntoView({ behavior: "smooth", block: "start" }); } });
     items.push({ label: "ダークモード／ライトモードを切り替える", hint: "表示", run: () => clickEl("#themeToggleBtn") });
     items.push({ label: "設定を開く", hint: "設定", run: () => openSettingsModal() });
     items.push({ label: "印刷／PDF出力", hint: "出力", run: () => clickEl("#printPdfBtn") });
