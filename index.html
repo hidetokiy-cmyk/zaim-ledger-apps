@@ -1381,6 +1381,25 @@
         <div style="font-size:13px;color:var(--ink-soft);margin-top:6px;">※チェックを外すとそのグループを合計から除外して表示します（点線は表示中グループの合計）</div>
       </div>
 
+      <div class="card panel" id="securitiesHistoryPanel">
+        <div class="panel-head"><div class="section-title serif">証券 時価推移</div></div>
+        <div class="legend-small">
+          <span><span class="swatch" style="background:var(--gold)"></span>時価</span>
+          <span><span class="swatch" style="background:var(--cat-3)"></span>取得原価</span>
+          <span id="securitiesHistoryGain"></span>
+        </div>
+        <div class="line-chart" id="securitiesHistoryChart"></div>
+        <div style="font-size:13px;color:var(--ink-soft);margin-top:6px;">証券スクレイピングを取り込むたびに、その日の時価・取得原価を履歴に残します。過去分は、同期先リポジトリの日次スナップショット（snapshots/）またはバックフィルJSONから取り込めます。</div>
+        <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; align-items:center;">
+          <button id="securitiesHistorySnapshotBtn" class="btn" style="cursor:pointer;">スナップショットから履歴を取込</button>
+          <label class="btn" style="cursor:pointer; display:inline-block;">
+            バックフィルJSONを選択して取込
+            <input id="securitiesHistoryFileInput" type="file" accept=".json,application/json" class="hidden">
+          </label>
+        </div>
+        <div class="field-hint" id="securitiesHistoryImportStatus" style="margin-top:8px;"></div>
+      </div>
+
       <div class="card panel" id="simPanel">
         <div class="panel-head"><div class="section-title serif">資産推移シミュレーション</div></div>
         <div class="x-fields">
@@ -1923,6 +1942,7 @@
     accountGroupList: [],        // ①決済チェーン別グループの管理用リスト（ユーザーが追加・改名・削除できる。固定の「その他」は含まない）
     accountMetaInited: false,    // 初期値（SEED_*）からaccountMetaを作成済みか
     securitiesScrapeInfo: null, // { count, totalCostBasis, totalMarketValue, cash, other, importedAt }
+    securitiesHistory: [], // 証券の時価推移。取込・バックフィルのたびに1日1件を残す [{ date: 'YYYY-MM-DD'(JST), importedAt, totalMarketValue, totalCostBasis, cash, other, count, items: [{ name, qty, marketValue, costBasis }] }]
     zaimScrapeInfo: null, // { matched, unmatched: [names], importedAt }
     accountBalanceAsOfDate: null, // 口座残高（accountBalanceOverride）の確認日。YYYY-MM-DD文字列。未設定時は初期値にフォールバック
     pendingZaimImport: null, // スクレイピングスクリプト等がクラウド経由で置いていく未取込データ { items: [{name, balance}], scrapedAt: ISO文字列 }
@@ -2138,6 +2158,7 @@
       accountGroupList: settings.accountGroupList,
       accountMetaInited: settings.accountMetaInited,
       securitiesScrapeInfo: settings.securitiesScrapeInfo ? { ...settings.securitiesScrapeInfo, importedAt: settings.securitiesScrapeInfo.importedAt.toISOString() } : null,
+      securitiesHistory: settings.securitiesHistory.map((h) => ({ ...h, importedAt: h.importedAt instanceof Date ? h.importedAt.toISOString() : h.importedAt })),
       zaimScrapeInfo: settings.zaimScrapeInfo ? { ...settings.zaimScrapeInfo, importedAt: settings.zaimScrapeInfo.importedAt.toISOString() } : null,
       accountBalanceAsOfDate: settings.accountBalanceAsOfDate,
       pendingZaimImport: settings.pendingZaimImport,
@@ -2198,6 +2219,7 @@
     settings.accountGroupList = Array.isArray(obj.accountGroupList) ? obj.accountGroupList.slice() : [];
     settings.accountMetaInited = !!obj.accountMetaInited;
     settings.securitiesScrapeInfo = obj.securitiesScrapeInfo ? { ...obj.securitiesScrapeInfo, importedAt: new Date(obj.securitiesScrapeInfo.importedAt) } : null;
+    settings.securitiesHistory = normalizeSecuritiesHistory(obj.securitiesHistory);
     settings.zaimScrapeInfo = obj.zaimScrapeInfo ? { ...obj.zaimScrapeInfo, importedAt: new Date(obj.zaimScrapeInfo.importedAt) } : null;
     settings.accountBalanceAsOfDate = typeof obj.accountBalanceAsOfDate === "string" ? obj.accountBalanceAsOfDate : null;
     settings.pendingZaimImport = obj.pendingZaimImport && Array.isArray(obj.pendingZaimImport.items) ? obj.pendingZaimImport : null;
@@ -2493,6 +2515,20 @@
     return remote[key];
   }
 
+  // 証券履歴フィールドのマージ：履歴は追記型なので3-wayではなく、日付をキーにlocal/remoteをunionする。
+  // 片方にしか無い日付は「もう片方がまだ取り込んでいないだけ」であり、削除として扱わない。
+  // 同じ日付が両方にあれば importedAt（ISO文字列）が新しい方を採用する。結果は日付昇順にそろえる。
+  function mergeSecuritiesHistoryField(local, remote) {
+    const byDate = new Map();
+    [...(Array.isArray(remote.securitiesHistory) ? remote.securitiesHistory : []),
+     ...(Array.isArray(local.securitiesHistory) ? local.securitiesHistory : [])].forEach((h) => {
+      if (!h || typeof h.date !== "string") return;
+      const prev = byDate.get(h.date);
+      if (!prev || String(prev.importedAt || "") <= String(h.importedAt || "")) byDate.set(h.date, h);
+    });
+    return Array.from(byDate.values()).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  }
+
   // 保存が競合した際に呼ぶ3-way merge本体。base（前回同期時点）が無い（初回など）場合は
   // 安全側に倒して「remoteをベースにローカルの差分だけ載せる」動作になる。
   function mergeCloudObjects(base, local, remote) {
@@ -2509,6 +2545,7 @@
     ["accountBalanceInited", "accountBalanceAsOfDate", "balancePattern", "furusatoKeyword", "securitiesScrapeInfo", "zaimScrapeInfo",
       "pendingZaimImport", "pendingZaimCsv", "zaimCsvSyncedAt", "pendingSecuritiesImport", "accountMetaInited", "syncHeartbeat"]
       .forEach((key) => { merged[key] = mergeScalarField(base, local, remote, key, conflicts); });
+    merged.securitiesHistory = mergeSecuritiesHistoryField(local, remote);
     merged.v = remote.v || local.v || 1;
     merged.updatedAt = new Date().toISOString();
     return { merged, conflicts };
@@ -5931,6 +5968,31 @@ function svgEl(tag, attrs) {
     renderStackedAreaSVG(wrap, labels, visible, { valueFormatter: (v) => YEN(v), axisValueFormatter: YEN_COMPACT, onPointClick: (i) => jumpToPeriodIndex(i, count), exportName: "資産構成の推移" });
   }
 
+  // 証券の時価推移：証券取込・バックフィルのたびに残した日次履歴（settings.securitiesHistory）を
+  // 時価合計と取得原価合計の2系列で描く。履歴が2日分に満たなければ推移は描けないので空表示にする。
+  function renderSecuritiesHistoryChart() {
+    const wrap = document.getElementById("securitiesHistoryChart");
+    if (!wrap) return;
+    const gainEl = document.getElementById("securitiesHistoryGain");
+    const hist = settings.securitiesHistory;
+    if (gainEl) {
+      if (hist.length) {
+        const last = hist[hist.length - 1];
+        const gain = last.totalMarketValue - last.totalCostBasis;
+        gainEl.textContent = `直近（${last.date}）の含み損益 ${gain < 0 ? "−" : "+"}${YEN(Math.abs(gain))}`;
+      } else gainEl.textContent = "";
+    }
+    if (hist.length < 2) {
+      wrap.innerHTML = "";
+      wrap.appendChild(emptyState("証券の履歴が2日分に満たないため、まだ推移を表示できません"));
+      return;
+    }
+    renderLineChartSVG(wrap, hist.map((h) => h.date.slice(5)), [
+      { name: "時価", color: "var(--gold)", values: hist.map((h) => h.totalMarketValue) },
+      { name: "取得原価", color: "var(--cat-3)", values: hist.map((h) => h.totalCostBasis) },
+    ], { valueFormatter: (v) => YEN(v), axisValueFormatter: YEN_COMPACT, exportName: "証券_時価推移" });
+  }
+
   function renderMonthChart() {
     const panel = document.getElementById("monthlyPanel");
     const chart = document.getElementById("monthChart");
@@ -7308,6 +7370,7 @@ function svgEl(tag, attrs) {
     renderStatementsPanel(filtered, broad);
     renderMonthChart();
     renderAssetsHistoryChart();
+    renderSecuritiesHistoryChart();
     renderTrendChart();
     renderSubscriptionPanel();
     [renderBudgetPanel, renderCardSchedulePanel, renderHeatmap].forEach((fn) => {
@@ -7756,6 +7819,76 @@ function svgEl(tag, attrs) {
     return { matched, added, unmatched, balances };
   }
 
+  // ---------- 証券の時価推移（securitiesHistory） ----------
+  // DateをJST（Asia/Tokyo）のYYYY-MM-DDにする。履歴の「取込日」は端末のタイムゾーンに依存させない。
+  function jstDateKey(d) {
+    return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+  }
+
+  // 証券履歴の1件を正規化する（dateがYYYY-MM-DDでないものは落とす）。importedAtはDateにする。
+  function normalizeSecuritiesHistoryEntry(h) {
+    if (!h || typeof h.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(h.date)) return null;
+    const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+    const items = Array.isArray(h.items) ? h.items.filter((i) => i && typeof i.name === "string").map((i) => ({
+      name: i.name, qty: num(i.qty), marketValue: num(i.marketValue), costBasis: num(i.costBasis),
+    })) : [];
+    const at = h.importedAt ? new Date(h.importedAt) : null;
+    return {
+      date: h.date,
+      importedAt: at && !Number.isNaN(at.getTime()) ? at : new Date(h.date + "T00:00:00+09:00"),
+      totalMarketValue: num(h.totalMarketValue),
+      totalCostBasis: num(h.totalCostBasis),
+      cash: num(h.cash),
+      other: num(h.other),
+      count: typeof h.count === "number" ? h.count : items.length,
+      items,
+    };
+  }
+
+  // 証券履歴全体を正規化し、同日はimportedAtが新しい方だけを残して日付昇順にそろえる
+  function normalizeSecuritiesHistory(list) {
+    const byDate = new Map();
+    (Array.isArray(list) ? list : []).forEach((h) => {
+      const e = normalizeSecuritiesHistoryEntry(h);
+      if (!e) return;
+      const prev = byDate.get(e.date);
+      if (!prev || prev.importedAt <= e.importedAt) byDate.set(e.date, e);
+    });
+    return Array.from(byDate.values()).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  }
+
+  // 証券履歴へ1日分をupsertする（同日は置換、日付昇順を維持）。正規化できなければfalse。
+  function upsertSecuritiesHistory(entry) {
+    const e = normalizeSecuritiesHistoryEntry(entry);
+    if (!e) return false;
+    const idx = settings.securitiesHistory.findIndex((h) => h.date === e.date);
+    if (idx >= 0) settings.securitiesHistory[idx] = e; else settings.securitiesHistory.push(e);
+    settings.securitiesHistory.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    return true;
+  }
+
+  // snapshotsの日次エントリ（{ at, securities: { stocks, funds, cash, other, totalCostBasis, totalMarketValue } }）を
+  // 証券履歴の1件に変換する。スナップショットに証券データが無い日はnull。
+  function securitiesHistoryEntryFromSnapshot(date, day) {
+    const sec = day && day.securities;
+    if (!sec || (!Array.isArray(sec.stocks) && !Array.isArray(sec.funds))) return null;
+    const items = [...(sec.stocks || []), ...(sec.funds || [])].map((i) => ({
+      name: i.name, qty: i.qty || 0, marketValue: Math.round(i.marketValue || 0), costBasis: Math.round(i.costBasis || 0),
+    }));
+    const num = (v, fb) => (typeof v === "number" && Number.isFinite(v) ? v : fb);
+    return {
+      date,
+      importedAt: day.at || date,
+      // スナップショットの合計には現金・その他が含まれる（検算済み）。無い場合は明細から合算する
+      totalMarketValue: Math.round(num(sec.totalMarketValue, items.reduce((s, i) => s + i.marketValue, 0) + (sec.cash || 0) + (sec.other || 0))),
+      totalCostBasis: Math.round(num(sec.totalCostBasis, items.reduce((s, i) => s + i.costBasis, 0) + (sec.cash || 0) + (sec.other || 0))),
+      cash: sec.cash || 0,
+      other: sec.other || 0,
+      count: items.length,
+      items,
+    };
+  }
+
   // ブックマークレット（証券・投資信託ページのスクレイピング）からの取込データを
   // 「SBI 証券」口座の残高（元本＝簿価）に反映し、時価・現金・その他を含めた詳細を
   // securitiesScrapeInfoとして保存する。B/S上の口座残高そのものは簿価（取得金額）を使うことで、
@@ -7776,8 +7909,81 @@ function svgEl(tag, attrs) {
       other: pending.other || 0,
       importedAt: new Date(pending.scrapedAt || Date.now()),
     };
+    // 時価推移用に、その日のスナップショットを履歴にも残す（同日分は最新の取込で置き換える）
+    upsertSecuritiesHistory({
+      date: jstDateKey(settings.securitiesScrapeInfo.importedAt),
+      importedAt: settings.securitiesScrapeInfo.importedAt,
+      totalMarketValue,
+      totalCostBasis,
+      cash: pending.cash || 0,
+      other: pending.other || 0,
+      count: items.length,
+      items: items.map((i) => ({ name: i.name, qty: i.qty || 0, marketValue: i.marketValue || 0, costBasis: i.costBasis || 0 })),
+    });
     setAccountBalanceAsOfDate(pending.scrapedAt || new Date());
   }
+
+  // 同期先リポジトリの snapshots/YYYY-MM.json（自動同期スクリプトが日次で置く証券スナップショット）から
+  // 時価推移の履歴を取り込む。日付単位でupsertするので、再実行しても重複しない。
+  async function importSecuritiesHistoryFromSnapshots() {
+    const statusEl = document.getElementById("securitiesHistoryImportStatus");
+    const setStatus = (msg, isError) => { if (statusEl) { statusEl.textContent = msg; statusEl.style.color = isError ? "var(--red)" : "var(--ink-soft)"; } };
+    if (!cloudSync.repo || !cloudSync.token) {
+      setStatus("GitHub同期が未設定のため、スナップショットを取り込めません。同期を設定するか、バックフィルJSONのファイル取込を使ってください。", true);
+      return;
+    }
+    setStatus("スナップショットを取得しています…", false);
+    try {
+      const lr = await ghFetch(`https://api.github.com/repos/${cloudSync.repo}/contents/snapshots`, { headers: ghHeaders() });
+      if (!lr.ok) { setStatus("snapshotsフォルダが見つかりませんでした。", true); return; }
+      const files = (await lr.json()).filter((x) => x && x.type === "file" && /^\d{4}-\d{2}\.json$/.test(x.name)).map((x) => x.name).sort();
+      if (!files.length) { setStatus("snapshotsフォルダに月次ファイル（YYYY-MM.json）がありませんでした。", true); return; }
+      let days = 0;
+      for (const name of files) {
+        const f = await fetchRepoFile(`snapshots/${name}`);
+        if (!f || !f.text) { setStatus(`${name} の取得に失敗したため、取り込みを中断しました。`, true); return; }
+        const snap = JSON.parse(f.text);
+        Object.keys(snap).sort().forEach((date) => {
+          const entry = securitiesHistoryEntryFromSnapshot(date, snap[date]);
+          if (entry && upsertSecuritiesHistory(entry)) days++;
+        });
+      }
+      scheduleCloudSave();
+      renderSecuritiesHistoryChart();
+      setStatus(`スナップショットから${days}日分の履歴を取り込みました。`, false);
+    } catch (e) {
+      setStatus("スナップショットの取り込みに失敗しました。", true);
+    }
+  }
+  document.getElementById("securitiesHistorySnapshotBtn").addEventListener("click", () => { importSecuritiesHistoryFromSnapshots(); });
+
+  // バックフィルJSON（securities-history-backfill.json、または { securitiesHistory: [...] } 形式）のファイル取込。
+  // スナップショットボタンが使えない環境向けに、同じ履歴形式を取り込む手段として用意する。
+  document.getElementById("securitiesHistoryFileInput").addEventListener("change", (e) => {
+    const file = e.target.files && e.target.files[0];
+    const statusEl = document.getElementById("securitiesHistoryImportStatus");
+    const setStatus = (msg, isError) => { if (statusEl) { statusEl.textContent = msg; statusEl.style.color = isError ? "var(--red)" : "var(--ink-soft)"; } };
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const parsed = JSON.parse(ev.target.result);
+        const list = Array.isArray(parsed) ? parsed : parsed.securitiesHistory;
+        if (!Array.isArray(list)) { setStatus("履歴データ（配列）が見つからないJSONでした。", true); return; }
+        let days = 0;
+        list.forEach((h) => { if (upsertSecuritiesHistory(h)) days++; });
+        if (!days) { setStatus("取り込める履歴がありませんでした。", true); return; }
+        scheduleCloudSave();
+        renderSecuritiesHistoryChart();
+        setStatus(`バックフィルJSONから${days}日分の履歴を取り込みました。`, false);
+      } catch (err) {
+        setStatus("JSONの読み込みに失敗しました。", true);
+      }
+      e.target.value = "";
+    };
+    reader.onerror = () => { setStatus("ファイルの読み込みに失敗しました。", true); };
+    reader.readAsText(file);
+  });
 
   // 「固定費（手動登録）」：一致タイプの切り替えに応じて、お店名／カテゴリ・内訳の入力欄を出し分ける
   document.getElementById("manualFixedMatchType").addEventListener("change", (e) => {
