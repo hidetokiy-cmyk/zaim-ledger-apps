@@ -585,12 +585,16 @@
     font-size: 15px; padding: 9px 11px; border-radius: 5px; cursor: pointer; transition: background .12s, color .12s; }
   .settings-nav-btn:hover { background: rgba(var(--ink-rgb),0.05); color: var(--ink); }
   .settings-nav-btn.active { background: rgba(var(--ink-rgb),0.08); color: var(--ink); font-weight: 600; }
+  .settings-nav-group { font-size: 12px; letter-spacing: .08em; color: var(--ink-soft); padding: 10px 11px 3px; }
+  .settings-nav-group:first-child { padding-top: 2px; }
   .settings-panes { flex: 1; min-width: 0; padding: 20px 22px; display: flex; flex-direction: column; gap: 22px; max-height: 74vh; overflow-y: auto; }
   .settings-pane.hidden { display: none !important; }
   @media (max-width: 640px) {
     .modal-body { flex-direction: column; }
     .settings-nav { width: 100%; flex-direction: row; overflow-x: auto; border-right: none; border-bottom: 1px solid var(--rule); padding: 10px 12px; }
     .settings-nav-btn { flex-shrink: 0; white-space: nowrap; }
+    .settings-nav-group { flex-shrink: 0; align-self: center; padding: 0 2px 0 10px; }
+    .settings-nav-group:first-child { padding-left: 0; }
     .settings-panes { max-height: none; }
   }
   .field-group label.field-label { font-size: 16px; display: block; margin-bottom: 6px; }
@@ -1714,57 +1718,61 @@
     </div>
     <div class="modal-body">
       <div class="settings-nav" id="settingsNav">
-        <button class="settings-nav-btn active" data-pane="sync">同期</button>
+        <div class="settings-nav-group">よく触る</div>
+        <button class="settings-nav-btn" data-pane="budget">予算</button>
+        <button class="settings-nav-btn" data-pane="fixedManual">固定費（手動）</button>
+        <div class="settings-nav-group">たまに触る</div>
         <button class="settings-nav-btn" data-pane="accounts">口座</button>
         <button class="settings-nav-btn" data-pane="prepaid">簿外勘定</button>
-        <button class="settings-nav-btn" data-pane="budget">予算</button>
+        <button class="settings-nav-btn active" data-pane="sync">同期</button>
         <button class="settings-nav-btn" data-pane="tax">税務集計</button>
-        <button class="settings-nav-btn" data-pane="fixedManual">固定費（手動）</button>
+        <div class="settings-nav-group">非常用</div>
         <button class="settings-nav-btn" data-pane="backup">バックアップ</button>
         <button class="settings-nav-btn" data-pane="dupCheck">重複チェック</button>
         <button class="settings-nav-btn" data-pane="integrity">整合性チェック</button>
       </div>
       <div class="settings-panes" id="settingsPanes">
 
-      <div class="field-group settings-pane" data-pane="sync">
-        <div class="modal-section-title">複数端末での設定同期（GitHub）</div>
+      <div class="field-group settings-pane hidden" data-pane="budget">
+        <div class="modal-section-title">カテゴリ別の月予算</div>
         <div class="field-hint" style="margin-top:8px;">
-          非公開のGitHubリポジトリに設定（口座残高・除外設定・元本など。取引明細は含みません）を自動で保存・取得します。準備：①GitHubで非公開リポジトリを作成（例: zaim-ledger-settings）②Settings &gt; Developer settings &gt; Fine-grained personal access tokens で、そのリポジトリ限定・「Contents: Read and write」権限のトークンを発行。下に入力すれば、以降は起動時に自動取得・変更時に自動保存されます。
+          支出カテゴリごとに、1か月（会計月・25日始まり）の予算を設定します。空欄のカテゴリは予算なしとして扱い、概要タブには予算を入れたカテゴリだけが表示されます。集計は損益と同じく、集計から除外する設定の取引を含みません。GitHub同期・バックアップにも含まれます。
         </div>
-        <label class="field-label" style="margin-top:10px;" for="syncRepoInput">リポジトリ（owner/repo）</label>
-        <input type="text" id="syncRepoInput" placeholder="例: yourname/zaim-ledger-settings">
-        <label class="field-label" style="margin-top:10px;" for="syncTokenInput">Personal Access Token</label>
-        <div style="display:flex; gap:6px; align-items:center;">
-          <input type="password" id="syncTokenInput" class="pw-input" autocomplete="off" placeholder="github_pat_..." style="flex:1;">
-          <button id="syncTokenToggleBtn" class="btn" type="button" style="cursor:pointer; white-space:nowrap;" aria-label="トークンの表示切替" aria-pressed="false">表示</button>
+        <div id="budgetEditList" style="margin-top:10px;"></div>
+      </div>
+
+      <div class="field-group settings-pane hidden" data-pane="fixedManual">
+        <div class="modal-section-title">固定費（手動登録）</div>
+        <div class="field-hint" style="margin-top:8px;">
+          上の「定期支払い（サブスク）検出」は、同じお店・カテゴリでおおむね一定間隔・3回以上の支出パターンを自動検出しますが、間隔が不規則だったり実績がまだ少なかったりすると検出されないことがあります。ここに登録すると、概要タブの一覧と資金繰り予測の固定費見込みの両方に反映されます。<br>
+          「一致させる取引」を指定すると、対応する実際の取引が変動費側の集計から自動的に除かれ、代わりにここで指定した金額で固定費として計上されます（二重計上の防止）。一致する取引が見つからない場合は、登録した金額のみで固定費見込みに追加されます（変動費からは何も除かれません）。
         </div>
-        <label class="field-label" style="margin-top:10px;" for="syncTokenMode">トークンの保存方法</label>
-        <select id="syncTokenMode" class="sync-select">
-          <option value="enc">パスフレーズで暗号化して保存（推奨）</option>
-          <option value="session">保存しない（このタブを閉じるまで）</option>
-          <option value="plain">平文で保存（従来どおり・非推奨）</option>
+        <div id="manualFixedList" style="margin-top:10px;"></div>
+
+        <div class="modal-section-title" style="margin-top:20px;">新規追加</div>
+        <label class="field-label" style="margin-top:10px;" for="manualFixedLabelInput">表示名</label>
+        <input type="text" id="manualFixedLabelInput" placeholder="例: 家賃">
+        <label class="field-label" style="margin-top:10px;" for="manualFixedAmountInput">月額（円・手数料等含めた合計）</label>
+        <input type="text" id="manualFixedAmountInput" placeholder="例: 85,640" inputmode="numeric" autocomplete="off" data-yen>
+        <label class="field-label" style="margin-top:10px;" for="manualFixedMatchType">一致させる取引</label>
+        <select id="manualFixedMatchType" class="trend-select" style="width:100%;">
+          <option value="store">お店名で一致させる</option>
+          <option value="sub">カテゴリ・内訳で一致させる</option>
+          <option value="none">一致させる取引なし（金額のみ登録）</option>
         </select>
-        <div id="syncPassRow" style="margin-top:10px;">
-          <label class="field-label" for="syncPassInput">パスフレーズ（8文字以上）</label>
-          <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
-            <input type="password" id="syncPassInput" class="pw-input" autocomplete="off" style="flex:1; min-width:160px;" placeholder="トークンの暗号化・ロック解除に使います">
-            <button id="syncUnlockBtn" class="btn hidden" type="button" style="cursor:pointer; white-space:nowrap;">ロック解除</button>
-          </div>
+        <div id="manualFixedMatchStoreWrap" style="margin-top:8px;">
+          <input type="text" id="manualFixedStoreInput" list="manualFixedStoreOptions" placeholder="お店名（取引データの表記と完全に一致させてください）">
+          <datalist id="manualFixedStoreOptions"></datalist>
         </div>
-        <div class="field-hint" id="syncTokenWarn" style="margin-top:6px;"></div>
-        <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
-          <button id="syncPullBtn" class="btn" style="cursor:pointer;">今すぐ取得</button>
-          <button id="syncPushBtn" class="btn" style="cursor:pointer;">今すぐ保存</button>
-          <button id="syncTokenClearBtn" class="btn" type="button" style="cursor:pointer;">トークンを消去</button>
+        <div id="manualFixedMatchSubWrap" class="hidden" style="margin-top:8px;">
+          <select id="manualFixedSubSelect" class="trend-select" style="width:100%;"></select>
         </div>
-        <div class="field-hint" id="syncStatus" style="margin-top:8px;"></div>
-        <div class="field-hint" style="margin-top:14px; padding-top:14px; border-top:1px solid var(--rule);">
-          <strong>Zaimからデータを取得する</strong><br>
-          初回のみ、別途お渡しした「zaim-bookmarklets.html」を開いて、中の2つのボタンをブラウザのブックマークバーにドラッグして登録してください。以降は次の手順だけで済みます：①下のボタンでZaimを開く ②普通にログイン ③マイページで「Zaim残高を同期」ブックマークレットをクリック ④設定＞ファイル入出力で「Zaim取引CSVを同期」ブックマークレットをクリック ⑤このアプリに戻って「今すぐ取得」（またはアプリを開き直す）。
-          <div style="margin-top:8px;">
-            <button id="openZaimBtn" class="btn" style="cursor:pointer;">Zaimを開く</button>
-          </div>
-        </div>
+        <label class="checkbox-line" style="margin-top:10px;">
+          <input type="checkbox" id="manualFixedCashPaidInput" checked>
+          現金・預金口座からの支払い（カード等からの支払いの場合はチェックを外してください）
+        </label>
+        <button id="manualFixedAddBtn" class="btn" style="margin-top:10px; cursor:pointer;">追加</button>
+        <div class="field-hint" id="manualFixedAddStatus" style="margin-top:8px;"></div>
       </div>
 
       <div class="field-group settings-pane hidden" data-pane="accounts">
@@ -1820,12 +1828,45 @@
         </div>
       </div>
 
-      <div class="field-group settings-pane hidden" data-pane="budget">
-        <div class="modal-section-title">カテゴリ別の月予算</div>
+      <div class="field-group settings-pane" data-pane="sync">
+        <div class="modal-section-title">複数端末での設定同期（GitHub）</div>
         <div class="field-hint" style="margin-top:8px;">
-          支出カテゴリごとに、1か月（会計月・25日始まり）の予算を設定します。空欄のカテゴリは予算なしとして扱い、概要タブには予算を入れたカテゴリだけが表示されます。集計は損益と同じく、集計から除外する設定の取引を含みません。GitHub同期・バックアップにも含まれます。
+          非公開のGitHubリポジトリに設定（口座残高・除外設定・元本など。取引明細は含みません）を自動で保存・取得します。準備：①GitHubで非公開リポジトリを作成（例: zaim-ledger-settings）②Settings &gt; Developer settings &gt; Fine-grained personal access tokens で、そのリポジトリ限定・「Contents: Read and write」権限のトークンを発行。下に入力すれば、以降は起動時に自動取得・変更時に自動保存されます。
         </div>
-        <div id="budgetEditList" style="margin-top:10px;"></div>
+        <label class="field-label" style="margin-top:10px;" for="syncRepoInput">リポジトリ（owner/repo）</label>
+        <input type="text" id="syncRepoInput" placeholder="例: yourname/zaim-ledger-settings">
+        <label class="field-label" style="margin-top:10px;" for="syncTokenInput">Personal Access Token</label>
+        <div style="display:flex; gap:6px; align-items:center;">
+          <input type="password" id="syncTokenInput" class="pw-input" autocomplete="off" placeholder="github_pat_..." style="flex:1;">
+          <button id="syncTokenToggleBtn" class="btn" type="button" style="cursor:pointer; white-space:nowrap;" aria-label="トークンの表示切替" aria-pressed="false">表示</button>
+        </div>
+        <label class="field-label" style="margin-top:10px;" for="syncTokenMode">トークンの保存方法</label>
+        <select id="syncTokenMode" class="sync-select">
+          <option value="enc">パスフレーズで暗号化して保存（推奨）</option>
+          <option value="session">保存しない（このタブを閉じるまで）</option>
+          <option value="plain">平文で保存（従来どおり・非推奨）</option>
+        </select>
+        <div id="syncPassRow" style="margin-top:10px;">
+          <label class="field-label" for="syncPassInput">パスフレーズ（8文字以上）</label>
+          <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+            <input type="password" id="syncPassInput" class="pw-input" autocomplete="off" style="flex:1; min-width:160px;" placeholder="トークンの暗号化・ロック解除に使います">
+            <button id="syncUnlockBtn" class="btn hidden" type="button" style="cursor:pointer; white-space:nowrap;">ロック解除</button>
+          </div>
+        </div>
+        <div class="field-hint" id="syncTokenWarn" style="margin-top:6px;"></div>
+        <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+          <button id="syncPullBtn" class="btn" style="cursor:pointer;">今すぐ取得</button>
+          <button id="syncPushBtn" class="btn" style="cursor:pointer;">今すぐ保存</button>
+          <button id="syncTokenClearBtn" class="btn" type="button" style="cursor:pointer;">トークンを消去</button>
+        </div>
+        <div class="field-hint" id="syncStatus" style="margin-top:8px;"></div>
+        <div class="field-hint" style="margin-top:14px; padding-top:14px; border-top:1px solid var(--rule);">
+          <strong>Zaimからデータを取得する</strong><br>
+          初回のみ、別途お渡しした「zaim-bookmarklets.html」を開いて、中の2つのボタンをブラウザのブックマークバーにドラッグして登録してください。以降は次の手順だけで済みます：①下のボタンでZaimを開く ②普通にログイン ③マイページで「Zaim残高を同期」ブックマークレットをクリック ④設定＞ファイル入出力で「Zaim取引CSVを同期」ブックマークレットをクリック ⑤このアプリに戻って「今すぐ取得」（またはアプリを開き直す）。
+          <div style="margin-top:8px;">
+            <button id="openZaimBtn" class="btn" style="cursor:pointer;">Zaimを開く</button>
+          </div>
+        </div>
       </div>
 
       <div class="field-group settings-pane hidden" data-pane="tax">
@@ -1838,40 +1879,6 @@
         <div class="field-hint">
           カテゴリ・内訳・お店・品目・メモのいずれかにこの文字列が含まれる支出を、ふるさと納税として合計します。
         </div>
-      </div>
-
-      <div class="field-group settings-pane hidden" data-pane="fixedManual">
-        <div class="modal-section-title">固定費（手動登録）</div>
-        <div class="field-hint" style="margin-top:8px;">
-          上の「定期支払い（サブスク）検出」は、同じお店・カテゴリでおおむね一定間隔・3回以上の支出パターンを自動検出しますが、間隔が不規則だったり実績がまだ少なかったりすると検出されないことがあります。ここに登録すると、概要タブの一覧と資金繰り予測の固定費見込みの両方に反映されます。<br>
-          「一致させる取引」を指定すると、対応する実際の取引が変動費側の集計から自動的に除かれ、代わりにここで指定した金額で固定費として計上されます（二重計上の防止）。一致する取引が見つからない場合は、登録した金額のみで固定費見込みに追加されます（変動費からは何も除かれません）。
-        </div>
-        <div id="manualFixedList" style="margin-top:10px;"></div>
-
-        <div class="modal-section-title" style="margin-top:20px;">新規追加</div>
-        <label class="field-label" style="margin-top:10px;" for="manualFixedLabelInput">表示名</label>
-        <input type="text" id="manualFixedLabelInput" placeholder="例: 家賃">
-        <label class="field-label" style="margin-top:10px;" for="manualFixedAmountInput">月額（円・手数料等含めた合計）</label>
-        <input type="text" id="manualFixedAmountInput" placeholder="例: 85,640" inputmode="numeric" autocomplete="off" data-yen>
-        <label class="field-label" style="margin-top:10px;" for="manualFixedMatchType">一致させる取引</label>
-        <select id="manualFixedMatchType" class="trend-select" style="width:100%;">
-          <option value="store">お店名で一致させる</option>
-          <option value="sub">カテゴリ・内訳で一致させる</option>
-          <option value="none">一致させる取引なし（金額のみ登録）</option>
-        </select>
-        <div id="manualFixedMatchStoreWrap" style="margin-top:8px;">
-          <input type="text" id="manualFixedStoreInput" list="manualFixedStoreOptions" placeholder="お店名（取引データの表記と完全に一致させてください）">
-          <datalist id="manualFixedStoreOptions"></datalist>
-        </div>
-        <div id="manualFixedMatchSubWrap" class="hidden" style="margin-top:8px;">
-          <select id="manualFixedSubSelect" class="trend-select" style="width:100%;"></select>
-        </div>
-        <label class="checkbox-line" style="margin-top:10px;">
-          <input type="checkbox" id="manualFixedCashPaidInput" checked>
-          現金・預金口座からの支払い（カード等からの支払いの場合はチェックを外してください）
-        </label>
-        <button id="manualFixedAddBtn" class="btn" style="margin-top:10px; cursor:pointer;">追加</button>
-        <div class="field-hint" id="manualFixedAddStatus" style="margin-top:8px;"></div>
       </div>
 
       <div class="field-group settings-pane hidden" data-pane="backup">
