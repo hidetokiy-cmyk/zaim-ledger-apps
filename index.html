@@ -210,11 +210,10 @@
   .tab-btn:hover { color: var(--ink); background: rgba(var(--ink-rgb),0.08); }
   .tab-btn.active { color: var(--ink); background: var(--paper-raised); border-color: var(--rule-strong); border-bottom-color: var(--paper-raised); }
   .tab-btn.active svg { opacity: 1; }
-  .tab-btn[data-tab="overview"].active { border-top-color: var(--gold); }
-  .tab-btn[data-tab="timeline"].active { border-top-color: var(--green); }
-  .tab-btn[data-tab="charts"].active { border-top-color: var(--cat-3); }
-  .tab-btn[data-tab="statements"].active { border-top-color: var(--cat-4); }
-  .tab-btn[data-tab="tx"].active { border-top-color: var(--red); }
+  .tab-btn[data-tab="home"].active { border-top-color: var(--gold); }
+  .tab-btn[data-tab="closing"].active { border-top-color: var(--cat-4); }
+  .tab-btn[data-tab="analysis"].active { border-top-color: var(--cat-3); }
+  .tab-btn[data-tab="ledger"].active { border-top-color: var(--red); }
   .substab-bar { display: flex; gap: 22px; margin-bottom: 20px; border-bottom: 1px solid var(--rule-strong); flex-wrap: wrap; }
   .substab-btn { background: transparent; border: none; border-bottom: 3px solid transparent; color: var(--ink-soft);
     font-family: inherit; font-size: 16px; padding: 9px 2px; cursor: pointer; margin-bottom: -1px; transition: color .12s, border-color .12s; }
@@ -1212,11 +1211,10 @@
         </div>
       </div>
       <div class="tab-bar" id="tabBar">
-        <button class="tab-btn active" data-tab="overview"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>概要</button>
-        <button class="tab-btn" data-tab="timeline"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg>時間軸</button>
-        <button class="tab-btn" data-tab="charts"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>グラフ</button>
-        <button class="tab-btn" data-tab="statements"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M3 9h18"/><path d="M12 9v12"/></svg>財務三表</button>
-        <button class="tab-btn" data-tab="tx"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>取引明細</button>
+        <button class="tab-btn active" data-tab="home"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>ホーム</button>
+        <button class="tab-btn" data-tab="closing"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg>決算</button>
+        <button class="tab-btn" data-tab="analysis"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>分析</button>
+        <button class="tab-btn" data-tab="ledger"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>台帳</button>
       </div>
 
       <div class="tab-page" id="tabOverview">
@@ -1360,12 +1358,18 @@
       </div>
         </div>
       </div>
+      </div>
 
-      <div class="card panel qgroup" id="overviewGroupTax">
-        <div class="panel-head qgroup-head">
-          <div class="section-title serif">税と寄附</div>
+      <div class="tab-page hidden" id="tabClosing">
+
+      <div class="card panel" id="monthCheckPanel">
+        <div class="panel-head">
+          <div class="section-title serif">月次チェック</div>
+          <div class="sub-meta" id="monthCheckMeta"></div>
         </div>
-        <div class="qgroup-body">
+        <div id="monthCheckList"></div>
+      </div>
+
       <div class="card panel" id="taxSummaryPanel">
         <div class="panel-head">
           <div class="section-title serif">税務関連の年間集計（<span id="taxSummaryYear"></span>年）</div>
@@ -1392,37 +1396,17 @@
         <div class="cash-note" id="furusatoDeadline" style="margin:6px 0 4px;"></div>
         <div id="furusatoList"></div>
       </div>
-        </div>
-      </div>
 
       </div>
 
-      <div class="tab-page hidden" id="tabTimeline">
-        <div class="tl-stats">
-          <div class="card panel"><div class="tl-lbl" id="tlDate">—</div><div class="tl-big serif num" id="tlVal">—</div><div class="tl-sub num" id="tlSub"></div></div>
-          <div class="card panel"><div class="tl-lbl">仮の支出の影響</div><div class="tl-mid serif num" id="tlDVal">—</div><div class="tl-sub num" id="tlDSub"></div></div>
-          <div class="card panel"><div class="tl-lbl">この先の最低残高</div><div class="tl-mid serif num" id="tlMVal">—</div><div class="tl-sub num" id="tlMSub"></div></div>
-        </div>
-        <div class="card panel">
-          <div class="tl-bar">
-            <div class="tl-seg" role="group" aria-label="表示の細かさ"><button type="button" data-z="14">日</button><button type="button" data-z="45">週</button><button type="button" data-z="120">月</button><button type="button" data-z="360">年</button></div>
-            <button type="button" class="tl-ghost" id="tlHome">現在へ</button>
-          </div>
-          <div id="tlChart" tabindex="0" role="application" aria-label="現金・預金残高の時間軸。左右の矢印で日を移動、プラスとマイナスで拡大縮小"></div>
-        </div>
-        <div class="card panel tl-ctl no-print" id="tlCtl">
-          <div class="tl-chips">
-            <button type="button" class="tl-chip" data-a="-150000" data-d="21">旅行 −¥150,000</button>
-            <button type="button" class="tl-chip" data-a="-80000" data-d="45">家電 −¥80,000</button>
-            <button type="button" class="tl-chip" data-a="100000" data-d="60">臨時収入 +¥100,000</button>
-            <button type="button" class="tl-chip" data-a="0">仮を外す</button>
-          </div>
-          <div><label for="tlAmt">金額 <b id="tlAmtV"></b></label><input id="tlAmt" type="range" min="-500000" max="300000" step="5000"></div>
-          <div><label for="tlDay">日付 <b id="tlDayV"></b></label><input id="tlDay" type="range" min="1" max="180" step="1"></div>
-        </div>
+      <div class="tab-page hidden" id="tabAnalysis">
+
+      <div class="substab-bar" id="analysisSeg">
+        <button class="substab-btn active" data-amode="charts">グラフ</button>
+        <button class="substab-btn" data-amode="statements">財務三表</button>
       </div>
 
-      <div class="tab-page hidden" id="tabCharts">
+      <div class="tab-page" id="tabCharts">
 
       <div class="card panel qgroup" id="chartsGroupSpend">
         <div class="panel-head qgroup-head">
@@ -1680,7 +1664,16 @@
 
       </div>
 
-      <div class="tab-page hidden" id="tabTx">
+      </div>
+
+      <div class="tab-page hidden" id="tabLedger">
+
+      <div class="substab-bar" id="ledgerSeg">
+        <button class="substab-btn active" data-lmode="tx">取引明細</button>
+        <button class="substab-btn" data-lmode="timeline">時間軸</button>
+      </div>
+
+      <div class="tab-page" id="tabTx">
 
       <div class="card tx-panel">
         <div class="tx-head">
@@ -1700,6 +1693,33 @@
             <button class="btn" id="prevBtn">‹ 前へ</button>
             <button class="btn" id="nextBtn">次へ ›</button>
           </div>
+        </div>
+      </div>
+
+      </div>
+
+      <div class="tab-page hidden" id="tabTimeline">
+        <div class="tl-stats">
+          <div class="card panel"><div class="tl-lbl" id="tlDate">—</div><div class="tl-big serif num" id="tlVal">—</div><div class="tl-sub num" id="tlSub"></div></div>
+          <div class="card panel"><div class="tl-lbl">仮の支出の影響</div><div class="tl-mid serif num" id="tlDVal">—</div><div class="tl-sub num" id="tlDSub"></div></div>
+          <div class="card panel"><div class="tl-lbl">この先の最低残高</div><div class="tl-mid serif num" id="tlMVal">—</div><div class="tl-sub num" id="tlMSub"></div></div>
+        </div>
+        <div class="card panel">
+          <div class="tl-bar">
+            <div class="tl-seg" role="group" aria-label="表示の細かさ"><button type="button" data-z="14">日</button><button type="button" data-z="45">週</button><button type="button" data-z="120">月</button><button type="button" data-z="360">年</button></div>
+            <button type="button" class="tl-ghost" id="tlHome">現在へ</button>
+          </div>
+          <div id="tlChart" tabindex="0" role="application" aria-label="現金・預金残高の時間軸。左右の矢印で日を移動、プラスとマイナスで拡大縮小"></div>
+        </div>
+        <div class="card panel tl-ctl no-print" id="tlCtl">
+          <div class="tl-chips">
+            <button type="button" class="tl-chip" data-a="-150000" data-d="21">旅行 −¥150,000</button>
+            <button type="button" class="tl-chip" data-a="-80000" data-d="45">家電 −¥80,000</button>
+            <button type="button" class="tl-chip" data-a="100000" data-d="60">臨時収入 +¥100,000</button>
+            <button type="button" class="tl-chip" data-a="0">仮を外す</button>
+          </div>
+          <div><label for="tlAmt">金額 <b id="tlAmtV"></b></label><input id="tlAmt" type="range" min="-500000" max="300000" step="5000"></div>
+          <div><label for="tlDay">日付 <b id="tlDayV"></b></label><input id="tlDay" type="range" min="1" max="180" step="1"></div>
         </div>
       </div>
 
@@ -1894,7 +1914,7 @@
       <div class="field-group settings-pane hidden" data-pane="tax">
         <div class="modal-section-title">税務関連の年間集計設定</div>
         <div class="field-hint" style="margin-top:8px;">
-          概要タブに、選択中の期間が属する暦年（1〜12月）を対象としたふるさと納税の年間集計と寄附先の一覧を参考表示します。ふるさと納税は下記キーワードに一致する支出の合計です。寄附上限額などの計算は別ファイルの試算ページで行い、ここの集計値が引き継がれます。医療費は集計しません（試算ページで直接入力してください）。
+          決算タブに、選択中の期間が属する暦年（1〜12月）を対象としたふるさと納税の年間集計と寄附先の一覧を参考表示します。ふるさと納税は下記キーワードに一致する支出の合計です。寄附上限額などの計算は別ファイルの試算ページで行い、ここの集計値が引き継がれます。医療費は集計しません（試算ページで直接入力してください）。
         </div>
         <label class="field-label" style="margin-top:10px;" for="furusatoKeywordInput">ふるさと納税の判定キーワード</label>
         <input type="text" id="furusatoKeywordInput" placeholder="例: ふるさと納税" value="ふるさと納税">
@@ -2012,6 +2032,8 @@
     trendKey: null,
     balancePattern: 2,
     statementsSubTab: "bs",    // 財務三表タブ内のサブタブ: 'bs' | 'pl' | 'cf' | 'ratios' | 'forecast' | 'journal'
+    analysisMode: "charts",    // 分析タブ内の切替: 'charts' | 'statements'
+    ledgerMode: "tx",          // 台帳タブ内の切替: 'tx' | 'timeline'
     assetsHistoryHidden: new Set(),   // 資産構成の推移グラフで非表示にしたグループ名
     assetsHistorySecuritiesMV: true,   // 資産構成の推移で証券を時価表示するか（履歴がある日は含み損益で調整。既定ON）
     assetsHeroSecuritiesMV: true,   // 総資産ヒーローで証券を時価表示するか（最新の含み損益を加算。既定ON）
@@ -6117,7 +6139,7 @@ function svgEl(tag, attrs) {
     state.txPeriod = { mode, anchor: +anchor, start: range.start, end: range.end, label: periodLabelForMode(mode, anchor, off), key: key || null };
     state.page = 0;
     drilledIn = true;
-    activateTab("tx", "in");
+    goToTxTab("in");
     render();
   }
 
@@ -6779,7 +6801,7 @@ function svgEl(tag, attrs) {
     const card = document.getElementById("heroFcCard");
     if (!card.dataset.bound) {
       card.dataset.bound = "1";
-      const go = () => { clickEl('.tab-btn[data-tab="statements"]'); activateStatementsSubTab("forecast"); };
+      const go = () => { clickEl('.tab-btn[data-tab="analysis"]'); activateAnalysisMode("statements"); activateStatementsSubTab("forecast"); };
       card.addEventListener("click", go);
       card.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
     }
@@ -6825,7 +6847,7 @@ function svgEl(tag, attrs) {
         state.txPeriod = { mode: state.periodMode, anchor: +state.periodAnchor, start: d, end: addDays(d, 1), label: md(d), key: null };
         state.page = 0;
         drilledIn = true;
-        activateTab("tx", "in");
+        goToTxTab("in");
         render();
       });
       grid.appendChild(cell);
@@ -7130,7 +7152,7 @@ function svgEl(tag, attrs) {
         rect.appendChild(title);
         rect.addEventListener("click", () => {
           state.periodMode = "day"; state.periodAnchor = day; state.page = 0; state.txFilter = null; state.txPeriod = null;
-          drilledIn = true; activateTab("tx", "in"); render();
+          drilledIn = true; goToTxTab("in"); render();
         });
         svg.appendChild(rect);
       }
@@ -7263,6 +7285,35 @@ function svgEl(tag, attrs) {
     else parts.push(`ワンストップ特例の申請期限（${year + 1}/1/10）は過ぎています`);
     parts.push("寄附先はお店の名前でまとめています。同じ自治体が別の名前で記録されている場合は別々に数えます");
     dlEl.textContent = parts.join("／");
+  }
+
+  // 決算タブの「月次チェック」単独表示。計算は気づきフィードと同じ xMonthChecks() を使い、
+  // 項目のアクション（明細を見る／重複を確認する）もそのままボタンとして出す
+  function renderMonthCheckPanel() {
+    const host = document.getElementById("monthCheckList");
+    if (!host) return;
+    host.innerHTML = "";
+    if (!state.transactions) return;
+    let mc = null;
+    try { mc = xMonthChecks(); } catch (e) { console.error("月次チェックの計算に失敗", e); }
+    const meta = document.getElementById("monthCheckMeta");
+    if (!mc) { host.appendChild(emptyState("月次チェックを表示できません")); return; }
+    if (meta) {
+      meta.textContent = cycleLabel(mc.range.key) + (mc.warnN ? `：要確認 ${mc.warnN}件` : "：すべて良好");
+      meta.style.color = mc.warnN ? "var(--red)" : "";
+    }
+    const marks = { ok: "✓", warn: "!", info: "i" };
+    mc.checks.forEach((c) => {
+      const row = el("div", { class: "x-check" }, [
+        el("div", { class: "x-mark " + c.status }, [marks[c.status] || "i"]),
+        el("div", { class: "x-body" }, [
+          el("div", { class: "x-title" }, [c.title]),
+          c.detail ? el("div", { class: "x-detail" }, [c.detail]) : null,
+        ]),
+      ]);
+      if (c.act) row.appendChild(el("button", { class: "btn", type: "button", style: "cursor:pointer;flex-shrink:0;", onclick: c.act[1] }, [c.act[0]]));
+      host.appendChild(row);
+    });
   }
 
   function renderTaxSummary() {
@@ -7678,6 +7729,7 @@ function svgEl(tag, attrs) {
     });
     renderExtraPanels();
     try { renderTaxSummary(); } catch (e) { console.error("税務集計の表示に失敗", e); }
+    try { renderMonthCheckPanel(); } catch (e) { console.error("月次チェックの表示に失敗", e); }
     renderTxList(getTxRows(filtered).slice().reverse()); // 最新の取引が先頭に来るようにする
   }
 
@@ -8956,7 +9008,7 @@ function svgEl(tag, attrs) {
       apply(closed.has(g.id));
     });
   })();
-  // 概要タブのパネルも「お金の流れ／予定と契約／税と寄附」のグループにまとめ、開閉状態をこの端末に覚えておく（グラフタブと同じ作法）
+  // 概要タブのパネルも「お金の流れ／予定と契約」のグループにまとめ、開閉状態をこの端末に覚えておく（グラフタブと同じ作法）
   (function initOverviewGroups() {
     const KEY = "zaimLedgerOverviewGroups";
     const groups = Array.from(document.querySelectorAll("#tabOverview > .qgroup[id]"));
@@ -8991,16 +9043,38 @@ function svgEl(tag, attrs) {
     document.querySelectorAll(".tab-btn, .substab-btn").forEach((b) => b.setAttribute("aria-selected", b.classList.contains("active") ? "true" : "false"));
   }
 
+  // タブ構成：ホーム（概要）／決算（月次チェック・税務集計）／分析（グラフ・財務三表）／台帳（取引明細・時間軸）
+  const TAB_PAGE_IDS = { home: "tabOverview", closing: "tabClosing", analysis: "tabAnalysis", ledger: "tabLedger" };
   function activateTab(target, dir) {
     document.querySelectorAll(".tab-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === target));
     syncTabAria();
-    ["overview", "timeline", "charts", "statements", "tx"].forEach((t) => {
-      const id = "tab" + t.charAt(0).toUpperCase() + t.slice(1);
-      if (t === target) showPageWithFade(id, dir);
-      else document.getElementById(id).classList.add("hidden");
+    Object.keys(TAB_PAGE_IDS).forEach((t) => {
+      if (t === target) showPageWithFade(TAB_PAGE_IDS[t], dir);
+      else document.getElementById(TAB_PAGE_IDS[t]).classList.add("hidden");
     });
-    if (target === "timeline") { try { tlRender(); } catch (e) { console.error("時間軸の表示に失敗", e); } }
+    if (target === "ledger" && state.ledgerMode === "timeline") { try { tlRender(); } catch (e) { console.error("時間軸の表示に失敗", e); } }
   }
+
+  // 分析タブ内の切替（グラフ／財務三表）
+  function activateAnalysisMode(mode) {
+    state.analysisMode = mode;
+    document.querySelectorAll("#analysisSeg .substab-btn").forEach((b) => b.classList.toggle("active", b.dataset.amode === mode));
+    syncTabAria();
+    if (mode === "statements") { showPageWithFade("tabStatements"); document.getElementById("tabCharts").classList.add("hidden"); }
+    else { showPageWithFade("tabCharts"); document.getElementById("tabStatements").classList.add("hidden"); }
+  }
+
+  // 台帳タブ内の切替（取引明細／時間軸）。時間軸は非表示中は幅0で描かれるため、開くたびに描き直す
+  function activateLedgerMode(mode) {
+    state.ledgerMode = mode;
+    document.querySelectorAll("#ledgerSeg .substab-btn").forEach((b) => b.classList.toggle("active", b.dataset.lmode === mode));
+    syncTabAria();
+    if (mode === "timeline") { showPageWithFade("tabTimeline"); document.getElementById("tabTx").classList.add("hidden"); try { tlRender(); } catch (e) { console.error("時間軸の表示に失敗", e); } }
+    else { showPageWithFade("tabTx"); document.getElementById("tabTimeline").classList.add("hidden"); }
+  }
+
+  // 財務諸表などから取引明細へドリルダウンするときの共通遷移（台帳タブを開き、明細モードにする）
+  function goToTxTab(dir) { activateLedgerMode("tx"); activateTab("ledger", dir); }
 
   // 概要カードがポインタに追従して傾く（マウス操作時のみ）
   (function initTilt() {
@@ -9052,7 +9126,7 @@ function svgEl(tag, attrs) {
     else state.txFilter = null;
     state.page = 0;
     drilledIn = true;
-    activateTab("tx", "in");
+    goToTxTab("in");
     render();
   }
 
@@ -9077,7 +9151,7 @@ function svgEl(tag, attrs) {
     state.txFilter = { mode: "rows", rows: (rows || []).slice(), label };
     state.page = 0;
     drilledIn = true;
-    activateTab("tx", "in");
+    goToTxTab("in");
     render();
   }
 
@@ -9104,18 +9178,18 @@ function svgEl(tag, attrs) {
     if (searchEl) searchEl.value = state.search;
     state.page = 0;
     drilledIn = true;
-    activateTab("tx", "in");
+    goToTxTab("in");
     render();
   }
 
   let pendingTabDir = null;   // スワイプ由来の遷移方向（"next" | "prev"）
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
-      if (btn.dataset.tab !== "tx") { // 明細タブ以外への遷移で絞り込みを解除
+      if (btn.dataset.tab !== "ledger") { // 台帳タブ以外への遷移で絞り込みを解除
         state.txFilter = null; state.txPeriod = null;
         if (state.periodBeforeForecast) { state.periodMode = state.periodBeforeForecast; state.periodBeforeForecast = null; }
       }
-      const back = drilledIn && btn.dataset.tab !== "tx";
+      const back = drilledIn && btn.dataset.tab !== "ledger";
       drilledIn = false;
       activateTab(btn.dataset.tab, pendingTabDir || (back ? "out" : null));
       pendingTabDir = null;
@@ -9188,6 +9262,20 @@ function svgEl(tag, attrs) {
     const btn = e.target.closest("button[data-substab]");
     if (!btn) return;
     activateStatementsSubTab(btn.dataset.substab);
+  });
+
+  document.getElementById("analysisSeg").addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-amode]");
+    if (!btn) return;
+    activateAnalysisMode(btn.dataset.amode);
+    render();
+  });
+
+  document.getElementById("ledgerSeg").addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-lmode]");
+    if (!btn) return;
+    activateLedgerMode(btn.dataset.lmode);
+    render();
   });
 
   document.getElementById("periodModeToggle").addEventListener("click", (e) => {
@@ -9814,17 +9902,21 @@ function svgEl(tag, attrs) {
   let cmdItemsShown = [], cmdSel = 0;
   const clickEl = (sel) => { const b = document.querySelector(sel); if (b) b.click(); };
   function cmdBuildItems(q) {
-    const tabs = [["概要", "overview"], ["時間軸", "timeline"], ["グラフ", "charts"], ["財務三表", "statements"], ["取引明細", "tx"]];
+    const tabs = [["ホーム", "home"], ["決算", "closing"], ["分析", "analysis"], ["台帳", "ledger"]];
     const subs = [["貸借対照表（B/S）", "bs"], ["損益計算書（P/L）", "pl"], ["キャッシュフロー計算書（C/F）", "cf"], ["財務指標", "ratios"], ["資金繰り予測", "forecast"], ["仕訳・試算表", "journal"]];
     const modes = [["日次", "day"], ["週次", "week"], ["月次", "month"], ["年次", "year"], ["全期間", "all"]];
     const items = [];
     tabs.forEach(([n, t]) => items.push({ label: n + "タブを開く", hint: "移動", run: () => clickEl('.tab-btn[data-tab="' + t + '"]') }));
-    subs.forEach(([n, t]) => items.push({ label: "財務三表：" + n, hint: "移動", run: () => { clickEl('.tab-btn[data-tab="statements"]'); activateStatementsSubTab(t); } }));
+    items.push({ label: "グラフを開く", hint: "分析", run: () => { clickEl('.tab-btn[data-tab="analysis"]'); activateAnalysisMode("charts"); } });
+    items.push({ label: "取引明細を開く", hint: "台帳", run: () => { clickEl('.tab-btn[data-tab="ledger"]'); activateLedgerMode("tx"); } });
+    items.push({ label: "時間軸を開く", hint: "台帳", run: () => { clickEl('.tab-btn[data-tab="ledger"]'); activateLedgerMode("timeline"); } });
+    subs.forEach(([n, t]) => items.push({ label: "財務三表：" + n, hint: "分析", run: () => { clickEl('.tab-btn[data-tab="analysis"]'); activateAnalysisMode("statements"); activateStatementsSubTab(t); } }));
     modes.forEach(([n, m]) => items.push({ label: "期間を" + n + "にする", hint: "期間", run: () => clickEl('#periodModeToggle button[data-mode="' + m + '"]') }));
     items.push({ label: "前の期間へ", hint: "期間", run: () => clickEl("#periodPrev") });
     items.push({ label: "次の期間へ", hint: "期間", run: () => clickEl("#periodNext") });
     items.push({ label: "今日を含む期間に戻る", hint: "期間", run: () => { state.periodAnchor = startOfDay(new Date()); state.page = 0; render(); } });
-    items.push({ label: "月次チェックを見る", hint: "概要", run: () => { clickEl('.tab-btn[data-tab="overview"]'); const p = document.getElementById("insightFeedPanel"); if (p) p.scrollIntoView({ behavior: "smooth", block: "start" }); } });
+    items.push({ label: "月次チェックを見る", hint: "決算", run: () => { clickEl('.tab-btn[data-tab="closing"]'); const p = document.getElementById("monthCheckPanel"); if (p) p.scrollIntoView({ behavior: "smooth", block: "start" }); } });
+    items.push({ label: "税務集計を見る", hint: "決算", run: () => { clickEl('.tab-btn[data-tab="closing"]'); const p = document.getElementById("taxSummaryPanel"); if (p) p.scrollIntoView({ behavior: "smooth", block: "start" }); } });
     items.push({ label: "ダークモード／ライトモードを切り替える", hint: "表示", run: () => clickEl("#themeToggleBtn") });
     items.push({ label: "設定を開く", hint: "設定", run: () => openSettingsModal() });
     items.push({ label: "印刷／PDF出力", hint: "出力", run: () => clickEl("#printPdfBtn") });
@@ -9838,7 +9930,7 @@ function svgEl(tag, attrs) {
     if (q.trim()) out.push({ label: "取引を検索：「" + q.trim() + "」", hint: "検索", run: () => {
       state.txFilter = null; state.txPeriod = null; state.categoryFilter = null; state.search = q.trim(); state.page = 0;
       const s = document.getElementById("searchInput"); if (s) s.value = state.search;
-      drilledIn = true; activateTab("tx", "in"); render();
+      drilledIn = true; goToTxTab("in"); render();
     } });
     return out;
   }
@@ -9973,19 +10065,29 @@ function svgEl(tag, attrs) {
 <script>
 (function () {   // 公開版（HTTPS・PWA）向けの機能：永続ストレージ／画面指定リンク／オフライン表示／追加案内／トークン貼り付け
   const $ = (id) => document.getElementById(id);
-  const TABS = ["overview", "timeline", "charts", "statements", "tx"];
+  const TABS = ["home", "closing", "analysis", "ledger"];
+  // 再編前のタブ名（#tx など）で開かれたときの読み替え：[新しいタブ, サブ切替の値]
+  const LEGACY_TABS = { overview: ["home", null], timeline: ["ledger", "timeline"], charts: ["analysis", "charts"], statements: ["analysis", "statements"], tx: ["ledger", "tx"] };
 
   // 1. 永続ストレージ：端末の容量が逼迫しても、キャッシュを勝手に消されにくくする
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) { /* 未対応でも影響なし */ }
 
   // 2. 画面指定リンク：…/#tx のように開くと、そのタブが開く。タブを切り替えるとURLも追従する
-  const openTab = (name) => { const b = document.querySelector('.tab-btn[data-tab="' + name + '"]'); if (b) b.click(); };
-  const wanted = () => { const h = location.hash.replace(/^#\/?/, ""); return TABS.indexOf(h) >= 0 ? h : null; };
+  const openTab = (name) => {
+    const leg = LEGACY_TABS[name];
+    const tab = leg ? leg[0] : name;
+    const b = document.querySelector('.tab-btn[data-tab="' + tab + '"]'); if (b) b.click();
+    if (leg && leg[1]) {
+      const seg = document.querySelector(tab === "analysis" ? '#analysisSeg button[data-amode="' + leg[1] + '"]' : '#ledgerSeg button[data-lmode="' + leg[1] + '"]');
+      if (seg) seg.click();
+    }
+  };
+  const wanted = () => { const h = location.hash.replace(/^#\/?/, ""); return (TABS.indexOf(h) >= 0 || LEGACY_TABS[h]) ? h : null; };
   (function waitAndOpen(n) {
     const t = wanted();
     if (!t) return;
     const dash = $("dashboardView");
-    if (dash && dash.offsetParent !== null && document.querySelector('.tab-btn[data-tab="' + t + '"]')) { openTab(t); return; }
+    if (dash && dash.offsetParent !== null) { openTab(t); return; }
     if (n < 40) setTimeout(() => waitAndOpen(n + 1), 250);   // データ読み込みが終わるまで最大10秒待つ
   })(0);
   window.addEventListener("hashchange", () => { const t = wanted(); if (t) openTab(t); });
