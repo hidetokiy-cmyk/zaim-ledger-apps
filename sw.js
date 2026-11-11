@@ -1,6 +1,6 @@
 // 家計元帳 Service Worker
 // 更新するときは VERSION を変える（古いキャッシュは自動で消える）
-const VERSION = "457f577d";
+const VERSION = "93947de5";
 const APP = "ledger-app-" + VERSION;
 const FONTS = "ledger-fonts";
 // REQUIRED が1つでも取れなければインストールを失敗させる（画面が出ない版を有効にしないため）。
