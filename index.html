@@ -789,6 +789,34 @@
   .x-check .x-body { flex: 1 1 auto; min-width: 0; }
   .x-check .x-title { font-size: 16px; }
   .x-check .x-detail { font-size: 13px; color: var(--ink-faint); margin-top: 2px; }
+  /* ===== ホーム：月ドキュメント表紙まわり（Stage B） ===== */
+  .cover-card { cursor: pointer; }
+  .cover-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .cover-life { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 13.5px; color: var(--ink-faint); flex-wrap: wrap; }
+  .cover-life .cover-step.on { color: var(--ink); font-weight: 700; }
+  .cover-life .cover-remain { margin-left: auto; font-size: 14.5px; color: var(--ink-soft); }
+  .cover-life .cover-remain.warn { color: var(--red); font-weight: 700; }
+  .phase-track { height: 8px; border-radius: 999px; background: rgba(var(--ink-rgb), .1); overflow: hidden; margin: 2px 0 8px; }
+  .phase-fill { height: 100%; border-radius: 999px; background: var(--gold); transition: width .4s ease; }
+  @media (prefers-reduced-motion: reduce) { .phase-fill { transition: none; } }
+  .autocheck-card { cursor: pointer; }
+  .autocheck-main { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  .autocheck-count { font-size: 21px; font-weight: 700; }
+  .autocheck-count.warn { color: var(--red); }
+  .autocheck-count.ok { color: var(--green); }
+  .outlook-card { cursor: pointer; }
+  .outlook-nums { display: flex; gap: 22px; flex-wrap: wrap; margin-top: 8px; }
+  .outlook-num .k { font-size: 12.5px; color: var(--ink-faint); }
+  .outlook-num .v { font-size: 18px; font-weight: 700; }
+  .outlook-events { margin-top: 6px; }
+  .outlook-ev { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; padding: 5px 2px; border-bottom: 1px solid var(--rule); }
+  .outlook-ev:last-child { border-bottom: none; }
+  .outlook-ev .d { color: var(--ink-faint); white-space: nowrap; }
+  .outlook-ev .a { white-space: nowrap; }
+  .outlook-ev .a.plus { color: var(--green); }
+  .outlook-ev .a.minus { color: var(--red); }
+  .fresh-strip { font-size: 13px; color: var(--ink-faint); padding: 0 4px 12px; line-height: 1.7; }
+  .fresh-strip .warn { color: var(--red); }
   #cmdList .x-cmd { display: flex; justify-content: space-between; gap: 10px; padding: 9px 12px; cursor: pointer; border-radius: 4px; }
   #cmdList .x-cmd.sel { background: rgba(var(--ink-rgb), 0.09); }
   #cmdList .x-cmd small { color: var(--ink-faint); white-space: nowrap; }
@@ -1219,6 +1247,24 @@
 
       <div class="tab-page" id="tabOverview">
 
+      <div class="card panel cover-card" id="docCoverCard" role="button" tabindex="0" aria-label="今月のドキュメント：決算タブを開く">
+        <div class="cover-top">
+          <div class="section-title serif">今月のドキュメント</div>
+          <div class="sub-meta" id="docCoverMeta"></div>
+        </div>
+        <div class="cover-life" id="docCoverLife"></div>
+        <div class="cash-note" id="docCoverNote" style="margin-top:6px;"></div>
+      </div>
+
+      <div class="card panel" id="phaseBandCard">
+        <div class="panel-head">
+          <div class="section-title serif">今日の確認</div>
+          <div class="sub-meta" id="phaseMeta"></div>
+        </div>
+        <div class="phase-track"><div class="phase-fill" id="phaseFill" style="width:0%"></div></div>
+        <div id="phaseChecks"></div>
+      </div>
+
       <div class="card panel hero-card" id="assetsHeroCard" role="group" aria-label="総資産">
         <div class="hero-label">総資産</div>
         <div class="hero-value serif num" id="assetsHeroValue">—</div>
@@ -1235,6 +1281,17 @@
           <div class="sub-meta" id="insightFeedMeta"></div>
         </div>
         <div id="insightFeedList"></div>
+      </div>
+
+      <div class="card panel autocheck-card" id="autoCheckCard" role="button" tabindex="0" aria-label="自動点検：気づきフィードへ移動">
+        <div class="panel-head">
+          <div class="section-title serif">自動点検</div>
+          <div class="sub-meta" id="autoCheckMeta"></div>
+        </div>
+        <div class="autocheck-main">
+          <div class="autocheck-count num" id="autoCheckCount">—</div>
+          <div id="autoCheckTop" style="font-size:14px;color:var(--ink-soft);"></div>
+        </div>
       </div>
 
       <div class="ask-wrap no-print" id="askWrap">
@@ -1271,6 +1328,17 @@
           <div class="hero-mini-sub num" id="heroFcSub"></div>
           <div class="hero-spark" id="heroFcSpark"></div>
         </div>
+      </div>
+
+      <div class="card panel outlook-card" id="outlookCard" role="button" tabindex="0" aria-label="90日の見通し：資金繰り予測を開く">
+        <div class="panel-head">
+          <div class="section-title serif">90日の見通し</div>
+          <div class="sub-meta" id="outlookMeta"></div>
+        </div>
+        <div id="outlookSpark"></div>
+        <div class="outlook-nums" id="outlookNums"></div>
+        <div class="outlook-events" id="outlookEvents"></div>
+        <div class="cash-note" id="outlookNote"></div>
       </div>
 
       <div class="card panel qgroup" id="overviewGroupFlow">
@@ -1358,6 +1426,7 @@
       </div>
         </div>
       </div>
+      <div class="fresh-strip" id="freshStrip"></div>
       </div>
 
       <div class="tab-page hidden" id="tabClosing">
@@ -6771,6 +6840,291 @@ function svgEl(tag, attrs) {
     }
   }
 
+  // ===== ホーム：月ドキュメント表紙まわり（Stage B） =====
+  // 会計月（25日始まり・営業日調整込み）の中での今日の位置とフェーズ。
+  // フェーズ区分はモック v7 の仕様どおり日数ベース：月初 1〜12日目＝積立・入金確認、
+  // 中旬 13〜21日目＝支出ペース確認、月末 22日目〜＝締め準備。
+  function homeCyclePhase() {
+    const today = startOfDay(new Date());
+    const b = getCycleBounds(today);
+    const dayN = Math.round((today - b.start) / 86400000) + 1;
+    const len = Math.round((b.end - b.start) / 86400000);
+    const daysToPayday = Math.round((b.end - today) / 86400000);
+    const phase = dayN <= 12 ? { key: "early", label: "月初：積立・入金確認" } : dayN <= 21 ? { key: "mid", label: "中旬：支出ペース確認" } : { key: "late", label: "月末：締め準備" };
+    return { today, bounds: b, dayN, len, daysToPayday, phase, ratio: len ? dayN / len : 0 };
+  }
+
+  function goClosingChecks() {
+    clickEl('.tab-btn[data-tab="closing"]');
+    const p = document.getElementById("monthCheckPanel");
+    if (p) p.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  // 表紙カード：対象の会計月・ライフサイクル（進行中→決算中→確定）・決算までの残り作業数。
+  // 残り作業数は新しい判定を作らず、月次チェック（xMonthChecks）の要確認（warn）件数をそのまま使う。
+  function renderDocCover() {
+    const card = document.getElementById("docCoverCard");
+    if (!card) return;
+    if (!card.dataset.bound) {
+      card.dataset.bound = "1";
+      card.addEventListener("click", goClosingChecks);
+      card.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); goClosingChecks(); } });
+    }
+    const meta = document.getElementById("docCoverMeta");
+    const life = document.getElementById("docCoverLife");
+    const note = document.getElementById("docCoverNote");
+    let mc = null;
+    try { mc = xMonthChecks(); } catch (e) { console.error("月次チェックの計算に失敗", e); }
+    if (!mc) { if (meta) meta.textContent = ""; if (life) life.textContent = ""; if (note) note.textContent = ""; return; }
+    const today = startOfDay(new Date());
+    const idx = today < mc.range.start ? 0 : today < mc.range.end ? 0 : 1;   // 進行中は対象月の期間内だけ。過ぎた月は決算中として示す
+    const steps = ["進行中", "決算中", "確定"];
+    if (meta) meta.textContent = cycleFullLabel(mc.range.key);
+    if (life) {
+      life.textContent = "";
+      steps.forEach((s, i) => {
+        if (i) life.appendChild(el("span", { class: "cover-arrow" }, ["→"]));
+        life.appendChild(el("span", { class: "cover-step" + (i === idx ? " on" : "") }, [s]));
+      });
+      const remain = el("span", { class: "cover-remain num" + (mc.warnN ? " warn" : "") }, [
+        mc.warnN ? `決算までの残り作業：要確認 ${mc.warnN}件` : "決算までの残り作業：なし",
+      ]);
+      life.appendChild(remain);
+    }
+    if (note) note.textContent = "状態と残り作業は月次チェック（決算タブ）の集計です。タップすると決算タブへ移動します。";
+  }
+
+  // フェーズ帯：会計月の進捗と、その月の未完了チェック（未分類などの要対応項目）を最大3件。
+  // 項目の並びとアクションは月次チェックのものをそのまま使う（warn→info の順）。
+  function renderPhaseBand() {
+    const meta = document.getElementById("phaseMeta");
+    const fill = document.getElementById("phaseFill");
+    const host = document.getElementById("phaseChecks");
+    if (!host) return;
+    const info = homeCyclePhase();
+    if (meta) meta.textContent = `${cycleLabel(info.bounds.key)} ${info.dayN}日目／給与日まであと${info.daysToPayday}日`;
+    if (fill) fill.style.width = Math.round(info.ratio * 100) + "%";
+    host.textContent = "";
+    host.appendChild(el("div", { class: "cash-note", style: "margin:0 0 4px;" }, [`フェーズ：${info.phase.label}`]));
+    let mc = null;
+    try { mc = xMonthChecks(); } catch (e) { mc = null; }
+    const marks = { ok: "✓", warn: "!", info: "i" };
+    const pend = mc ? mc.checks.filter((c) => c.status !== "ok")
+      .sort((a, b) => (a.status === "warn" ? 0 : 1) - (b.status === "warn" ? 0 : 1)).slice(0, 3) : [];
+    if (!pend.length) {
+      host.appendChild(el("div", { class: "x-check" }, [
+        el("div", { class: "x-mark ok" }, ["✓"]),
+        el("div", { class: "x-body" }, [el("div", { class: "x-title" }, ["いま確認が必要な項目はありません"])]),
+      ]));
+      return;
+    }
+    pend.forEach((c) => {
+      const row = el("div", { class: "x-check" }, [
+        el("div", { class: "x-mark " + c.status }, [marks[c.status] || "i"]),
+        el("div", { class: "x-body" }, [
+          el("div", { class: "x-title" }, [c.title]),
+          c.detail ? el("div", { class: "x-detail" }, [c.detail]) : null,
+        ]),
+      ]);
+      if (c.act) {
+        row.appendChild(el("button", { class: "btn", type: "button", style: "cursor:pointer;flex-shrink:0;", onclick: c.act[1] }, [c.act[0]]));
+      } else {
+        row.style.cursor = "pointer";
+        row.addEventListener("click", goClosingChecks);
+      }
+      host.appendChild(row);
+    });
+  }
+
+  // 自動点検カード：気づきフィードと同じ集約（buildInsightFeedItems）から、点検の状態だけを要約する。
+  // 例外＝要注意（warn）の件数。最重要の1件は並び順（warn が先頭）の先頭の warn をそのまま出す。
+  function feedItemTitle(x) {
+    if (x.title) return x.title;
+    if (x.titleHtml) { const d = document.createElement("div"); d.innerHTML = x.titleHtml; return d.textContent || x.source; }
+    return x.source || "";
+  }
+  function renderAutoCheckCard() {
+    const card = document.getElementById("autoCheckCard");
+    if (!card) return;
+    if (!card.dataset.bound) {
+      card.dataset.bound = "1";
+      const go = () => { const p = document.getElementById("insightFeedPanel"); if (p) p.scrollIntoView({ behavior: "smooth", block: "start" }); };
+      card.addEventListener("click", go);
+      card.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+    }
+    const countEl = document.getElementById("autoCheckCount");
+    const topEl = document.getElementById("autoCheckTop");
+    const metaEl = document.getElementById("autoCheckMeta");
+    let items = [];
+    try { items = buildInsightFeedItems().items.filter((x) => !x.summary); } catch (e) { console.error("自動点検の集約に失敗", e); }
+    const warns = items.filter((x) => x.level === "warn");
+    if (metaEl) metaEl.textContent = items.length ? `全${items.length}項目を点検` + (lastSyncAt ? `（最終同期 ${relTime(lastSyncAt)}）` : "") : "";
+    if (!items.length) {
+      if (countEl) { countEl.textContent = "—"; countEl.className = "autocheck-count num"; }
+      if (topEl) topEl.textContent = "点検できるデータがありません";
+      return;
+    }
+    if (countEl) {
+      countEl.textContent = warns.length ? `例外 ${warns.length} 件` : "すべて良好";
+      countEl.className = "autocheck-count num " + (warns.length ? "warn" : "ok");
+    }
+    if (topEl) {
+      if (warns.length) {
+        const w = warns[0];
+        topEl.textContent = `最重要：${w.source}「${feedItemTitle(w)}」` + (w.detail ? ` — ${w.detail}` : "");
+      } else {
+        topEl.textContent = "要注意の項目はありません。詳細は気づきフィードへ。";
+      }
+    }
+  }
+
+  // 90日見通しの簡易推計：現在の現金・預金残高から日次でシミュレーションする。
+  // 入金＝給与（直近の手取り月額を会計月の開始日＝給与日に計上）、出金＝カード引落予定
+  // （computeCardSchedule）・定期投資（毎月の自動検出分）・日々の支出の平均（直近3会計月の
+  // 実績のうち、カード払いを除いた支出を日割り）。詳細な予測は資金繰り予測（分析タブ）が担う。
+  function outlookMonthlySalary() {
+    const net = (state.transactions || []).filter((r) => {
+      if (r.type !== "income" || r.category !== "給与") return false;
+      const txt = [r.store, r.item, r.memo].filter(Boolean).join(" ");
+      return !PAYROLL_SHAKAI_RE.test(txt) && !/所得税/.test(txt) && !/住民税/.test(txt);
+    });
+    if (!net.length) return 0;
+    const latest = net.reduce((a, b) => (a.date > b.date ? a : b));
+    const b = getCycleBounds(latest.date);
+    return net.filter((r) => r.date >= b.start && r.date < b.end).reduce((s, r) => s + r.amount, 0);
+  }
+  function computeOutlook90() {
+    if (!state.transactions || !state.transactions.length) return null;
+    const today = startOfDay(new Date());
+    const end = addDays(today, 90);
+    let startBal = null;
+    try { startBal = sumCashFromMap(getAccountBalancesAsOf(parseAsofDate())); } catch (e) { startBal = null; }
+    if (startBal == null || !isFinite(startBal)) return null;
+    const evMap = new Map();
+    const events = [];
+    const addEv = (date, amount, label) => {
+      const d = startOfDay(date);
+      if (d <= today || d > end) return;
+      const k = dkey(d);
+      evMap.set(k, (evMap.get(k) || 0) + amount);
+      events.push({ date: d, amount, label });
+    };
+    try {
+      const sal = outlookMonthlySalary();
+      if (sal > 0) { let b = getCycleBounds(today); for (let i = 0; i < 4; i++) { addEv(b.end, sal, "給与"); b = getCycleBounds(addDays(b.end, 15)); } }
+    } catch (e) { console.error("見通し：給与の推計に失敗", e); }
+    try {
+      computeCardSchedule().cards.forEach((c) => c.items.forEach((it) => { if (it.amount > 0) addEv(it.settle, -it.amount, `${c.account}の引落`); }));
+    } catch (e) { console.error("見通し：引落予定の取得に失敗", e); }
+    try {
+      detectInvestmentSubscriptions().filter((s) => !s.likelyCancelled && s.freq === "month").forEach((s) => {
+        let d = startOfDay(s.nextExpected);
+        while (d <= end) { addEv(d, -s.amount, s.label); d = new Date(d.getFullYear(), d.getMonth() + 1, d.getDate()); }
+      });
+    } catch (e) { console.error("見通し：定期投資の取得に失敗", e); }
+    let drip = 0;
+    try {
+      const cardSet = accountFlagSet("card");
+      let sum = 0, days = 0;
+      for (let k = 1; k <= 3; k++) {
+        const b = askCycleAt(-k);
+        days += Math.round((b.end - b.start) / 86400000);
+        rowsInRange(b).forEach((r) => { if (r.type === "expense" && !isExcludedRow(r, false) && !cardSet.has(r.fromAccount)) sum += r.amount; });
+      }
+      if (days > 0) drip = sum / days;
+    } catch (e) { drip = 0; }
+    let bal = startBal;
+    const pts = [bal];
+    let valley = { date: today, bal };
+    for (let d = 1; d <= 90; d++) {
+      const date = addDays(today, d);
+      bal += (evMap.get(dkey(date)) || 0) - drip;
+      pts.push(bal);
+      if (bal < valley.bal) valley = { date, bal };
+    }
+    events.sort((a, b) => a.date - b.date);
+    return { startBal, endBal: bal, valley, pts, events, today, end };
+  }
+  function renderOutlookBand() {
+    const card = document.getElementById("outlookCard");
+    if (!card) return;
+    if (!card.dataset.bound) {
+      card.dataset.bound = "1";
+      const go = () => { clickEl('.tab-btn[data-tab="analysis"]'); activateAnalysisMode("statements"); activateStatementsSubTab("forecast"); };
+      card.addEventListener("click", go);
+      card.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+    }
+    const meta = document.getElementById("outlookMeta");
+    const spark = document.getElementById("outlookSpark");
+    const nums = document.getElementById("outlookNums");
+    const evHost = document.getElementById("outlookEvents");
+    const note = document.getElementById("outlookNote");
+    let o = null;
+    try { o = computeOutlook90(); } catch (e) { console.error("90日見通しの計算に失敗", e); }
+    if (!o) {
+      if (meta) meta.textContent = "";
+      if (spark) spark.textContent = "";
+      if (nums) nums.textContent = "";
+      if (evHost) evHost.textContent = "";
+      if (note) note.textContent = "見通しを計算できるデータがありません";
+      return;
+    }
+    if (meta) meta.textContent = `${xFmtDate(o.today)}〜${xFmtDate(o.end)}の簡易推計`;
+    if (spark) {
+      spark.textContent = "";
+      const mx = Math.max(...o.pts), mn = Math.min(...o.pts), rg = (mx - mn) || 1;
+      const X = (i) => 2 + (i / (o.pts.length - 1)) * 116, Y = (v) => 34 - ((v - mn) / rg) * 30;
+      const svg = svgEl("svg", { viewBox: "0 0 120 36", width: "100%", height: 44, preserveAspectRatio: "none", "aria-hidden": "true", style: "display:block;overflow:visible;" });
+      svg.appendChild(svgEl("polyline", { points: o.pts.map((v, i) => `${X(i)},${Y(v)}`).join(" "), fill: "none", stroke: "var(--gold)", "stroke-width": 2, "stroke-linecap": "round", "stroke-linejoin": "round", "vector-effect": "non-scaling-stroke" }));
+      spark.appendChild(svg);
+    }
+    if (nums) {
+      nums.textContent = "";
+      const mk = (k, v) => el("div", { class: "outlook-num" }, [el("div", { class: "k" }, [k]), el("div", { class: "v num" }, [v])]);
+      nums.appendChild(mk("いちばん低くなる日（谷）", `${o.valley.date.getMonth() + 1}/${o.valley.date.getDate()} ${YEN(Math.round(o.valley.bal))}`));
+      nums.appendChild(mk("90日後の残高", YEN(Math.round(o.endBal))));
+      nums.appendChild(mk("現在の現金・預金", YEN(Math.round(o.startBal))));
+    }
+    if (evHost) {
+      evHost.textContent = "";
+      o.events.slice(0, 6).forEach((ev) => {
+        evHost.appendChild(el("div", { class: "outlook-ev" }, [
+          el("span", { class: "d num" }, [`${ev.date.getMonth() + 1}/${ev.date.getDate()}`]),
+          el("span", null, [ev.label]),
+          el("span", { class: "a num " + (ev.amount >= 0 ? "plus" : "minus") }, [(ev.amount >= 0 ? "+" : "−") + YEN(Math.abs(Math.round(ev.amount)))]),
+        ]));
+      });
+    }
+    if (note) note.textContent = "簡易推計です：給与は直近の手取り月額、引落はカード引落予定と定期投資、日々の支出はカード払いを除く直近3会計月の平均から計算しています。詳しくは資金繰り予測（分析タブ）へ。";
+  }
+
+  // データ鮮度ストリップ：最終同期・同期失敗・データの最終日・連携で一致しない口座を、既存の仕組みから拾える範囲で出す。
+  function renderFreshnessStrip() {
+    const s = document.getElementById("freshStrip");
+    if (!s) return;
+    s.textContent = "";
+    const parts = [];
+    if (lastSyncErr) parts.push([`同期失敗：${lastSyncErr}`, true]);
+    parts.push([lastSyncAt ? `最終同期：${relTime(lastSyncAt)}（${new Date(lastSyncAt).toLocaleString("ja-JP")}）` : "未同期", false]);
+    try { const latest = latestActualDate(); if (latest) parts.push([`データの最終日：${xFmtDate(latest)}`, false]); } catch (e) { /* 拾えなければ出さない */ }
+    try {
+      const un = settings.zaimScrapeInfo && settings.zaimScrapeInfo.unmatched;
+      if (un && un.length) parts.push([`連携で一致しない口座：${un.length}件`, true]);
+    } catch (e) { /* 拾えなければ出さない */ }
+    parts.forEach(([t, warn], i) => {
+      if (i) s.appendChild(document.createTextNode("　・　"));
+      s.appendChild(el("span", warn ? { class: "warn" } : null, [t]));
+    });
+  }
+
+  function renderHomeStageB() {
+    try { renderDocCover(); } catch (e) { console.error("表紙カードの表示に失敗", e); }
+    try { renderPhaseBand(); } catch (e) { console.error("フェーズ帯の表示に失敗", e); }
+    try { renderAutoCheckCard(); } catch (e) { console.error("自動点検カードの表示に失敗", e); }
+    try { renderOutlookBand(); } catch (e) { console.error("90日見通しの表示に失敗", e); }
+    try { renderFreshnessStrip(); } catch (e) { console.error("データ鮮度ストリップの表示に失敗", e); }
+  }
+
   function renderHeroMini() {
     const balVal = document.getElementById("heroBalVal");
     if (!balVal) return;
@@ -7700,6 +8054,7 @@ function svgEl(tag, attrs) {
     try { renderHeroMini(); } catch (e) { console.error("残高・予測カードの表示に失敗", e); }
     try { renderAssetsHero(); } catch (e) { console.error("総資産の表示に失敗", e); }
     try { renderInsightFeed(); } catch (e) { console.error("気づきフィードの表示に失敗", e); }
+    try { renderHomeStageB(); } catch (e) { console.error("ホーム表紙（Stage B）の表示に失敗", e); }
     try { tlInvalidate(); } catch (e) { console.error("時間軸の更新に失敗", e); }
     try { renderSpendCalendar(); } catch (e) { console.error("日別の支出カレンダーの表示に失敗", e); }
     renderPeriodCompareTable();
