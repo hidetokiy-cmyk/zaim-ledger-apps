@@ -817,6 +817,24 @@
   .outlook-ev .a.minus { color: var(--red); }
   .fresh-strip { font-size: 13px; color: var(--ink-faint); padding: 0 4px 12px; line-height: 1.7; }
   .fresh-strip .warn { color: var(--red); }
+  /* ---- 決算フロー・確定ドキュメント（Stage C） ---- */
+  .close-step { display: flex; gap: 12px; padding: 12px 2px; border-bottom: 1px solid var(--rule); }
+  .close-step:last-of-type { border-bottom: none; }
+  .close-step .cs-num { width: 24px; height: 24px; flex-shrink: 0; border-radius: 50%; border: 1px solid var(--rule-strong); text-align: center; line-height: 23px; font-size: 13px; color: var(--ink-soft); margin-top: 1px; }
+  .close-step.done .cs-num { background: var(--green); border-color: var(--green); color: #fff; }
+  .close-step .cs-body { flex: 1 1 auto; min-width: 0; }
+  .close-step .cs-title { font-size: 16px; }
+  .cs-state { font-size: 12.5px; color: var(--ink-faint); margin-left: 8px; white-space: nowrap; }
+  .cs-detail { font-size: 13.5px; color: var(--ink-soft); margin-top: 3px; line-height: 1.65; }
+  .cs-detail.warn { color: var(--red); }
+  .cs-actions { margin-top: 9px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .cs-acked { font-size: 12.5px; color: var(--green); border: 1px solid var(--green); border-radius: 999px; padding: 2px 9px; flex-shrink: 0; align-self: center; }
+  .cs-sect { font-size: 14px; font-weight: 700; letter-spacing: .06em; margin: 16px 0 4px; }
+  .cs-docrow { cursor: pointer; }
+  .stamp-box { display: inline-block; border: 2px solid var(--red); color: var(--red); border-radius: 6px; padding: 5px 16px; font-size: 17px; font-weight: 700; letter-spacing: .18em; transform: rotate(-2deg); }
+  .doc-kv { display: flex; justify-content: space-between; gap: 12px; padding: 7px 2px; border-bottom: 1px solid var(--rule); font-size: 15px; }
+  .doc-kv .k { color: var(--ink-faint); }
+  .doc-kv .v { font-weight: 700; white-space: nowrap; }
   #cmdList .x-cmd { display: flex; justify-content: space-between; gap: 10px; padding: 9px 12px; cursor: pointer; border-radius: 4px; }
   #cmdList .x-cmd.sel { background: rgba(var(--ink-rgb), 0.09); }
   #cmdList .x-cmd small { color: var(--ink-faint); white-space: nowrap; }
@@ -1430,6 +1448,22 @@
       </div>
 
       <div class="tab-page hidden" id="tabClosing">
+
+      <div class="card panel" id="closingFlowPanel">
+        <div class="panel-head">
+          <div class="section-title serif">決算フロー</div>
+          <div class="sub-meta" id="closingFlowMeta"></div>
+        </div>
+        <div id="closingFlowBody"></div>
+      </div>
+
+      <div class="card panel hidden" id="finalDocPanel">
+        <div class="panel-head">
+          <div class="section-title serif">確定ドキュメント</div>
+          <div class="sub-meta" id="finalDocMeta"></div>
+        </div>
+        <div id="finalDocBody"></div>
+      </div>
 
       <div class="card panel" id="monthCheckPanel">
         <div class="panel-head">
@@ -2123,6 +2157,7 @@
     accountGroupList: [],        // ①決済チェーン別グループの管理用リスト（ユーザーが追加・改名・削除できる。固定の「その他」は含まない）
     accountMetaInited: false,    // 初期値（SEED_*）からaccountMetaを作成済みか
     securitiesScrapeInfo: null, // { count, totalCostBasis, totalMarketValue, cash, other, importedAt }
+    monthClose: {}, // 会計月ごとの決算状態 { 'YYYY-MM': { status: 'closing'|'closed', startedAt, closedAt, steps: { fresh, events }, ack: { 項目キー: ISO日時 }, summary: 確定時点のスナップショット } }
     securitiesHistory: [], // 証券の時価推移。取込・バックフィルのたびに1日1件を残す [{ date: 'YYYY-MM-DD'(JST), importedAt, totalMarketValue, totalCostBasis, cash, other, count, items: [{ name, qty, marketValue, costBasis }] }]
     zaimScrapeInfo: null, // { matched, unmatched: [names], importedAt }
     accountBalanceAsOfDate: null, // 口座残高（accountBalanceOverride）の確認日。YYYY-MM-DD文字列。未設定時は初期値にフォールバック
@@ -2339,6 +2374,7 @@
       accountGroupList: settings.accountGroupList,
       accountMetaInited: settings.accountMetaInited,
       securitiesScrapeInfo: settings.securitiesScrapeInfo ? { ...settings.securitiesScrapeInfo, importedAt: settings.securitiesScrapeInfo.importedAt.toISOString() } : null,
+      monthClose: settings.monthClose,
       securitiesHistory: settings.securitiesHistory.map((h) => ({ ...h, importedAt: h.importedAt instanceof Date ? h.importedAt.toISOString() : h.importedAt })),
       zaimScrapeInfo: settings.zaimScrapeInfo ? { ...settings.zaimScrapeInfo, importedAt: settings.zaimScrapeInfo.importedAt.toISOString() } : null,
       accountBalanceAsOfDate: settings.accountBalanceAsOfDate,
@@ -2401,6 +2437,7 @@
     settings.accountMetaInited = !!obj.accountMetaInited;
     settings.securitiesScrapeInfo = obj.securitiesScrapeInfo ? { ...obj.securitiesScrapeInfo, importedAt: new Date(obj.securitiesScrapeInfo.importedAt) } : null;
     settings.securitiesHistory = normalizeSecuritiesHistory(obj.securitiesHistory);
+    settings.monthClose = normalizeMonthClose(obj.monthClose);
     settings.zaimScrapeInfo = obj.zaimScrapeInfo ? { ...obj.zaimScrapeInfo, importedAt: new Date(obj.zaimScrapeInfo.importedAt) } : null;
     settings.accountBalanceAsOfDate = typeof obj.accountBalanceAsOfDate === "string" ? obj.accountBalanceAsOfDate : null;
     settings.pendingZaimImport = obj.pendingZaimImport && Array.isArray(obj.pendingZaimImport.items) ? obj.pendingZaimImport : null;
@@ -2723,6 +2760,7 @@
     merged.accountMeta = mergeMapField(base, local, remote, "accountMeta", conflicts);
     merged.accountRenames = mergeMapField(base, local, remote, "accountRenames", conflicts);
     merged.categoryBudgets = mergeMapField(base, local, remote, "categoryBudgets", conflicts);
+    merged.monthClose = mergeMapField(base, local, remote, "monthClose", conflicts);
     ["accountBalanceInited", "accountBalanceAsOfDate", "balancePattern", "furusatoKeyword", "securitiesScrapeInfo", "zaimScrapeInfo",
       "pendingZaimImport", "pendingZaimCsv", "zaimCsvSyncedAt", "pendingSecuritiesImport", "accountMetaInited", "syncHeartbeat"]
       .forEach((key) => { merged[key] = mergeScalarField(base, local, remote, key, conflicts); });
@@ -6877,7 +6915,11 @@ function svgEl(tag, attrs) {
     try { mc = xMonthChecks(); } catch (e) { console.error("月次チェックの計算に失敗", e); }
     if (!mc) { if (meta) meta.textContent = ""; if (life) life.textContent = ""; if (note) note.textContent = ""; return; }
     const today = startOfDay(new Date());
-    const idx = today < mc.range.start ? 0 : today < mc.range.end ? 0 : 1;   // 進行中は対象月の期間内だけ。過ぎた月は決算中として示す
+    // Stage C：決算状態が保存されていれば実状態を優先する（確定＞決算中）。無ければ従来どおり日付ベース。
+    const closeRec = (settings.monthClose || {})[mc.range.key];
+    const idx = closeRec && closeRec.status === "closed" ? 2
+      : closeRec && closeRec.status === "closing" ? 1
+      : today < mc.range.start ? 0 : today < mc.range.end ? 0 : 1;   // 進行中は対象月の期間内だけ。過ぎた月は決算中として示す
     const steps = ["進行中", "決算中", "確定"];
     if (meta) meta.textContent = cycleFullLabel(mc.range.key);
     if (life) {
@@ -6886,12 +6928,16 @@ function svgEl(tag, attrs) {
         if (i) life.appendChild(el("span", { class: "cover-arrow" }, ["→"]));
         life.appendChild(el("span", { class: "cover-step" + (i === idx ? " on" : "") }, [s]));
       });
-      const remain = el("span", { class: "cover-remain num" + (mc.warnN ? " warn" : "") }, [
-        mc.warnN ? `決算までの残り作業：要確認 ${mc.warnN}件` : "決算までの残り作業：なし",
+      const closedCover = closeRec && closeRec.status === "closed";
+      const remain = el("span", { class: "cover-remain num" + (!closedCover && mc.warnN ? " warn" : "") }, [
+        closedCover ? `確定済み（${closeFmtDate(closeRec.closedAt)}）`
+          : mc.warnN ? `決算までの残り作業：要確認 ${mc.warnN}件` : "決算までの残り作業：なし",
       ]);
       life.appendChild(remain);
     }
-    if (note) note.textContent = "状態と残り作業は月次チェック（決算タブ）の集計です。タップすると決算タブへ移動します。";
+    if (note) note.textContent = closeRec && closeRec.status === "closed"
+      ? "この月は確定済みです。タップすると決算タブで確定ドキュメントが開きます。"
+      : "状態と残り作業は月次チェック（決算タブ）の集計です。タップすると決算タブへ移動します。";
   }
 
   // フェーズ帯：会計月の進捗と、その月の未完了チェック（未分類などの要対応項目）を最大3件。
@@ -7670,6 +7716,391 @@ function svgEl(tag, attrs) {
     });
   }
 
+  // ===== 決算フロー・確定ドキュメント（Stage C） =====
+  // 会計月ごとの決算状態は settings.monthClose に保存する（月キー 'YYYY-MM' 単位）。
+  // { status: 'closing'|'closed', startedAt, closedAt, steps: { fresh, events }, ack: { 項目キー: ISO日時 }, summary }
+  // summary は確定時点のスナップショット（収入・支出・収支・純資産・チェック結果・検出イベント）。
+  // 確定ドキュメントは summary から描くため、後からデータが変わっても再計算されない。
+  // このアプリは明細の入力面を持たない（入力はすべて Zaim）。フローで行うのは
+  // 同期済みデータの確認と、状態の記録だけである。
+  function normalizeMonthClose(obj) {
+    const out = {};
+    if (!obj || typeof obj !== "object") return out;
+    Object.entries(obj).forEach(([key, v]) => {
+      if (!/^\d{4}-\d{2}$/.test(key) || !v || typeof v !== "object") return;
+      if (v.status !== "closing" && v.status !== "closed") return;
+      const num = (x) => (typeof x === "number" && Number.isFinite(x) ? x : 0);
+      const summary = v.summary && typeof v.summary === "object" ? {
+        income: num(v.summary.income), expense: num(v.summary.expense), profit: num(v.summary.profit),
+        netAssets: num(v.summary.netAssets), netAssetsPrev: num(v.summary.netAssetsPrev),
+        checks: Array.isArray(v.summary.checks) ? v.summary.checks.filter((c) => c && typeof c.title === "string").map((c) => ({ status: ["ok", "warn", "info"].includes(c.status) ? c.status : "info", title: c.title, detail: typeof c.detail === "string" ? c.detail : "", acked: !!c.acked })) : [],
+        anomalies: Array.isArray(v.summary.anomalies) ? v.summary.anomalies.filter((a) => a && typeof a.title === "string").map((a) => ({ title: a.title, detail: typeof a.detail === "string" ? a.detail : "", acked: !!a.acked })) : [],
+        events: Array.isArray(v.summary.events) ? v.summary.events.filter((e) => e && typeof e.label === "string").map((e) => ({ label: e.label, detail: typeof e.detail === "string" ? e.detail : "" })) : [],
+      } : null;
+      out[key] = {
+        status: v.status,
+        startedAt: typeof v.startedAt === "string" ? v.startedAt : null,
+        closedAt: v.status === "closed" && typeof v.closedAt === "string" ? v.closedAt : null,
+        steps: { fresh: !!(v.steps && v.steps.fresh), events: !!(v.steps && v.steps.events) },
+        ack: v.ack && typeof v.ack === "object" ? Object.fromEntries(Object.entries(v.ack).filter(([, t]) => typeof t === "string")) : {},
+        summary,
+      };
+    });
+    return out;
+  }
+
+  function monthCloseRecord(key) {
+    return (settings.monthClose && settings.monthClose[key]) || null;
+  }
+  function saveMonthClose(key, rec) {
+    if (!settings.monthClose) settings.monthClose = {};
+    settings.monthClose[key] = rec;
+    scheduleCloudSave();
+    render();
+  }
+  function closeFmtDate(iso) {
+    const d = new Date(iso);
+    return isNaN(d) ? "" : `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+  }
+  function closeFmtDateTime(iso) {
+    const d = new Date(iso);
+    return isNaN(d) ? "" : `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  }
+
+  // 決算フロー step 2 の対象：月次チェックの要確認（warn）と異常検出の項目。
+  // キーは確認済み（ack）の保存に使う安定した識別子。
+  function closingExceptions(mc, anom) {
+    const items = [];
+    if (mc) mc.checks.filter((c) => c.status === "warn").forEach((c) => items.push({ key: "check:" + c.title, title: c.title, detail: c.detail, act: c.act }));
+    if (anom && !anom.insufficient) {
+      anom.cats.forEach((a) => items.push({ key: "anom-cat:" + a.cat, title: `支出の急増：${a.cat}`, detail: `今月 ${YEN(a.cur)}（直近の平均 ${YEN(Math.round(a.mean))} より +${YEN(Math.round(a.diff))}）`, act: null }));
+      anom.stores.forEach((a) => items.push({ key: "anom-store:" + a.store, title: `初めてのお店での大きな支出：${a.store}`, detail: YEN(a.amount), act: null }));
+    }
+    return items;
+  }
+
+  // 決算フロー step 3：同期済みデータから検出できる、その月の重要イベント。
+  // 検出できないものは作らない（あるものだけを返す）。入力ではなく検出と突合だけを行う。
+  function closingDetectEvents(range) {
+    const events = [];
+    const rows = (state.transactions || []).filter((r) => r.date >= range.start && r.date < range.end);
+    // 証券の口数増減（securitiesHistory：月開始前の最新と、月末までの最新を比べる）
+    const hist = settings.securitiesHistory || [];
+    if (hist.length) {
+      const startKey = jstDateKey(range.start), endKey = jstDateKey(addDays(range.end, -1));
+      let before = null, upto = null;
+      hist.forEach((h) => { if (h.date < startKey) before = h; if (h.date <= endKey) upto = h; });
+      if (before && upto && upto.date >= startKey) {
+        const baseQty = new Map((before.items || []).map((i) => [i.name, i.qty]));
+        (upto.items || []).forEach((i) => {
+          const b = baseQty.get(i.name) || 0;
+          if (i.qty !== b) events.push({ label: `${i.name}の口数`, detail: `${b.toLocaleString("ja-JP")}口 → ${i.qty.toLocaleString("ja-JP")}口（${i.qty - b > 0 ? "+" : ""}${(i.qty - b).toLocaleString("ja-JP")}口）を検出` });
+        });
+        if (!events.length && upto.totalMarketValue !== before.totalMarketValue) {
+          events.push({ label: "証券の時価総額", detail: `${YEN(before.totalMarketValue)} → ${YEN(upto.totalMarketValue)}（${upto.date} 時点の履歴から検出）` });
+        }
+      }
+    }
+    // 定期券：購入（振替）と、給与からの相殺（マイナスの収入エントリ）を検出
+    const rowText = (r) => [r.category, r.subCategory, r.store, r.item, r.memo].filter(Boolean).join(" ");
+    rows.forEach((r) => {
+      if (!rowText(r).includes("定期券")) return;
+      if (r.type === "income" && r.amount < 0) events.push({ label: "定期券の相殺", detail: `給与からの相殺エントリ（${YEN(r.amount)}・${r.date.getMonth() + 1}/${r.date.getDate()}）を検出。登録は Zaim で行われたものです` });
+      else if (r.type === "transfer") events.push({ label: "定期券の購入", detail: `振替 ${YEN(r.amount)}（${r.date.getMonth() + 1}/${r.date.getDate()}）を検出` });
+    });
+    // 投資の出金（積立の実行分）
+    rows.filter((r) => r.type === "expense" && (r.category === "投資" || rowText(r).includes("投信積立"))).forEach((r) => {
+      events.push({ label: "投資の出金", detail: `${YEN(r.amount)}（${r.date.getMonth() + 1}/${r.date.getDate()}・${r.fromAccount || r.account || ""}）を検出` });
+    });
+    return events;
+  }
+
+  // フローの現在状態（ステップの完了・例外の残り・確定可否）をまとめて計算する
+  function closingFlowState(key, range) {
+    let mc = null, anom = null;
+    try { mc = xMonthChecks(); } catch (e) { console.error("月次チェックの計算に失敗", e); }
+    try { anom = xAnomalies(); } catch (e) { console.error("異常検出の計算に失敗", e); }
+    const rec = monthCloseRecord(key);
+    const exceptions = closingExceptions(mc, anom);
+    const blocking = exceptions.filter((x) => !(rec && rec.ack && rec.ack[x.key]));
+    const events = closingDetectEvents(range);
+    const step1 = !!(rec && rec.steps && rec.steps.fresh);
+    const step2 = !!mc && blocking.length === 0;
+    const step3 = !!(rec && rec.steps && rec.steps.events);
+    const closed = !!(rec && rec.status === "closed");
+    return { mc, anom, rec, exceptions, blocking, events, step1, step2, step3, closed, canClose: !closed && step1 && step2 && step3 };
+  }
+
+  function closingEnsureRecord(key) {
+    let rec = monthCloseRecord(key);
+    if (!rec) {
+      rec = { status: "closing", startedAt: new Date().toISOString(), closedAt: null, steps: { fresh: false, events: false }, ack: {}, summary: null };
+      if (!settings.monthClose) settings.monthClose = {};
+      settings.monthClose[key] = rec;
+    }
+    return rec;
+  }
+  // step 1：決算をはじめる（進行中→決算中を保存）と同時に、最新データで進める確認を記録する
+  function closingStepFresh(key) {
+    const rec = closingEnsureRecord(key);
+    rec.steps.fresh = true;
+    saveMonthClose(key, rec);
+  }
+  function closingAck(key, itemKey) {
+    const rec = closingEnsureRecord(key);
+    rec.ack[itemKey] = new Date().toISOString();
+    saveMonthClose(key, rec);
+  }
+  function closingStepEvents(key) {
+    const rec = closingEnsureRecord(key);
+    rec.steps.events = true;
+    saveMonthClose(key, rec);
+  }
+  // step 4：確定。確定時点のサマリをスナップショットとして保存する（後から再計算しない）
+  function closingFinalize(key, range) {
+    const st = closingFlowState(key, range);
+    if (!st.canClose || !st.mc) return;
+    const rec = closingEnsureRecord(key);
+    const stats = computeAccrualStats(rowsInRange(range), false);
+    const prevRange = periodRangeForMode("month", range.start, -1);
+    rec.summary = {
+      income: stats.revenue, expense: stats.cost, profit: stats.profit,
+      netAssets: computeBalanceSheet(addDays(range.end, -1)).netAssets,
+      netAssetsPrev: computeBalanceSheet(addDays(prevRange.end, -1)).netAssets,
+      checks: st.mc.checks.map((c) => ({ status: c.status, title: c.title, detail: c.detail || "", acked: c.status === "warn" ? !!rec.ack["check:" + c.title] : false })),
+      anomalies: closingExceptions(null, st.anom).map((x) => ({ title: x.title, detail: x.detail || "", acked: !!rec.ack[x.key] })),
+      events: st.events.map((e) => ({ label: e.label, detail: e.detail })),
+    };
+    rec.status = "closed";
+    rec.closedAt = new Date().toISOString();
+    saveMonthClose(key, rec);
+    const p = document.getElementById("finalDocPanel");
+    if (p) p.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  // 再オープン：確定を取り消して決算中に戻す。summary は前回確定の記録として残し、再確定時に上書きする
+  function closingReopen(key) {
+    const rec = monthCloseRecord(key);
+    if (!rec) return;
+    rec.status = "closing";
+    rec.closedAt = null;
+    saveMonthClose(key, rec);
+  }
+
+  function closeStepEl(num, title, done, kids, btn) {
+    const bodyKids = [el("div", null, [
+      el("span", { class: "cs-title" }, [title]),
+      el("span", { class: "cs-state" }, [done ? "完了" : "未完了"]),
+    ])];
+    (kids || []).forEach((k) => bodyKids.push(k));
+    if (btn) bodyKids.push(el("div", { class: "cs-actions" }, [btn]));
+    return el("div", { class: "close-step" + (done ? " done" : "") }, [
+      el("div", { class: "cs-num num" }, [done ? "✓" : String(num)]),
+      el("div", { class: "cs-body" }, bodyKids),
+    ]);
+  }
+
+  function renderClosingPanel() {
+    try { renderFinalDocPanel(); } catch (e) { console.error("確定ドキュメントの表示に失敗", e); }
+    const body = document.getElementById("closingFlowBody");
+    if (!body) return;
+    const meta = document.getElementById("closingFlowMeta");
+    body.innerHTML = "";
+    if (!state.transactions) { if (meta) meta.textContent = ""; body.appendChild(emptyState("データを読み込むと決算フローが使えます")); return; }
+    const range = periodRangeForMode("month", state.periodAnchor, 0);
+    const key = range.key;
+    const st = closingFlowState(key, range);
+    const rec = st.rec;
+    const statusLabel = st.closed ? `確定済み（${closeFmtDate(rec.closedAt)}）` : rec ? "決算中" : "進行中";
+    if (meta) meta.textContent = `${cycleFullLabel(key)}：${statusLabel}`;
+    const doneN = [st.step1, st.step2, st.step3, st.closed].filter(Boolean).length;
+    body.appendChild(el("div", { class: "cash-note", style: "margin:0 0 4px;" }, [
+      st.closed ? "この月は確定済みです。内容は下の確定ドキュメントで読み返せます。"
+        : `進捗 ${doneN} / 4。同期済みデータを確認して進めるフローです（明細の入力・編集は行いません）。`,
+    ]));
+
+    // ステップ1：同期・鮮度確認
+    const freshKids = [];
+    freshKids.push(el("div", { class: "cs-detail" }, [lastSyncAt ? `最終同期：${relTime(lastSyncAt)}（${new Date(lastSyncAt).toLocaleString("ja-JP")}）` : "最終同期：未同期（この端末ではまだ同期していません）"]));
+    if (lastSyncErr) freshKids.push(el("div", { class: "cs-detail warn" }, [`同期失敗：${lastSyncErr}`]));
+    const latest = latestActualDate();
+    if (latest) freshKids.push(el("div", { class: "cs-detail" }, [`データの最終日：${latest.getFullYear()}/${latest.getMonth() + 1}/${latest.getDate()}`]));
+    const unmatched = settings.zaimScrapeInfo && Array.isArray(settings.zaimScrapeInfo.unmatched) ? settings.zaimScrapeInfo.unmatched : null;
+    freshKids.push(el("div", { class: "cs-detail" }, [unmatched
+      ? (unmatched.length ? `連携で一致しない口座：${unmatched.length}件（${unmatched.join("、")}）` : "連携で一致しない口座：ありません")
+      : "連携の状態：口座連携の取込情報はありません（CSV取込のみの場合はそのまま進めます）"]));
+    if (st.closed && rec && rec.startedAt) freshKids.push(el("div", { class: "cs-detail" }, [`決算開始：${closeFmtDateTime(rec.startedAt)}`]));
+    body.appendChild(closeStepEl(1, "同期・鮮度確認", st.closed || st.step1, freshKids,
+      !st.closed && !st.step1 ? el("button", { class: "btn", type: "button", onclick: () => closingStepFresh(key) }, [rec ? "最新データで進める" : "決算をはじめて進める"]) : null));
+
+    // ステップ2：例外レビュー
+    const step2Kids = [];
+    if (st.closed) {
+      step2Kids.push(el("div", { class: "cs-detail" }, ["確定時点のチェック結果は、下の確定ドキュメントに記録されています。"]));
+    } else if (!st.mc) {
+      step2Kids.push(el("div", { class: "cs-detail" }, ["月次チェックを計算できませんでした。データを読み込み直してください。"]));
+    } else if (!st.exceptions.length) {
+      step2Kids.push(el("div", { class: "cs-detail" }, ["要確認の項目と異常検出の例外はありません。"]));
+    } else {
+      step2Kids.push(el("div", { class: "cs-detail" }, [`例外 ${st.exceptions.length}件（未確認 ${st.blocking.length}件）。各項目は既存のアクションで解消するか、内容を見たうえで「確認済み」にできます。`]));
+      st.exceptions.forEach((x) => {
+        const acked = !!(rec && rec.ack && rec.ack[x.key]);
+        const row = el("div", { class: "x-check" }, [
+          el("div", { class: "x-mark warn" }, ["!"]),
+          el("div", { class: "x-body" }, [
+            el("div", { class: "x-title" }, [x.title]),
+            x.detail ? el("div", { class: "x-detail" }, [x.detail]) : null,
+          ]),
+        ]);
+        if (x.act) row.appendChild(el("button", { class: "btn", type: "button", style: "cursor:pointer;flex-shrink:0;", onclick: x.act[1] }, [x.act[0]]));
+        if (acked) row.appendChild(el("span", { class: "cs-acked" }, ["確認済み"]));
+        else row.appendChild(el("button", { class: "btn", type: "button", style: "cursor:pointer;flex-shrink:0;", onclick: () => closingAck(key, x.key) }, ["確認済みにする"]));
+        step2Kids.push(row);
+      });
+    }
+    body.appendChild(closeStepEl(2, "例外レビュー", st.closed || st.step2, step2Kids, null));
+
+    // ステップ3：データ確認（検出イベント）
+    const evKids = [];
+    if (st.closed) {
+      evKids.push(el("div", { class: "cs-detail" }, ["確定時点で検出されたイベントは、下の確定ドキュメントに記録されています。"]));
+    } else {
+      if (!st.events.length) evKids.push(el("div", { class: "cs-detail" }, ["この月に検出できた重要イベントはありません（証券の口数変動・定期券・投資の出金は検出されませんでした）。"]));
+      st.events.forEach((e) => evKids.push(el("div", { class: "x-check" }, [
+        el("div", { class: "x-mark info" }, ["i"]),
+        el("div", { class: "x-body" }, [
+          el("div", { class: "x-title" }, [e.label]),
+          el("div", { class: "x-detail" }, [e.detail]),
+        ]),
+      ])));
+    }
+    body.appendChild(closeStepEl(3, "データ確認", st.closed || st.step3, evKids,
+      !st.closed && !st.step3 ? el("button", { class: "btn", type: "button", onclick: () => closingStepEvents(key) }, ["内容を確認した"]) : null));
+
+    // ステップ4：確定
+    const finKids = [];
+    if (st.closed) {
+      finKids.push(el("div", { class: "cs-detail" }, [`${closeFmtDateTime(rec.closedAt)} に確定しました。取り消す場合は確定ドキュメントの「再オープンする」から行えます。`]));
+    } else {
+      const missing = [];
+      if (!st.step1) missing.push("ステップ1（同期・鮮度確認）");
+      if (!st.step2) missing.push(st.mc ? `ステップ2（例外の未確認 ${st.blocking.length}件）` : "ステップ2（例外レビュー）");
+      if (!st.step3) missing.push("ステップ3（データ確認）");
+      finKids.push(el("div", { class: "cs-detail" }, [missing.length
+        ? `確定するには、まず ${missing.join("、")} の完了が必要です。`
+        : "すべてのステップが完了しています。確定すると、この月のサマリとチェック結果が確定ドキュメントとして記録されます。"]));
+    }
+    const finBtn = !st.closed ? el("button", { class: "btn", type: "button", onclick: () => closingFinalize(key, range) }, ["この月を確定する"]) : null;
+    if (finBtn && !st.canClose) finBtn.disabled = true;
+    body.appendChild(closeStepEl(4, "確定", st.closed, finKids, finBtn));
+
+    // 確定済みの月ドキュメント一覧（タップでその月へ移動して開く）
+    const closedKeys = Object.keys(settings.monthClose || {}).filter((k) => settings.monthClose[k].status === "closed").sort().reverse();
+    if (closedKeys.length) {
+      body.appendChild(el("div", { class: "cs-sect" }, ["確定済みの月ドキュメント"]));
+      closedKeys.forEach((k) => {
+        const r = settings.monthClose[k];
+        const s = r.summary;
+        const row = el("div", { class: "x-check cs-docrow", role: "button", tabindex: "0" }, [
+          el("div", { class: "x-body" }, [
+            el("div", { class: "x-title" }, [cycleFullLabel(k)]),
+            el("div", { class: "x-detail" }, [`${closeFmtDate(r.closedAt)} 確定` + (s ? ` ・ 収支 ${(s.profit >= 0 ? "+" : "−") + YEN(Math.abs(s.profit))}` : "")]),
+          ]),
+          el("span", { class: "cs-state" }, ["開く ›"]),
+        ]);
+        const go = () => {
+          const [yy, mm] = k.split("-").map(Number);
+          state.periodMode = "month";
+          state.periodAnchor = cycleBoundsForKey(yy, mm - 1).start;
+          state.page = 0;
+          render();
+          const p = document.getElementById("finalDocPanel");
+          if (p) p.scrollIntoView({ behavior: "smooth", block: "start" });
+        };
+        row.addEventListener("click", go);
+        row.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+        body.appendChild(row);
+      });
+    }
+  }
+
+  // 確定ドキュメント：確定した月の内容を、確定時点のスナップショット（settings.monthClose の summary）から描く。
+  // 表示中の会計月が確定済みのときだけパネルを出す。過去月は期間を移動すると同じ場所で読める。
+  function renderFinalDocPanel() {
+    const panel = document.getElementById("finalDocPanel");
+    if (!panel) return;
+    const body = document.getElementById("finalDocBody");
+    const meta = document.getElementById("finalDocMeta");
+    const range = state.transactions ? periodRangeForMode("month", state.periodAnchor, 0) : null;
+    const rec = range ? monthCloseRecord(range.key) : null;
+    if (!rec || rec.status !== "closed") {
+      panel.classList.add("hidden");
+      if (body) body.innerHTML = "";
+      if (meta) meta.textContent = "";
+      return;
+    }
+    panel.classList.remove("hidden");
+    if (!body) return;
+    body.innerHTML = "";
+    const key = range.key;
+    if (meta) meta.textContent = cycleFullLabel(key);
+    body.appendChild(el("div", { style: "margin:2px 0 10px;" }, [
+      el("span", { class: "stamp-box serif" }, ["確定"]),
+      el("span", { style: "margin-left:12px;font-size:14px;color:var(--ink-soft);" }, [`${closeFmtDateTime(rec.closedAt)} に確定`]),
+    ]));
+    const s = rec.summary;
+    if (!s) {
+      body.appendChild(el("div", { class: "cs-detail" }, ["確定時点のサマリが保存されていません（記録の形式が古い可能性があります）。"]));
+    } else {
+      const kv = (k, v) => el("div", { class: "doc-kv" }, [el("span", { class: "k" }, [k]), el("span", { class: "v num" }, [v])]);
+      const signed = (n) => (n >= 0 ? "+" : "−") + YEN(Math.abs(n));
+      body.appendChild(kv("収入（発生ベース）", YEN(s.income)));
+      body.appendChild(kv("支出（発生ベース）", YEN(s.expense)));
+      body.appendChild(kv("収支", signed(s.profit)));
+      body.appendChild(kv("純資産（月末時点）", YEN(s.netAssets)));
+      body.appendChild(kv("前月比", signed(s.netAssets - s.netAssetsPrev)));
+      body.appendChild(el("div", { class: "cs-sect" }, ["チェック結果（確定時点）"]));
+      const marks = { ok: "✓", warn: "!", info: "i" };
+      if (!s.checks.length) body.appendChild(el("div", { class: "cs-detail" }, ["チェック結果の記録はありません。"]));
+      s.checks.forEach((c) => {
+        body.appendChild(el("div", { class: "x-check" }, [
+          el("div", { class: "x-mark " + c.status }, [marks[c.status] || "i"]),
+          el("div", { class: "x-body" }, [
+            el("div", { class: "x-title" }, [c.title]),
+            c.detail || c.status === "warn" ? el("div", { class: "x-detail" }, [(c.detail || "") + (c.status === "warn" ? (c.acked ? "（確認済みとして記録）" : "（未解消のまま確定）") : "")]) : null,
+          ]),
+        ]));
+      });
+      if (s.anomalies.length) {
+        body.appendChild(el("div", { class: "cs-sect" }, ["異常検出（確定時点）"]));
+        s.anomalies.forEach((a) => {
+          body.appendChild(el("div", { class: "x-check" }, [
+            el("div", { class: "x-mark warn" }, ["!"]),
+            el("div", { class: "x-body" }, [
+              el("div", { class: "x-title" }, [a.title]),
+              el("div", { class: "x-detail" }, [(a.detail || "") + (a.acked ? "（確認済みとして記録）" : "（未解消のまま確定）")]),
+            ]),
+          ]));
+        });
+      }
+      if (s.events.length) {
+        body.appendChild(el("div", { class: "cs-sect" }, ["検出イベント"]));
+        s.events.forEach((e) => {
+          body.appendChild(el("div", { class: "x-check" }, [
+            el("div", { class: "x-mark info" }, ["i"]),
+            el("div", { class: "x-body" }, [
+              el("div", { class: "x-title" }, [e.label]),
+              e.detail ? el("div", { class: "x-detail" }, [e.detail]) : null,
+            ]),
+          ]));
+        });
+      }
+    }
+    body.appendChild(el("div", { class: "cash-note", style: "margin-top:10px;" }, ["このドキュメントは確定時点の記録です。後からデータが変わっても再計算はされません。税務・ふるさと納税の試算は下の「税務関連の年間集計」から開けます。"]));
+    body.appendChild(el("div", { class: "cs-actions" }, [
+      el("button", { class: "btn", type: "button", onclick: () => { const p = document.getElementById("taxSummaryPanel"); if (p) p.scrollIntoView({ behavior: "smooth", block: "start" }); } }, ["税務集計へ"]),
+      el("button", { class: "btn", type: "button", onclick: () => closingReopen(key) }, ["再オープンする"]),
+    ]));
+  }
   function renderTaxSummary() {
     if (!document.getElementById("taxSummaryPanel")) return;
     const year = state.periodAnchor.getFullYear();
@@ -8085,6 +8516,7 @@ function svgEl(tag, attrs) {
     renderExtraPanels();
     try { renderTaxSummary(); } catch (e) { console.error("税務集計の表示に失敗", e); }
     try { renderMonthCheckPanel(); } catch (e) { console.error("月次チェックの表示に失敗", e); }
+    try { renderClosingPanel(); } catch (e) { console.error("決算フローの表示に失敗", e); }
     renderTxList(getTxRows(filtered).slice().reverse()); // 最新の取引が先頭に来るようにする
   }
 
