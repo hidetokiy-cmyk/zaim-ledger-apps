@@ -1379,16 +1379,11 @@
         <div class="legend-small" id="assetsHistoryToggles" style="flex-wrap:wrap;"></div>
         <div class="line-chart" id="assetsHistoryChart"></div>
         <div style="font-size:13px;color:var(--ink-soft);margin-top:6px;">※チェックを外すとそのグループを合計から除外して表示します（点線は表示中グループの合計）</div>
-      </div>
-
-      <div class="card panel" id="securitiesHistoryPanel">
-        <div class="panel-head"><div class="section-title serif">証券 時価推移</div></div>
-        <div class="legend-small">
-          <span><span class="swatch" style="background:var(--gold)"></span>時価</span>
-          <span><span class="swatch" style="background:var(--cat-3)"></span>取得原価</span>
-          <span id="securitiesHistoryGain"></span>
+        <div style="display:flex; gap:12px; margin-top:10px; flex-wrap:wrap; align-items:center;">
+          <label style="cursor:pointer; font-size:14px;"><input type="checkbox" id="assetsHistorySecuritiesMV" checked> 証券を時価で表示</label>
+          <span id="securitiesHistoryGain" style="font-size:13px;color:var(--ink-soft);"></span>
         </div>
-        <div class="line-chart" id="securitiesHistoryChart"></div>
+        <div style="font-size:13px;color:var(--ink-soft);margin-top:6px;">※「証券を時価で表示」がONのとき、証券の履歴がある日は含み損益で調整して表示します。このときグラフの合計は、貸借対照表（簿価ベース）と含み損益の分だけ異なります。</div>
         <div style="font-size:13px;color:var(--ink-soft);margin-top:6px;">証券スクレイピングを取り込むたびに、その日の時価・取得原価を履歴に残します。過去分は、同期先リポジトリの日次スナップショット（snapshots/）またはバックフィルJSONから取り込めます。</div>
         <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; align-items:center;">
           <button id="securitiesHistorySnapshotBtn" class="btn" style="cursor:pointer;">スナップショットから履歴を取込</button>
@@ -1927,6 +1922,7 @@
     balancePattern: 2,
     statementsSubTab: "bs",    // 財務三表タブ内のサブタブ: 'bs' | 'pl' | 'cf' | 'ratios' | 'forecast' | 'journal'
     assetsHistoryHidden: new Set(),   // 資産構成の推移グラフで非表示にしたグループ名
+    assetsHistorySecuritiesMV: true,   // 資産構成の推移で証券を時価表示するか（履歴がある日は含み損益で調整。既定ON）
     txPeriod: null,            // グラフの点から開いた期間の明細（基準日は動かさない）{ mode, anchor, start, end, label, key }
     txFilter: null,            // 財務諸表等からのドリルダウン用 { mode: 'account'|'category', value, label } または資金繰り予測からの { mode: 'rows', rows, label }
     csvParseWarning: null,     // CSV取込時に一部行を除外した場合の注記
@@ -3561,7 +3557,7 @@
     initAccountSettingsDefaults();
     const asOf = parseAsofDate();
     const groupDefs = getGroupDefinitions(pattern);
-    if (!state.transactions || state.transactions.length === 0) return { labels: [], groups: [] };
+    if (!state.transactions || state.transactions.length === 0) return { labels: [], groups: [], dates: [] };
 
     const current = new Map();
     const names = new Set([...manualBalanceNames(), ...settings.accountBalanceOverride.keys(), ...addedAccountNames()]);
@@ -3622,7 +3618,8 @@
         return def.accounts.reduce((sum, a) => sum + (snap.get(a) || 0), 0);
       }),
     }));
-    return { labels, groups };
+    // datesはバケット期末日（YYYY-MM-DD）。資産構成の推移での証券の時価調整（日付→履歴の含み損益）に使う
+    return { labels, groups, dates: bucketDates.map((b) => dkey(b.date)) };
   }
 
   // 高額取引・異常値ハイライト用：科目（カテゴリ）ごとの支出額の中央値を求める。
@@ -5929,6 +5926,23 @@ function svgEl(tag, attrs) {
     }
   }
 
+  // 証券履歴から、指定日（YYYY-MM-DD）以前で最新のエントリの含み損益（時価−取得原価）を返す。
+  // 該当エントリが無ければ0（＝簿価のまま）。資産構成の推移の時価調整に使う。
+  function securitiesGainOnOrBefore(history, dateKey) {
+    let best = null;
+    (history || []).forEach((h) => {
+      if (h && typeof h.date === "string" && h.date <= dateKey && (!best || h.date > best.date)) best = h;
+    });
+    return best ? (best.totalMarketValue || 0) - (best.totalCostBasis || 0) : 0;
+  }
+
+  // 資産構成の推移（pattern 3）で「SBI 証券」口座が属するグループ名を返す。見つからなければ「運用資産」。
+  function securitiesAssetsGroupName() {
+    const sbi = canonAcct("SBI 証券");
+    const def = getGroupDefinitions(3).find((d) => d.accounts.some((a) => canonAcct(a) === sbi));
+    return def ? def.name : "運用資産";
+  }
+
   function renderAssetsHistoryChart() {
     const wrap = document.getElementById("assetsHistoryChart");
     const toggles = document.getElementById("assetsHistoryToggles");
@@ -5943,7 +5957,23 @@ function svgEl(tag, attrs) {
     }
     if (titleEl) titleEl.textContent = `資産構成の推移（${PERIOD_MODE_LABEL[state.periodMode]}）`;
     const count = PERIOD_TREND_COUNT[state.periodMode] || 12;
-    const { labels, groups: allGroups } = computeGroupBalancesForMode(3, state.periodMode, state.periodAnchor, count);
+    const { labels, groups: allGroups, dates } = computeGroupBalancesForMode(3, state.periodMode, state.periodAnchor, count);
+    // 証券の時価表示：履歴がある日は、SBI証券が属するグループにその日以前で最新の含み損益を加算し、
+    // 証券部分を実質時価で表示する（履歴が無い日は従来どおり簿価）。B/Sは簿価のままなので、合計は含み損益分ずれる。
+    if (state.assetsHistorySecuritiesMV && settings.securitiesHistory.length && dates && dates.length) {
+      const g = allGroups.find((x) => x.name === securitiesAssetsGroupName());
+      if (g) g.values = g.values.map((v, i) => v + securitiesGainOnOrBefore(settings.securitiesHistory, dates[i]));
+    }
+    // 直近の含み損益の補助表示（旧「証券 時価推移」パネルから統合）
+    const gainEl = document.getElementById("securitiesHistoryGain");
+    if (gainEl) {
+      const hist = settings.securitiesHistory;
+      if (hist.length) {
+        const last = hist[hist.length - 1];
+        const gain = last.totalMarketValue - last.totalCostBasis;
+        gainEl.textContent = `直近（${last.date}）の含み損益 ${gain < 0 ? "−" : "+"}${YEN(Math.abs(gain))}`;
+      } else gainEl.textContent = "";
+    }
     const colors = { "現金類": "var(--green)", "カード類": "var(--red)", "預金類": "var(--cat-3)", "運用資産": "var(--gold)", "前払・預け金": "var(--cat-7)", "未払・借入金": "var(--cat-5)" };
     const available = allGroups.filter((g) => g.values.some((v) => v !== 0));
 
@@ -5966,31 +5996,6 @@ function svgEl(tag, attrs) {
     const visible = available.filter((g) => !state.assetsHistoryHidden.has(g.name))
       .map((g) => ({ ...g, color: colors[g.name] || "var(--ink-soft)" }));
     renderStackedAreaSVG(wrap, labels, visible, { valueFormatter: (v) => YEN(v), axisValueFormatter: YEN_COMPACT, onPointClick: (i) => jumpToPeriodIndex(i, count), exportName: "資産構成の推移" });
-  }
-
-  // 証券の時価推移：証券取込・バックフィルのたびに残した日次履歴（settings.securitiesHistory）を
-  // 時価合計と取得原価合計の2系列で描く。履歴が2日分に満たなければ推移は描けないので空表示にする。
-  function renderSecuritiesHistoryChart() {
-    const wrap = document.getElementById("securitiesHistoryChart");
-    if (!wrap) return;
-    const gainEl = document.getElementById("securitiesHistoryGain");
-    const hist = settings.securitiesHistory;
-    if (gainEl) {
-      if (hist.length) {
-        const last = hist[hist.length - 1];
-        const gain = last.totalMarketValue - last.totalCostBasis;
-        gainEl.textContent = `直近（${last.date}）の含み損益 ${gain < 0 ? "−" : "+"}${YEN(Math.abs(gain))}`;
-      } else gainEl.textContent = "";
-    }
-    if (hist.length < 2) {
-      wrap.innerHTML = "";
-      wrap.appendChild(emptyState("証券の履歴が2日分に満たないため、まだ推移を表示できません"));
-      return;
-    }
-    renderLineChartSVG(wrap, hist.map((h) => h.date.slice(5)), [
-      { name: "時価", color: "var(--gold)", values: hist.map((h) => h.totalMarketValue) },
-      { name: "取得原価", color: "var(--cat-3)", values: hist.map((h) => h.totalCostBasis) },
-    ], { valueFormatter: (v) => YEN(v), axisValueFormatter: YEN_COMPACT, exportName: "証券_時価推移" });
   }
 
   function renderMonthChart() {
@@ -7370,7 +7375,6 @@ function svgEl(tag, attrs) {
     renderStatementsPanel(filtered, broad);
     renderMonthChart();
     renderAssetsHistoryChart();
-    renderSecuritiesHistoryChart();
     renderTrendChart();
     renderSubscriptionPanel();
     [renderBudgetPanel, renderCardSchedulePanel, renderHeatmap].forEach((fn) => {
@@ -7949,13 +7953,19 @@ function svgEl(tag, attrs) {
         });
       }
       scheduleCloudSave();
-      renderSecuritiesHistoryChart();
+      renderAssetsHistoryChart();
       setStatus(`スナップショットから${days}日分の履歴を取り込みました。`, false);
     } catch (e) {
       setStatus("スナップショットの取り込みに失敗しました。", true);
     }
   }
   document.getElementById("securitiesHistorySnapshotBtn").addEventListener("click", () => { importSecuritiesHistoryFromSnapshots(); });
+
+  // 資産構成の推移の「証券を時価で表示」トグル（状態はセッション内のみ保持。既定ON）
+  document.getElementById("assetsHistorySecuritiesMV").addEventListener("change", (e) => {
+    state.assetsHistorySecuritiesMV = e.target.checked;
+    renderAssetsHistoryChart();
+  });
 
   // バックフィルJSON（securities-history-backfill.json、または { securitiesHistory: [...] } 形式）のファイル取込。
   // スナップショットボタンが使えない環境向けに、同じ履歴形式を取り込む手段として用意する。
@@ -7974,7 +7984,7 @@ function svgEl(tag, attrs) {
         list.forEach((h) => { if (upsertSecuritiesHistory(h)) days++; });
         if (!days) { setStatus("取り込める履歴がありませんでした。", true); return; }
         scheduleCloudSave();
-        renderSecuritiesHistoryChart();
+        renderAssetsHistoryChart();
         setStatus(`バックフィルJSONから${days}日分の履歴を取り込みました。`, false);
       } catch (err) {
         setStatus("JSONの読み込みに失敗しました。", true);
