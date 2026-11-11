@@ -959,6 +959,45 @@
   .tl-ctl label { display: block; font-size: 13px; color: var(--ink-soft); } .tl-ctl label b { color: var(--ink); margin-left: 6px; }
   .tl-ctl input[type="range"] { width: 100%; min-height: 44px; accent-color: var(--gold); }
   @media (max-width: 640px) { .tl-stats { grid-template-columns: 1fr 1fr; } .tl-stats > .card:first-child { grid-column: 1 / -1; } .tl-ctl { grid-template-columns: 1fr; } #tlChart { height: 300px; } }
+  /* ---- グラフタブ：質問グループ（パネルを開閉カードにまとめる。開閉は .panel.collapsed の既存規則を使う） ---- */
+  .qgroup-head .section-title { font-size: 19.5px; }
+  .qgroup-body > .card.panel { background: transparent; border: none; border-radius: 0; box-shadow: none;
+    padding: 18px 2px 20px; margin-bottom: 0; }
+  .qgroup-body > .card.panel + .card.panel { border-top: 1px solid var(--rule); }
+  @media (max-width: 640px) { .qgroup-body > .card.panel { padding: 14px 0 16px; } }
+
+  /* ---- 期間スティッキーバー（サイドバーが上へ流れる860px以下で、期間操作をメイン上部に固定表示する） ---- */
+  #periodStickyBar { display: none; }
+  @media (max-width: 860px) {
+    #periodStickyBar { display: flex; align-items: center; gap: 8px; position: sticky; top: 0; z-index: 30;
+      background: var(--paper); border-bottom: 1px solid var(--rule-strong); padding: 8px 2px; margin-bottom: 10px; }
+    .psb-label { font-size: 12px; color: var(--ink-faint); white-space: nowrap; }
+    .psb-modes { display: flex; gap: 2px; background: rgba(var(--ink-rgb),0.05); border-radius: 4px; padding: 2px;
+      overflow-x: auto; flex-shrink: 1; min-width: 0; }
+    .psb-modes button { background: none; border: none; color: var(--ink-soft); font-size: 13.5px; padding: 5px 9px;
+      cursor: pointer; border-radius: 3px; white-space: nowrap; font-family: inherit; flex-shrink: 0; }
+    .psb-modes button.active { background: var(--paper-raised); color: var(--ink); box-shadow: 0 1px 2px rgba(var(--ink-rgb),.18); }
+    .psb-nav { display: flex; align-items: center; gap: 6px; margin-left: auto; min-width: 0; }
+    .psb-step { background: rgba(var(--ink-rgb),0.05); border: none; color: var(--ink-soft); width: 30px; height: 30px;
+      border-radius: 4px; cursor: pointer; font-size: 16px; flex-shrink: 0; font-family: inherit; }
+    .psb-step:hover { background: rgba(var(--ink-rgb),0.1); color: var(--ink); }
+    .psb-current { flex: 1; min-width: 0; background: none; border: none; color: var(--ink); font-size: 14px; cursor: pointer;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 4px 2px; font-family: inherit; text-align: left; }
+    /* 明細タブの固定見出し（日付・合計欄）は、バーの高さ（--psb-h）分だけ下にずらしてバーと重ならないようにする */
+    .day-head { top: var(--psb-h, 0px); }
+    .tx-summary { top: var(--psb-h, 0px); }
+  }
+  @media (max-width: 640px) {
+    .psb-label { display: none; }
+    /* 期間操作はスティッキーバーに一本化するため、サイドバー内の期間チップは隠す（ボトムシートはバーの現在期間ラベルから開ける） */
+    .sidebar > .period-mchip { display: none; }
+  }
+  /* 横画面スマホではサイドバー自体が固定され、タブバーも上に固定されるため、スティッキーバーは出さない */
+  @media (max-height: 500px) and (orientation: landscape) and (pointer: coarse) {
+    #periodStickyBar { display: none; }
+    .day-head, .tx-summary { top: 0; }
+  }
+
 </style>
 </head>
 <body>
@@ -1028,7 +1067,7 @@
     </div>
 
     <div class="sidebar-section">
-      <div class="sidebar-section-label">期間</div>
+      <div class="sidebar-section-label">期間（全タブ共通）</div>
       <div class="level-toggle" id="periodModeToggle" style="margin-bottom:8px;">
         <button data-mode="day">日</button>
         <button data-mode="week">週</button>
@@ -1151,6 +1190,21 @@
         </div>
       </details>
       <div class="no-print" style="text-align:right;margin:0 2px 4px;"><button id="printPdfBtn" class="btn no-print" type="button" style="cursor:pointer;" title="印刷設定で選んだ内容を、帳票レイアウトのA4レポートとして印刷／PDF保存します">PDF出力（印刷）</button></div>
+      </div>
+      <div class="no-print" id="periodStickyBar" role="group" aria-label="期間（全タブ共通）">
+        <span class="psb-label">期間（全タブ共通）</span>
+        <div class="psb-modes" id="periodStickyModes">
+          <button type="button" data-mode="day">日</button>
+          <button type="button" data-mode="week">週</button>
+          <button type="button" data-mode="month">月</button>
+          <button type="button" data-mode="year">年</button>
+          <button type="button" data-mode="all">全期間</button>
+        </div>
+        <div class="psb-nav">
+          <button type="button" class="psb-step" id="periodStickyPrev" aria-label="前の期間へ">‹</button>
+          <button type="button" class="psb-current" id="periodStickyLabel">期間を選ぶ</button>
+          <button type="button" class="psb-step" id="periodStickyNext" aria-label="次の期間へ">›</button>
+        </div>
       </div>
       <div class="tab-bar" id="tabBar">
         <button class="tab-btn active" data-tab="overview"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>概要</button>
@@ -1344,7 +1398,11 @@
 
       <div class="tab-page hidden" id="tabCharts">
 
-      <div class="two-col">
+      <div class="card panel qgroup" id="chartsGroupSpend">
+        <div class="panel-head qgroup-head">
+          <div class="section-title serif">どこに使った？</div>
+        </div>
+        <div class="qgroup-body">
         <div class="card panel">
           <div class="panel-head"><div class="section-title serif" id="donutTitle">勘定科目別支出（費用ベース）</div></div>
           <div class="donut-wrap" id="donutWrap">
@@ -1352,6 +1410,29 @@
             <div class="donut-legend" id="donutLegend"></div>
           </div>
         </div>
+
+      <div class="card panel" id="heatmapPanel">
+        <div class="panel-head">
+          <div class="section-title serif">支出カレンダー（直近1年）</div>
+          <div class="sub-meta" id="heatmapMeta"></div>
+        </div>
+        <div class="heatmap-wrap" id="heatmapBody"></div>
+        <div style="font-size:13px;color:var(--ink-soft);margin-top:6px;">選択中の期間の最終日までの53週間。色が濃いほど支出が多い日です（集計から除外する設定の取引は含みません。検索・絞り込み条件を反映）。日付をクリックすると、その日の取引明細を開きます。</div>
+      </div>
+
+      <div class="card panel">
+        <div class="panel-head"><div class="section-title serif">店舗別ランキング（支出・上位15件）</div></div>
+        <div id="storeRankingList"></div>
+        <div style="font-size:13px;color:var(--ink-soft);margin-top:6px;">選択中の期間が対象。集計から除外設定の取引は含みません。店名をクリックすると取引明細に絞り込みます。</div>
+      </div>
+        </div>
+      </div>
+
+      <div class="card panel qgroup" id="chartsGroupAssets">
+        <div class="panel-head qgroup-head">
+          <div class="section-title serif">資産はどう動いた？</div>
+        </div>
+        <div class="qgroup-body">
         <div class="card panel" id="monthlyPanel">
           <div class="panel-head"><div class="section-title serif" id="periodTrendTitle">月次推移（損益ベース）</div></div>
           <div class="legend-small">
@@ -1360,7 +1441,6 @@
           </div>
           <div class="line-chart" id="monthChart"></div>
         </div>
-      </div>
 
       <div class="card panel">
         <div class="panel-head">
@@ -1382,7 +1462,14 @@
         <div style="font-size:13px;color:var(--ink-soft);margin-top:6px;">※「証券を時価で表示」がONのとき、証券の履歴がある日は含み損益で調整して表示します。このときグラフの合計は、貸借対照表（簿価ベース）と含み損益の分だけ異なります。</div>
         <div style="font-size:13px;color:var(--ink-soft);margin-top:6px;">証券スクレイピングを取り込むたびに、その日の時価・取得原価を履歴に残します。</div>
       </div>
+        </div>
+      </div>
 
+      <div class="card panel qgroup" id="chartsGroupFuture">
+        <div class="panel-head qgroup-head">
+          <div class="section-title serif">将来は大丈夫？</div>
+        </div>
+        <div class="qgroup-body">
       <div class="card panel" id="simPanel">
         <div class="panel-head"><div class="section-title serif">資産推移シミュレーション</div></div>
         <div class="x-fields">
@@ -1395,20 +1482,7 @@
         <div class="line-chart" id="simChart"></div>
         <div id="simResult" style="margin-top:10px;font-size:15px;line-height:1.7;"></div>
       </div>
-
-      <div class="card panel" id="heatmapPanel">
-        <div class="panel-head">
-          <div class="section-title serif">支出カレンダー（直近1年）</div>
-          <div class="sub-meta" id="heatmapMeta"></div>
         </div>
-        <div class="heatmap-wrap" id="heatmapBody"></div>
-        <div style="font-size:13px;color:var(--ink-soft);margin-top:6px;">選択中の期間の最終日までの53週間。色が濃いほど支出が多い日です（集計から除外する設定の取引は含みません。検索・絞り込み条件を反映）。日付をクリックすると、その日の取引明細を開きます。</div>
-      </div>
-
-      <div class="card panel">
-        <div class="panel-head"><div class="section-title serif">店舗別ランキング（支出・上位15件）</div></div>
-        <div id="storeRankingList"></div>
-        <div style="font-size:13px;color:var(--ink-soft);margin-top:6px;">選択中の期間が対象。集計から除外設定の取引は含みません。店名をクリックすると取引明細に絞り込みます。</div>
       </div>
 
       </div>
@@ -8776,6 +8850,37 @@ function svgEl(tag, attrs) {
       apply(closed.has(p.id));
     });
   })();
+  // グラフタブのパネルを「質問」グループにまとめ、開閉状態をこの端末に覚えておく（概要パネルと同じ作法）
+  (function initChartsGroups() {
+    const KEY = "zaimLedgerChartsGroups";
+    const groups = Array.from(document.querySelectorAll("#tabCharts > .qgroup[id]"));
+    if (!groups.length) return;
+    let stored = null;
+    try { stored = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { stored = null; }
+    // 記録が無い端末では、最初のグループだけ開いた状態を既定にする
+    const closed = new Set(Array.isArray(stored) ? stored : groups.slice(1).map((g) => g.id));
+    groups.forEach((g) => {
+      const head = g.querySelector(":scope > .panel-head");
+      if (!head) return;
+      const title = (head.querySelector(".section-title") || head).textContent.trim();
+      const btn = el("button", { type: "button", class: "panel-collapse" }, []);
+      const apply = (c) => {
+        g.classList.toggle("collapsed", c);
+        btn.textContent = c ? "▸" : "▾";
+        btn.setAttribute("aria-expanded", c ? "false" : "true");
+        btn.setAttribute("aria-label", `${title}を${c ? "開く" : "折りたたむ"}`);
+        btn.title = c ? "開く" : "折りたたむ";
+      };
+      btn.addEventListener("click", () => {
+        const c = !g.classList.contains("collapsed");
+        apply(c);
+        if (c) closed.add(g.id); else closed.delete(g.id);
+        try { localStorage.setItem(KEY, JSON.stringify(Array.from(closed))); } catch (e) { /* 覚えられなくても開閉はできる */ }
+      });
+      head.appendChild(btn);
+      apply(closed.has(g.id));
+    });
+  })();
   function syncTabAria() {
     document.querySelectorAll(".tab-btn, .substab-btn").forEach((b) => b.setAttribute("aria-selected", b.classList.contains("active") ? "true" : "false"));
   }
@@ -9712,6 +9817,51 @@ function svgEl(tag, attrs) {
   if (strip) strip.addEventListener("click", () => setTimeout(() => open(false), 120));   // 期間を選んだらシートを閉じる
   if (date) date.addEventListener("change", () => setTimeout(() => open(false), 120));
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") open(false); });
+})();
+</script>
+<script>
+(function () {   // 期間スティッキーバー（860px以下）：サイドバーの期間表示を映し、操作はサイドバー本体へ委譲する
+  const bar = document.getElementById("periodStickyBar");
+  const srcLabel = document.getElementById("periodCurrentLabel");
+  const srcToggle = document.getElementById("periodModeToggle");
+  const srcNav = document.getElementById("periodNav");
+  if (!bar || !srcLabel || !srcToggle) return;
+  const cur = document.getElementById("periodStickyLabel");
+  const prev = document.getElementById("periodStickyPrev");
+  const next = document.getElementById("periodStickyNext");
+  const modeBtns = Array.from(bar.querySelectorAll("#periodStickyModes button[data-mode]"));
+  const syncLabel = () => { const t = srcLabel.textContent.trim(); if (t) cur.textContent = t; };
+  const syncModes = () => {
+    modeBtns.forEach((b) => {
+      const src = srcToggle.querySelector('button[data-mode="' + b.dataset.mode + '"]');
+      b.classList.toggle("active", !!(src && src.classList.contains("active")));
+    });
+    // 全期間モードでは本体の前後ナビが隠れるのに合わせ、バーの前後ボタンも隠す
+    const navHidden = !!(srcNav && srcNav.classList.contains("hidden"));
+    prev.classList.toggle("hidden", navHidden);
+    next.classList.toggle("hidden", navHidden);
+  };
+  const sync = () => { syncLabel(); syncModes(); };
+  new MutationObserver(syncLabel).observe(srcLabel, { childList: true, characterData: true, subtree: true });
+  new MutationObserver(syncModes).observe(srcToggle, { attributes: true, attributeFilter: ["class"], subtree: true });
+  if (srcNav) new MutationObserver(syncModes).observe(srcNav, { attributes: true, attributeFilter: ["class"] });
+  sync();
+  // バーの占有高さ（下マージン込み）をCSS変数に渡し、明細タブの固定見出しがバーの下に潜らないようにする
+  const setH = () => { document.documentElement.style.setProperty("--psb-h", (bar.offsetHeight + 10) + "px"); };
+  if (window.ResizeObserver) new ResizeObserver(setH).observe(bar); else window.addEventListener("resize", setH);
+  setH();
+  prev.addEventListener("click", () => document.getElementById("periodPrev").click());
+  next.addEventListener("click", () => document.getElementById("periodNext").click());
+  modeBtns.forEach((b) => b.addEventListener("click", () => {
+    const src = srcToggle.querySelector('button[data-mode="' + b.dataset.mode + '"]');
+    if (src) src.click();
+  }));
+  cur.addEventListener("click", () => {
+    // スマホではサイドバーの期間チップ経由でボトムシートを開く。それ以外は先頭へ戻ればサイドバーの期間操作が見える
+    const chipLabel = document.querySelector(".period-mchip .pc-label");
+    if (chipLabel && window.matchMedia("(max-width: 640px)").matches) { chipLabel.click(); return; }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
 })();
 </script>
 <script>
