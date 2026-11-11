@@ -797,6 +797,7 @@
   .feed-row.read { opacity: 0.45; }
   .feed-src { font-size: 12px; color: var(--ink-soft); border: 1px solid var(--rule); border-radius: 3px; padding: 0 5px; margin-right: 7px; white-space: nowrap; vertical-align: 2px; }
   .feed-read-btn { flex-shrink: 0; align-self: center; border: 1px solid var(--rule); background: var(--paper-raised); color: var(--ink-soft); font: inherit; font-size: 12px; border-radius: 999px; padding: 3px 10px; cursor: pointer; }
+  .feed-more-btn { display: block; margin: 10px auto 2px; border: 1px solid var(--rule); background: var(--paper-raised); color: var(--ink-soft); font: inherit; font-size: 12px; border-radius: 999px; padding: 5px 16px; cursor: pointer; }
   .feed-row[data-ask] { cursor: pointer; }
   .feed-score-num { font-size: 30px; font-weight: 700; line-height: 1.1; }
   .feed-summary { align-items: center; }
@@ -2014,7 +2015,8 @@
     assetsHistoryHidden: new Set(),   // 資産構成の推移グラフで非表示にしたグループ名
     assetsHistorySecuritiesMV: true,   // 資産構成の推移で証券を時価表示するか（履歴がある日は含み損益で調整。既定ON）
     assetsHeroSecuritiesMV: true,   // 総資産ヒーローで証券を時価表示するか（最新の含み損益を加算。既定ON）
-    insightFeedRead: new Set(),   // 気づきフィードで既読にした項目ID（セッション内のみ保持し、永続化しない）
+    insightFeedRead: new Set(),   // 気づきフィードで既読にした項目のキー（localStorage に保存し、再訪後も保持する）
+    insightFeedExpanded: false,  // 気づきフィードで「残りを表示」を開いているか（セッション内のみ）
     txPeriod: null,            // グラフの点から開いた期間の明細（基準日は動かさない）{ mode, anchor, start, end, label, key }
     txFilter: null,            // 財務諸表等からのドリルダウン用 { mode: 'account'|'category', value, label } または資金繰り予測からの { mode: 'rows', rows, label }
     csvParseWarning: null,     // CSV取込時に一部行を除外した場合の注記
@@ -6627,9 +6629,9 @@ function svgEl(tag, attrs) {
         const today = startOfDay(new Date());
         const ongoing = today >= a.range.start && today < a.range.end;
         const when = cycleLabel(a.range.key) + (ongoing ? "（進行中・途中経過）" : "");
-        a.cats.forEach((x) => out.push({ id: "anomaly-cat:" + x.cat, source: "今月の動き", level: "warn", title: x.cat, tag: `平均の${(x.cur / x.mean).toFixed(1)}倍`, tagClass: "sub-tag-up",
+        a.cats.forEach((x) => out.push({ id: "anomaly-cat:" + x.cat, readKey: `anomaly-cat:${x.cat}@${a.range.key}`, source: "今月の動き", level: "warn", title: x.cat, tag: `平均の${(x.cur / x.mean).toFixed(1)}倍`, tagClass: "sub-tag-up",
           detail: `${when}：過去の月平均 ${YEN(x.mean)} → 今月 ${YEN(x.cur)}（+${YEN(x.diff)}）`, value: YEN(x.cur), drill: { category: x.cat } }));
-        a.stores.forEach((x) => out.push({ id: "anomaly-store:" + x.store, source: "今月の動き", level: "info", title: x.store, tag: "初めてのお店", tagClass: "bal-tag",
+        a.stores.forEach((x) => out.push({ id: "anomaly-store:" + x.store, readKey: `anomaly-store:${x.store}@${a.range.key}`, source: "今月の動き", level: "info", title: x.store, tag: "初めてのお店", tagClass: "bal-tag",
           detail: `${when}：これまでの取引に出てこないお店での高額支出`, value: YEN(x.amount), drill: { store: x.store } }));
       }
     } catch (e) { console.error("気になる動きの計算に失敗", e); }
@@ -6637,9 +6639,33 @@ function svgEl(tag, attrs) {
     let monthCheck = null;
     try {
       monthCheck = xMonthChecks();
-      monthCheck.checks.forEach((c) => out.push({ id: "month:" + c.title, source: "月次チェック", level: c.status, title: c.title, detail: c.detail, act: c.act }));
+      monthCheck.checks.forEach((c) => out.push({ id: "month:" + c.title, readKey: `month:${c.title}@${monthCheck.range.key}`, source: "月次チェック", level: c.status, title: c.title, detail: c.detail, act: c.act }));
     } catch (e) { console.error("月次チェックの計算に失敗", e); }
     return { items: sortInsightFeedItems(out), monthCheck };
+  }
+
+  // ===== 気づきフィードの既読の永続化 =====
+  // 既読キーは項目の id を基本とし、今月の動き・月次チェックは対象の会計月（range.key）を
+  // 付けた readKey を使う（月が替われば新しい気づきとして未読に戻る）。
+  const INSIGHT_FEED_READ_KEY = "zaimLedgerInsightFeedRead";
+  const INSIGHT_FEED_INITIAL = 5;   // フィードの初期表示件数（サマリを除く）
+  let insightFeedReadLoaded = false;
+  function insightFeedKeyOf(x) { return x.readKey || x.id; }
+  function loadInsightFeedRead() {
+    if (insightFeedReadLoaded) return;
+    insightFeedReadLoaded = true;
+    try {
+      const arr = JSON.parse(localStorage.getItem(INSIGHT_FEED_READ_KEY) || "[]");
+      if (Array.isArray(arr)) arr.forEach((k) => { if (typeof k === "string") state.insightFeedRead.add(k); });
+    } catch (e) { /* 読めなくてもセッション内では動く */ }
+  }
+  // 保存時に、現在のフィードに存在しないキーは落とす（古い既読が溜まり続けないように）
+  function saveInsightFeedRead(validKeys) {
+    try {
+      const keep = Array.from(state.insightFeedRead).filter((k) => validKeys.has(k));
+      state.insightFeedRead = new Set(keep);
+      localStorage.setItem(INSIGHT_FEED_READ_KEY, JSON.stringify(keep));
+    } catch (e) { /* 保存できなくても動作に影響なし */ }
   }
 
   function renderInsightFeed() {
@@ -6647,11 +6673,14 @@ function svgEl(tag, attrs) {
     const host = document.getElementById("insightFeedList");
     if (!panel || !host) return;
     wireAsk();
+    loadInsightFeedRead();
     host.innerHTML = "";
     const metaEl = document.getElementById("insightFeedMeta");
     const { items, monthCheck } = buildInsightFeedItems();
     const marks = { ok: "✓", good: "✓", warn: "!", info: "i" };
-    const unread = items.filter((x) => !x.summary && !state.insightFeedRead.has(x.id)).length;
+    const keyOf = insightFeedKeyOf;
+    const validKeys = new Set(items.filter((x) => !x.summary).map(keyOf));
+    const unread = items.filter((x) => !x.summary && !state.insightFeedRead.has(keyOf(x))).length;
     const meta = [];
     if (monthCheck && monthCheck.warnN) meta.push(`月次チェック：要確認 ${monthCheck.warnN}件`);
     if (unread) meta.push(`未読 ${unread}件`);
@@ -6660,18 +6689,17 @@ function svgEl(tag, attrs) {
       metaEl.style.color = monthCheck && monthCheck.warnN ? "var(--red)" : "";
     }
     if (items.length === 0) { host.appendChild(emptyState("いまは目立った気づきはありません")); return; }
-    items.forEach((x) => {
-      if (x.summary) {
-        host.appendChild(el("div", { class: "x-check feed-row feed-summary" }, [
-          el("div", { class: "feed-score-num num" }, [x.scoreText]),
-          el("div", { class: "x-body" }, [
-            el("div", { class: "x-title" }, [el("span", { class: "feed-src" }, [x.source]), "家計の健康診断"]),
-            el("div", { class: "x-detail" }, [x.scoreLabel]),
-          ]),
-        ]));
-        return;
-      }
-      const read = state.insightFeedRead.has(x.id);
+    const summaries = items.filter((x) => x.summary);
+    const rest = items.filter((x) => !x.summary);
+    // 未読を前に寄せる（未読・既読それぞれの中では従来の warn→info→ok 順を保つ安定ソート）。
+    // 初期表示は未読中心に最大 INSIGHT_FEED_INITIAL 件までで、残りは展開して出す。
+    const ordered = rest.slice().sort((a, b) => (state.insightFeedRead.has(keyOf(a)) ? 1 : 0) - (state.insightFeedRead.has(keyOf(b)) ? 1 : 0));
+    const hasUnreadPriority = ordered.some((x) => !state.insightFeedRead.has(keyOf(x)) && (x.level === "warn" || x.level === "info"));
+    const quiet = rest.length > 0 && !hasUnreadPriority;   // 未読の warn/info が無ければ静かな状態に畳む
+    const expanded = state.insightFeedExpanded;
+    const shown = expanded ? ordered : (quiet ? [] : ordered.slice(0, INSIGHT_FEED_INITIAL));
+    const buildRow = (x) => {
+      const read = state.insightFeedRead.has(keyOf(x));
       const titleKids = [el("span", { class: "feed-src" }, [x.source])];
       if (x.drill) {
         titleKids.push(el("span", { class: "name drill", onclick: () => { state.periodMode = "month"; jumpToTx(x.drill); } }, [x.title]));
@@ -6696,10 +6724,29 @@ function svgEl(tag, attrs) {
         row.appendChild(v);
       }
       if (!read) {
-        row.appendChild(el("button", { class: "feed-read-btn", type: "button", onclick: (ev) => { if (ev) ev.stopPropagation(); state.insightFeedRead.add(x.id); renderInsightFeed(); } }, ["既読"]));
+        row.appendChild(el("button", { class: "feed-read-btn", type: "button", onclick: (ev) => { if (ev) ev.stopPropagation(); state.insightFeedRead.add(keyOf(x)); saveInsightFeedRead(validKeys); renderInsightFeed(); } }, ["既読"]));
       }
-      host.appendChild(row);
+      return row;
+    };
+    summaries.forEach((x) => {
+      host.appendChild(el("div", { class: "x-check feed-row feed-summary" }, [
+        el("div", { class: "feed-score-num num" }, [x.scoreText]),
+        el("div", { class: "x-body" }, [
+          el("div", { class: "x-title" }, [el("span", { class: "feed-src" }, [x.source]), "家計の健康診断"]),
+          el("div", { class: "x-detail" }, [x.scoreLabel]),
+        ]),
+      ]));
     });
+    if (quiet && !expanded) {
+      host.appendChild(el("div", { class: "x-check feed-row feed-quiet" }, [
+        el("div", { class: "x-body" }, [el("div", { class: "x-title" }, ["新しい気づきはありません"])]),
+      ]));
+    }
+    shown.forEach((x) => host.appendChild(buildRow(x)));
+    if (ordered.length > shown.length || expanded) {
+      const label = expanded ? "閉じる" : `残り${ordered.length - shown.length}件を表示`;
+      host.appendChild(el("button", { class: "feed-more-btn", type: "button", onclick: () => { state.insightFeedExpanded = !state.insightFeedExpanded; renderInsightFeed(); } }, [label]));
+    }
   }
 
   function renderHeroMini() {
