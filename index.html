@@ -113,7 +113,7 @@
   .period-nav-btn:hover { background: rgba(var(--side-tint-rgb),0.14); color: var(--sidebar-ink); }
   .period-date-input { color-scheme: var(--side-scheme); flex: 1; min-width: 0; background: rgba(var(--side-tint-rgb),0.06); border: 1px solid rgba(var(--side-tint-rgb),0.1); color: var(--sidebar-ink); border-radius: 4px; padding: 5px 6px; font-size: 13.5px; }
   .period-current-label { margin-top: 8px; font-size: 14.5px; color: var(--sidebar-ink); line-height: 1.4; }
-  .period-current-label .tag { display: inline-block; font-size: 11.5px; color: var(--sidebar-soft); border: 1px solid rgba(var(--side-tint-rgb),0.2); border-radius: 3px; padding: 1px 5px; margin-right: 6px; }
+  .period-current-label .tag { display: inline-block; font-size: 12px; color: var(--sidebar-soft); border: 1px solid rgba(var(--side-tint-rgb),0.2); border-radius: 3px; padding: 1px 5px; margin-right: 6px; }
   .period-strip { display: flex; gap: 6px; overflow-x: auto; margin-top: 10px; padding-bottom: 3px; scrollbar-width: thin; }
   .period-strip::-webkit-scrollbar { height: 5px; }
   .period-strip::-webkit-scrollbar-thumb { background: rgba(var(--side-tint-rgb),0.15); border-radius: 3px; }
@@ -190,7 +190,7 @@
   .adv-search-row .adv-field { flex: 1; min-width: 0; background: var(--paper-raised); border: 1px solid var(--rule-strong); color: var(--ink);
     border-radius: 4px; padding: 5px 8px; font-size: 13px; }
   .adv-search-row .adv-field:focus { outline: none; border-color: var(--ink); }
-  .adv-search-sep { font-size: 11.5px; color: var(--ink-faint); margin: 2px 0 10px; line-height: 1.5; }
+  .adv-search-sep { font-size: 12px; color: var(--ink-faint); margin: 2px 0 10px; line-height: 1.5; }
   .level-toggle-light { display: flex; gap: 2px; background: rgba(var(--ink-rgb),0.05); border-radius: 4px; padding: 2px; flex: 1; }
   .level-toggle-light button { flex: 1; background: none; border: none; color: var(--ink-soft); font-size: 12.5px; padding: 5px 4px; cursor: pointer; border-radius: 3px; }
   .level-toggle-light button.active { background: var(--paper); color: var(--ink); font-weight: 600; }
@@ -334,7 +334,7 @@
       gap: 0; flex-wrap: nowrap; padding: 3px 2px calc(3px + env(safe-area-inset-bottom)); }
     .tab-btn { flex: 1 1 0; flex-direction: column; gap: 3px; border-left: none; border-right: none;
       border-bottom: none; border-radius: 0; background: transparent; padding: 7px 2px 5px; margin-bottom: 0;
-      font-size: 11.5px; white-space: nowrap; min-width: 0; }
+      font-size: 12px; white-space: nowrap; min-width: 0; }
     .tab-btn.active { background: transparent; }
     .tab-btn svg { display: block; width: 19px; height: 19px; }
   }
@@ -360,7 +360,7 @@
     font-size: 15.5px; padding: 7px 11px; width: 210px; }
   input[type="text"]:focus, input[type="number"]:focus { outline: none; border-color: var(--ink); }
 
-  .summary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-bottom: 20px; }
+  .summary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-bottom: 20px; }
   @media (max-width: 640px) { .summary-grid { grid-template-columns: 1fr; } }
   .summary-card { padding: 17px 18px; }
   .summary-label { display: flex; align-items: center; gap: 6px; font-size: 14.5px; color: var(--ink-soft); }
@@ -383,10 +383,10 @@
   .spend-fill { height: 100%; border-radius: 6px; background: var(--green); }
   .spend-fill.warn { background: var(--gold); }
   .spend-fill.over { background: var(--red); }
-  .panel { padding: 20px 22px; margin-bottom: 16px; }
-  .panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap:10px; flex-wrap:wrap; }
+  .panel { padding: 24px 26px; margin-bottom: 20px; }
+  .panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; gap:12px; flex-wrap:wrap; }
   .section-title { font-size: 17.5px; }
-  .two-col { display: grid; grid-template-columns: 1.1fr 1fr; gap: 16px; align-items: stretch; }
+  .two-col { display: grid; grid-template-columns: 1.1fr 1fr; gap: 20px; align-items: stretch; }
   @media (max-width: 860px) { .two-col { grid-template-columns: 1fr; } }
 
   .donut-wrap { display: flex; align-items: center; gap: 22px; }
@@ -457,7 +457,7 @@
   .bal-group { margin-bottom: 18px; }
   .bal-group:last-child { margin-bottom: 0; }
   .bal-group-title { font-size: 14.5px; color: var(--ink-soft); letter-spacing: .03em; padding-bottom: 6px; border-bottom: 1px solid var(--rule); margin-bottom: 6px; display:flex; justify-content:space-between; }
-  .bal-row { display: flex; justify-content: space-between; align-items: baseline; padding: 5px 2px; font-size: 16.5px; }
+  .bal-row { display: flex; justify-content: space-between; align-items: baseline; padding: 7px 2px; font-size: 16.5px; }
   .bal-row .name { display:flex; align-items:baseline; gap:6px; }
   .bal-row .amt { }
   .bal-row .amt.negative { color: var(--red); }
@@ -474,7 +474,7 @@
   .day-head { display: flex; justify-content: space-between; align-items: baseline; padding: 9px 22px;
     background: rgba(var(--ink-rgb),0.025); font-size: 14.5px; color: var(--ink-soft); }
   .day-head .d { color: var(--ink); }
-  .tx-row { display: flex; align-items: center; gap: 12px; padding: 10px 22px; border-bottom: 1px solid var(--rule); }
+  .tx-row { display: flex; align-items: center; gap: 12px; padding: 12px 22px; border-bottom: 1px solid var(--rule); }
   .tx-row:hover { background: rgba(var(--ink-rgb),0.03); }
   .tx-row.excluded { opacity: .5; }
   .tx-icon { width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center;
@@ -489,7 +489,7 @@
   .tx-sub { display: flex; flex-wrap: wrap; gap: 4px 8px; margin-top: 4px; }
   .tx-sub-item { font-size: 14px; color: var(--ink-soft); line-height: 1.4; white-space: normal;
     overflow-wrap: anywhere; }
-  .tx-sub-item .lbl { font-size: 11.5px; color: var(--ink-faint); margin-right: 3px; }
+  .tx-sub-item .lbl { font-size: 12px; color: var(--ink-faint); margin-right: 3px; }
   .tx-account { font-size: 14px; color: var(--ink-faint); flex-shrink: 0; width: 165px; text-align: right; white-space: normal; line-height: 1.35; }
   .tx-account-mobile { display: none; font-size: 12.5px; color: var(--ink-soft); margin-top: 1px; white-space: normal; line-height: 1.4; }
   .tx-amt { font-size: 17.5px; flex-shrink: 0; width: 108px; text-align: right; }
@@ -504,8 +504,8 @@
   .tx-row-grouped > summary.tx-row::-webkit-details-marker { display: none; }
   .tx-row-grouped[open] > summary.tx-row { background: rgba(var(--ink-rgb),0.03); }
   .tx-icon-grouped { position: relative; }
-  .tx-icon-badge { position: absolute; right: -3px; bottom: -3px; min-width: 15px; height: 15px; padding: 0 3px;
-    border-radius: 999px; background: var(--ink); color: var(--paper-raised); font-size: 10px; line-height: 15px;
+  .tx-icon-badge { position: absolute; right: -3px; bottom: -3px; min-width: 18px; height: 18px; padding: 0 3px;
+    border-radius: 999px; background: var(--ink); color: var(--paper-raised); font-size: 12px; line-height: 18px;
     text-align: center; font-weight: 600; }
   .tx-group-detail-list { padding: 2px 22px 10px 70px; display: flex; flex-direction: column; gap: 5px; }
   .tx-group-detail-row { display: flex; justify-content: space-between; gap: 12px; font-size: 13.5px; color: var(--ink-soft); }
@@ -681,7 +681,7 @@
   /* ---- スマホ：取引明細・表の調整 ---- */
   @media (max-width: 640px) {
     .day-head { padding: 8px 14px; position: sticky; top: 0; z-index: 5; background: var(--paper-raised); }
-    .tx-row { padding: 11px 14px; gap: 10px; align-items: flex-start; }
+    .tx-row { padding: 13px 14px; gap: 10px; align-items: flex-start; }
     .tx-icon { width: 32px; height: 32px; font-size: 15px; margin-top: 2px; }
     .tx-cat { font-size: 15.5px; line-height: 1.4; overflow-wrap: anywhere; }
     .tx-amt { width: auto; min-width: 84px; font-size: 16px; padding-top: 1px; }
@@ -703,7 +703,7 @@
     .main-inner { min-width: 0; }
   }
   @media (max-width: 640px) {
-    .panel { padding: 16px 14px; }
+    .panel { padding: 20px 18px; }
     .donut-wrap { flex-wrap: wrap; justify-content: center; gap: 14px; }
     .donut-legend { flex: 1 1 100%; max-height: none; }
   }
@@ -752,7 +752,7 @@
     .bs-columns { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
     .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .summary-grid-secondary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .panel { padding: 16px 18px; }
+    .panel { padding: 20px 20px; }
     .tx-row { padding: 10px 14px; align-items: flex-start; }
     .tx-account { display: none; }
     .tx-account-mobile { display: block; }
@@ -772,8 +772,8 @@
   .x-chip { font-size: 12px; border: 1px solid; border-radius: 3px; padding: 0 5px; margin-left: 8px; white-space: nowrap; }
   .x-wrap { overflow-x: auto; }
   .x-tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
-  .x-tbl th { text-align: left; font-weight: 600; color: var(--ink-soft); border-bottom: 1px solid var(--rule-strong); padding: 6px 8px; font-size: 13px; white-space: nowrap; }
-  .x-tbl td { padding: 6px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  .x-tbl th { text-align: left; font-weight: 600; color: var(--ink-soft); border-bottom: 1px solid var(--rule-strong); padding: 8px 10px; font-size: 13px; white-space: nowrap; }
+  .x-tbl td { padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
   .x-tbl th.r, .x-tbl td.r { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
   .x-tbl tfoot td { font-weight: 600; border-top: 2px solid var(--rule-strong); border-bottom: none; }
   .x-seg { display: inline-flex; border: 1px solid var(--rule-strong); border-radius: 4px; overflow: hidden; margin: 0 10px 10px 0; }
@@ -795,8 +795,8 @@
   #cmdList .x-cmd small { color: var(--ink-faint); white-space: nowrap; }
   /* ---- 気づきフィード（健康診断・気になる動き・月次チェック・気づきを1本に集約） ---- */
   .feed-row.read { opacity: 0.45; }
-  .feed-src { font-size: 11.5px; color: var(--ink-soft); border: 1px solid var(--rule); border-radius: 3px; padding: 0 5px; margin-right: 7px; white-space: nowrap; vertical-align: 2px; }
-  .feed-read-btn { flex-shrink: 0; align-self: center; border: 1px solid var(--rule); background: var(--paper-raised); color: var(--ink-soft); font: inherit; font-size: 11.5px; border-radius: 999px; padding: 3px 10px; cursor: pointer; }
+  .feed-src { font-size: 12px; color: var(--ink-soft); border: 1px solid var(--rule); border-radius: 3px; padding: 0 5px; margin-right: 7px; white-space: nowrap; vertical-align: 2px; }
+  .feed-read-btn { flex-shrink: 0; align-self: center; border: 1px solid var(--rule); background: var(--paper-raised); color: var(--ink-soft); font: inherit; font-size: 12px; border-radius: 999px; padding: 3px 10px; cursor: pointer; }
   .feed-row[data-ask] { cursor: pointer; }
   .feed-score-num { font-size: 30px; font-weight: 700; line-height: 1.1; }
   .feed-summary { align-items: center; }
@@ -891,11 +891,11 @@
   .hero-mini-link:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
   .cal-range { font-size: 13px; color: var(--ink-soft); }
   .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
-  .cal-dow { font-size: 11.5px; color: var(--ink-soft); text-align: center; padding-bottom: 2px; }
+  .cal-dow { font-size: 12px; color: var(--ink-soft); text-align: center; padding-bottom: 2px; }
   .cal-cell { min-height: 46px; border: 1px solid var(--rule); border-radius: 10px; background: var(--paper-raised); color: var(--ink);
     padding: 3px 4px; display: flex; flex-direction: column; justify-content: space-between; align-items: stretch; font: inherit; cursor: pointer; text-align: left; min-width: 0; }
-  .cal-cell .d { font-size: 10.5px; font-weight: 500; }
-  .cal-cell .v { font-size: 11px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .cal-cell .d { font-size: 12px; font-weight: 500; }
+  .cal-cell .v { font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .cal-cell.future { border-style: dashed; background: transparent; cursor: default; opacity: .55; }
   .cal-cell.today { outline: 2px solid var(--ink); outline-offset: -1px; }
   .cal-cell:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
@@ -963,12 +963,12 @@
   .tl-ctl label { display: block; font-size: 13px; color: var(--ink-soft); } .tl-ctl label b { color: var(--ink); margin-left: 6px; }
   .tl-ctl input[type="range"] { width: 100%; min-height: 44px; accent-color: var(--gold); }
   @media (max-width: 640px) { .tl-stats { grid-template-columns: 1fr 1fr; } .tl-stats > .card:first-child { grid-column: 1 / -1; } .tl-ctl { grid-template-columns: 1fr; } #tlChart { height: 300px; } }
-  /* ---- グラフタブ：質問グループ（パネルを開閉カードにまとめる。開閉は .panel.collapsed の既存規則を使う） ---- */
+  /* ---- 質問・分類グループ（グラフタブ／概要タブ共通。パネルを開閉カードにまとめる。開閉は .panel.collapsed の既存規則を使う） ---- */
   .qgroup-head .section-title { font-size: 19.5px; }
   .qgroup-body > .card.panel { background: transparent; border: none; border-radius: 0; box-shadow: none;
-    padding: 18px 2px 20px; margin-bottom: 0; }
+    padding: 22px 2px 24px; margin-bottom: 0; }
   .qgroup-body > .card.panel + .card.panel { border-top: 1px solid var(--rule); }
-  @media (max-width: 640px) { .qgroup-body > .card.panel { padding: 14px 0 16px; } }
+  @media (max-width: 640px) { .qgroup-body > .card.panel { padding: 18px 0 20px; } }
 
   /* ---- 期間スティッキーバー（サイドバーが上へ流れる860px以下で、期間操作をメイン上部に固定表示する） ---- */
   #periodStickyBar { display: none; }
@@ -1274,6 +1274,11 @@
         </div>
       </div>
 
+      <div class="card panel qgroup" id="overviewGroupFlow">
+        <div class="panel-head qgroup-head">
+          <div class="section-title serif">お金の流れ</div>
+        </div>
+        <div class="qgroup-body">
       <div class="card panel spend-panel" id="spendPanel">
         <div class="panel-head" style="margin-bottom:6px;">
           <div class="section-title serif">使ったお金</div>
@@ -1325,12 +1330,19 @@
       </div>
       <div class="cash-note" id="reconcileNote" style="margin:8px 2px 0;"></div>
 
-      <div class="card panel" id="periodComparePanel" style="margin-top:18px;">
+      <div class="card panel" id="periodComparePanel">
         <div class="panel-head"><div class="section-title serif" id="periodCompareTitle">期間比較</div></div>
         <div id="periodCompareTable"></div>
       </div>
+        </div>
+      </div>
 
-      <div class="card panel" id="cardSchedulePanel" style="margin-top:18px;">
+      <div class="card panel qgroup" id="overviewGroupSchedule">
+        <div class="panel-head qgroup-head">
+          <div class="section-title serif">予定と契約</div>
+        </div>
+        <div class="qgroup-body">
+      <div class="card panel" id="cardSchedulePanel">
         <div class="panel-head">
           <div class="section-title serif">カード引落の予定</div>
           <div class="sub-meta" id="cardScheduleMeta"></div>
@@ -1338,15 +1350,22 @@
         <div id="cardScheduleBody"></div>
       </div>
 
-      <div class="card panel" id="subscriptionPanel" style="margin-top:18px;">
+      <div class="card panel" id="subscriptionPanel">
         <div class="panel-head">
           <div class="section-title serif">定期支払い（サブスク）検出</div>
           <div class="sub-meta" id="subscriptionMonthlyTotal"></div>
         </div>
         <div id="subscriptionList"></div>
       </div>
+        </div>
+      </div>
 
-      <div class="card panel" id="taxSummaryPanel" style="margin-top:18px;">
+      <div class="card panel qgroup" id="overviewGroupTax">
+        <div class="panel-head qgroup-head">
+          <div class="section-title serif">税と寄附</div>
+        </div>
+        <div class="qgroup-body">
+      <div class="card panel" id="taxSummaryPanel">
         <div class="panel-head">
           <div class="section-title serif">税務関連の年間集計（<span id="taxSummaryYear"></span>年）</div>
           <a class="btn" id="taxOpenBtn" href="tax-furusato.html" style="text-decoration:none;">確定申告・ふるさと納税の試算を開く ↗</a>
@@ -1371,6 +1390,8 @@
         <div class="modal-section-title" style="margin-top:18px;">ふるさと納税の寄附先</div>
         <div class="cash-note" id="furusatoDeadline" style="margin:6px 0 4px;"></div>
         <div id="furusatoList"></div>
+      </div>
+        </div>
       </div>
 
       </div>
@@ -5533,7 +5554,7 @@
             forecastDrillLabel(el("span", { class: "name" }, [
               `${s.label}（${timingLabel}・${s.account || "口座不明"}払い）`,
               s.manual ? el("span", { class: "bal-tag" }, ["手動登録"]) : null,
-              !s.cashPaid ? el("span", { style: "font-size:11.5px;color:var(--ink-soft);border:1px solid var(--rule-strong);border-radius:3px;padding:0 4px;margin-left:6px;white-space:nowrap;" }, ["非現金勘定"]) : null,
+              !s.cashPaid ? el("span", { style: "font-size:12px;color:var(--ink-soft);border:1px solid var(--rule-strong);border-radius:3px;padding:0 4px;margin-left:6px;white-space:nowrap;" }, ["非現金勘定"]) : null,
             ]), s.rows, `固定費：${s.label}`),
             el("span", { class: "amt num" }, [YEN(s.amount)]),
           ]));
@@ -6291,7 +6312,7 @@ function svgEl(tag, attrs) {
     for (let d = a; d <= b; d++) { const s = tlS(d), g = tlSig(d), v = tlB(d); lo = Math.min(lo, v - g, s - g); hi = Math.max(hi, v + g, s + g); }
     const pad = (hi - lo) * 0.1 + 1, y0 = lo - pad, y1 = hi + pad, base = H - M.b, top = M.t, y = (v) => base - (v - y0) / (y1 - y0) * (base - top);
     let o = "";
-    for (let i = 0; i < 4; i++) { const v = y0 + (y1 - y0) * (i + 0.5) / 4, yy = y(v); o += `<line x1="${M.l}" x2="${W - M.r}" y1="${yy}" y2="${yy}" stroke="var(--rule)"/><text x="${M.l + 2}" y="${yy - 4}" font-size="11" fill="var(--ink-soft)">${YEN_COMPACT(v)}</text>`; }
+    for (let i = 0; i < 4; i++) { const v = y0 + (y1 - y0) * (i + 0.5) / 4, yy = y(v); o += `<line x1="${M.l}" x2="${W - M.r}" y1="${yy}" y2="${yy}" stroke="var(--rule)"/><text x="${M.l + 2}" y="${yy - 4}" font-size="12" fill="var(--ink-soft)">${YEN_COMPACT(v)}</text>`; }
     if (TL.z <= 60) {
       let mx = 1; for (let d = a; d <= Math.min(b, 0); d++) mx = Math.max(mx, Math.abs((D.fin.get(d) || 0) - (D.fout.get(d) || 0)));
       for (let d = a; d <= Math.min(b, 0); d++) {
@@ -6303,9 +6324,9 @@ function svgEl(tag, attrs) {
     const step = [1, 2, 5, 7, 14, 30, 60].find((q) => TL.z / q <= 7) || 60;
     for (let d = a; d <= b; d++) {
       const t = tlDate(d), show = TL.z >= 90 ? t.getDate() === 1 : (d % step === 0 || (t.getDate() === 1 && TL.z > 45));
-      if (show) o += `<text x="${x(d)}" y="${H - 12}" font-size="11" text-anchor="middle" fill="var(--ink-soft)">${TL.z >= 90 ? (t.getMonth() + 1) + "月" : (t.getMonth() + 1) + "/" + t.getDate()}</text>`;
+      if (show) o += `<text x="${x(d)}" y="${H - 12}" font-size="12" text-anchor="middle" fill="var(--ink-soft)">${TL.z >= 90 ? (t.getMonth() + 1) + "月" : (t.getMonth() + 1) + "/" + t.getDate()}</text>`;
     }
-    const ys = y(safe); o += `<line x1="${M.l}" x2="${W - M.r}" y1="${ys}" y2="${ys}" stroke="var(--red)" stroke-dasharray="2 4" opacity=".7"/><text x="${W - M.r - 2}" y="${ys - 4}" font-size="11" text-anchor="end" fill="var(--red)">${safe > 0 ? "下回りたくない残高 " + YEN_COMPACT(safe) : "残高ゼロ"}</text>`;
+    const ys = y(safe); o += `<line x1="${M.l}" x2="${W - M.r}" y1="${ys}" y2="${ys}" stroke="var(--red)" stroke-dasharray="2 4" opacity=".7"/><text x="${W - M.r - 2}" y="${ys - 4}" font-size="12" text-anchor="end" fill="var(--red)">${safe > 0 ? "下回りたくない残高 " + YEN_COMPACT(safe) : "残高ゼロ"}</text>`;
     const f0 = Math.max(a, 0);
     if (b > 0) { let up = "", dn = ""; for (let d = f0; d <= b; d++) { up += `${x(d)},${y(tlB(d) + tlSig(d))} `; dn = `${x(d)},${y(tlB(d) - tlSig(d))} ` + dn; } o += `<polygon points="${up}${dn}" fill="var(--gold)" opacity=".16"/>`; }
     if (a <= 0) { let q = ""; for (let d = a; d <= Math.min(0, b); d++) q += `${x(d)},${y(tlB(d))} `; o += `<polyline points="${q}" fill="none" stroke="var(--ink)" stroke-width="2.2" stroke-linejoin="round"/>`; }
@@ -6315,7 +6336,7 @@ function svgEl(tag, attrs) {
       if (b >= TL.day) { let q = ""; for (let d = Math.max(TL.day - 1, f0); d <= b; d++) q += `${x(d)},${y(tlS(d))} `; o += `<polyline points="${q}" fill="none" stroke="var(--gold)" stroke-width="3.2" stroke-linejoin="round"/>`; }
       o += `<line x1="${hx}" x2="${hx}" y1="${top}" y2="${base}" stroke="var(--gold)" stroke-dasharray="3 3"/><circle cx="${hx}" cy="${hy}" r="9" fill="var(--gold)" stroke="var(--paper-raised)" stroke-width="3" style="cursor:ew-resize"/><text x="${Math.min(W - 50, Math.max(50, hx))}" y="${top - 4}" font-size="12" font-weight="700" text-anchor="middle" fill="var(--ink)">仮 ${TL.amt > 0 ? "+" : ""}${YEN(TL.amt)}</text>`;
     }
-    const tx0 = x(0); if (tx0 > 0 && tx0 < W) o += `<line x1="${tx0}" x2="${tx0}" y1="${top}" y2="${base}" stroke="var(--ink)" opacity=".5"/><text x="${tx0 + 4}" y="${top + 10}" font-size="11" fill="var(--ink-soft)">現在</text>`;
+    const tx0 = x(0); if (tx0 > 0 && tx0 < W) o += `<line x1="${tx0}" x2="${tx0}" y1="${top}" y2="${base}" stroke="var(--ink)" opacity=".5"/><text x="${tx0 + 4}" y="${top + 10}" font-size="12" fill="var(--ink-soft)">現在</text>`;
     const sx = x(TL.sel); if (sx >= 0 && sx <= W) o += `<line x1="${sx}" x2="${sx}" y1="${top}" y2="${base}" stroke="var(--ink)" opacity=".35"/><circle cx="${sx}" cy="${y(tlS(TL.sel))}" r="5" fill="var(--ink)" stroke="var(--paper-raised)" stroke-width="2"/>`;
     box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" aria-hidden="true">${o}</svg>`;
     box._m = { v0, pw, hx, hy, M };
@@ -6425,13 +6446,13 @@ function svgEl(tag, attrs) {
     return `<svg viewBox="0 0 320 112" class="ask-svg" aria-hidden="true">` + (ref != null ? `<line x1="0" x2="320" y1="${y(ref)}" y2="${y(ref)}" stroke="var(--red)" stroke-dasharray="2 4" opacity=".7"/>` : "") +
       pl(a, b ? "var(--ink-soft)" : "var(--gold)", b ? 1.6 : 3, !!b) + (b ? pl(b, "var(--gold)", 3) : "") +
       (hi != null ? `<circle cx="${x(hi)}" cy="${y((b || a)[hi])}" r="5" fill="var(--gold)" stroke="var(--paper-raised)" stroke-width="2"/>` : "") +
-      labels.map((l, i) => `<text x="${x(i)}" y="106" font-size="11" text-anchor="middle" fill="var(--ink-soft)">${askEsc(l)}</text>`).join("") + `</svg>`;
+      labels.map((l, i) => `<text x="${x(i)}" y="106" font-size="12" text-anchor="middle" fill="var(--ink-soft)">${askEsc(l)}</text>`).join("") + `</svg>`;
   }
   function askBars(v, hi, labels) {
     const mx = Math.max(...v, 1) * 1.2, w = 320 / v.length;
     return `<svg viewBox="0 0 320 112" class="ask-svg" aria-hidden="true">` + v.map((x, i) => { const h = x / mx * 76;
-      return `<rect x="${i * w + 9}" y="${88 - h}" width="${w - 18}" height="${h}" rx="5" fill="${i === hi ? "var(--gold)" : "var(--rule)"}"/><text x="${i * w + w / 2}" y="104" font-size="11" text-anchor="middle" fill="var(--ink-soft)">${askEsc(labels[i])}</text>` +
-        (i === hi ? `<text x="${i * w + w / 2}" y="${82 - h}" font-size="11" font-weight="700" text-anchor="middle" fill="var(--gold-t, var(--ink))">${YEN(Math.round(x))}</text>` : ""); }).join("") + `</svg>`;
+      return `<rect x="${i * w + 9}" y="${88 - h}" width="${w - 18}" height="${h}" rx="5" fill="${i === hi ? "var(--gold)" : "var(--rule)"}"/><text x="${i * w + w / 2}" y="104" font-size="12" text-anchor="middle" fill="var(--ink-soft)">${askEsc(labels[i])}</text>` +
+        (i === hi ? `<text x="${i * w + w / 2}" y="${82 - h}" font-size="12" font-weight="700" text-anchor="middle" fill="var(--gold-t, var(--ink))">${YEN(Math.round(x))}</text>` : ""); }).join("") + `</svg>`;
   }
   function askCard(q, body) {
     const st = document.getElementById("askStack"), e = document.createElement("section");
@@ -8835,7 +8856,7 @@ function svgEl(tag, attrs) {
     const KEY = "zaimLedgerCollapsed";
     let closed;
     try { closed = new Set(JSON.parse(localStorage.getItem(KEY) || "[]")); } catch (e) { closed = new Set(); }
-    document.querySelectorAll("#tabOverview > .card.panel[id]").forEach((p) => {
+    document.querySelectorAll("#tabOverview > .card.panel[id]:not(.qgroup)").forEach((p) => {
       const head = p.querySelector(":scope > .panel-head");
       if (!head) return;
       const title = (head.querySelector(".section-title") || head).textContent.trim();
@@ -8861,6 +8882,37 @@ function svgEl(tag, attrs) {
   (function initChartsGroups() {
     const KEY = "zaimLedgerChartsGroups";
     const groups = Array.from(document.querySelectorAll("#tabCharts > .qgroup[id]"));
+    if (!groups.length) return;
+    let stored = null;
+    try { stored = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { stored = null; }
+    // 記録が無い端末では、最初のグループだけ開いた状態を既定にする
+    const closed = new Set(Array.isArray(stored) ? stored : groups.slice(1).map((g) => g.id));
+    groups.forEach((g) => {
+      const head = g.querySelector(":scope > .panel-head");
+      if (!head) return;
+      const title = (head.querySelector(".section-title") || head).textContent.trim();
+      const btn = el("button", { type: "button", class: "panel-collapse" }, []);
+      const apply = (c) => {
+        g.classList.toggle("collapsed", c);
+        btn.textContent = c ? "▸" : "▾";
+        btn.setAttribute("aria-expanded", c ? "false" : "true");
+        btn.setAttribute("aria-label", `${title}を${c ? "開く" : "折りたたむ"}`);
+        btn.title = c ? "開く" : "折りたたむ";
+      };
+      btn.addEventListener("click", () => {
+        const c = !g.classList.contains("collapsed");
+        apply(c);
+        if (c) closed.add(g.id); else closed.delete(g.id);
+        try { localStorage.setItem(KEY, JSON.stringify(Array.from(closed))); } catch (e) { /* 覚えられなくても開閉はできる */ }
+      });
+      head.appendChild(btn);
+      apply(closed.has(g.id));
+    });
+  })();
+  // 概要タブのパネルも「お金の流れ／予定と契約／税と寄附」のグループにまとめ、開閉状態をこの端末に覚えておく（グラフタブと同じ作法）
+  (function initOverviewGroups() {
+    const KEY = "zaimLedgerOverviewGroups";
+    const groups = Array.from(document.querySelectorAll("#tabOverview > .qgroup[id]"));
     if (!groups.length) return;
     let stored = null;
     try { stored = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { stored = null; }
