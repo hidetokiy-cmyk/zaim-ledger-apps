@@ -1384,15 +1384,7 @@
           <span id="securitiesHistoryGain" style="font-size:13px;color:var(--ink-soft);"></span>
         </div>
         <div style="font-size:13px;color:var(--ink-soft);margin-top:6px;">※「証券を時価で表示」がONのとき、証券の履歴がある日は含み損益で調整して表示します。このときグラフの合計は、貸借対照表（簿価ベース）と含み損益の分だけ異なります。</div>
-        <div style="font-size:13px;color:var(--ink-soft);margin-top:6px;">証券スクレイピングを取り込むたびに、その日の時価・取得原価を履歴に残します。過去分は、同期先リポジトリの日次スナップショット（snapshots/）またはバックフィルJSONから取り込めます。</div>
-        <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; align-items:center;">
-          <button id="securitiesHistorySnapshotBtn" class="btn" style="cursor:pointer;">スナップショットから履歴を取込</button>
-          <label class="btn" style="cursor:pointer; display:inline-block;">
-            バックフィルJSONを選択して取込
-            <input id="securitiesHistoryFileInput" type="file" accept=".json,application/json" class="hidden">
-          </label>
-        </div>
-        <div class="field-hint" id="securitiesHistoryImportStatus" style="margin-top:8px;"></div>
+        <div style="font-size:13px;color:var(--ink-soft);margin-top:6px;">証券スクレイピングを取り込むたびに、その日の時価・取得原価を履歴に残します。</div>
       </div>
 
       <div class="card panel" id="simPanel">
@@ -7871,28 +7863,6 @@ function svgEl(tag, attrs) {
     return true;
   }
 
-  // snapshotsの日次エントリ（{ at, securities: { stocks, funds, cash, other, totalCostBasis, totalMarketValue } }）を
-  // 証券履歴の1件に変換する。スナップショットに証券データが無い日はnull。
-  function securitiesHistoryEntryFromSnapshot(date, day) {
-    const sec = day && day.securities;
-    if (!sec || (!Array.isArray(sec.stocks) && !Array.isArray(sec.funds))) return null;
-    const items = [...(sec.stocks || []), ...(sec.funds || [])].map((i) => ({
-      name: i.name, qty: i.qty || 0, marketValue: Math.round(i.marketValue || 0), costBasis: Math.round(i.costBasis || 0),
-    }));
-    const num = (v, fb) => (typeof v === "number" && Number.isFinite(v) ? v : fb);
-    return {
-      date,
-      importedAt: day.at || date,
-      // スナップショットの合計には現金・その他が含まれる（検算済み）。無い場合は明細から合算する
-      totalMarketValue: Math.round(num(sec.totalMarketValue, items.reduce((s, i) => s + i.marketValue, 0) + (sec.cash || 0) + (sec.other || 0))),
-      totalCostBasis: Math.round(num(sec.totalCostBasis, items.reduce((s, i) => s + i.costBasis, 0) + (sec.cash || 0) + (sec.other || 0))),
-      cash: sec.cash || 0,
-      other: sec.other || 0,
-      count: items.length,
-      items,
-    };
-  }
-
   // ブックマークレット（証券・投資信託ページのスクレイピング）からの取込データを
   // 「SBI 証券」口座の残高（元本＝簿価）に反映し、時価・現金・その他を含めた詳細を
   // securitiesScrapeInfoとして保存する。B/S上の口座残高そのものは簿価（取得金額）を使うことで、
@@ -7927,72 +7897,10 @@ function svgEl(tag, attrs) {
     setAccountBalanceAsOfDate(pending.scrapedAt || new Date());
   }
 
-  // 同期先リポジトリの snapshots/YYYY-MM.json（自動同期スクリプトが日次で置く証券スナップショット）から
-  // 時価推移の履歴を取り込む。日付単位でupsertするので、再実行しても重複しない。
-  async function importSecuritiesHistoryFromSnapshots() {
-    const statusEl = document.getElementById("securitiesHistoryImportStatus");
-    const setStatus = (msg, isError) => { if (statusEl) { statusEl.textContent = msg; statusEl.style.color = isError ? "var(--red)" : "var(--ink-soft)"; } };
-    if (!cloudSync.repo || !cloudSync.token) {
-      setStatus("GitHub同期が未設定のため、スナップショットを取り込めません。同期を設定するか、バックフィルJSONのファイル取込を使ってください。", true);
-      return;
-    }
-    setStatus("スナップショットを取得しています…", false);
-    try {
-      const lr = await ghFetch(`https://api.github.com/repos/${cloudSync.repo}/contents/snapshots`, { headers: ghHeaders() });
-      if (!lr.ok) { setStatus("snapshotsフォルダが見つかりませんでした。", true); return; }
-      const files = (await lr.json()).filter((x) => x && x.type === "file" && /^\d{4}-\d{2}\.json$/.test(x.name)).map((x) => x.name).sort();
-      if (!files.length) { setStatus("snapshotsフォルダに月次ファイル（YYYY-MM.json）がありませんでした。", true); return; }
-      let days = 0;
-      for (const name of files) {
-        const f = await fetchRepoFile(`snapshots/${name}`);
-        if (!f || !f.text) { setStatus(`${name} の取得に失敗したため、取り込みを中断しました。`, true); return; }
-        const snap = JSON.parse(f.text);
-        Object.keys(snap).sort().forEach((date) => {
-          const entry = securitiesHistoryEntryFromSnapshot(date, snap[date]);
-          if (entry && upsertSecuritiesHistory(entry)) days++;
-        });
-      }
-      scheduleCloudSave();
-      renderAssetsHistoryChart();
-      setStatus(`スナップショットから${days}日分の履歴を取り込みました。`, false);
-    } catch (e) {
-      setStatus("スナップショットの取り込みに失敗しました。", true);
-    }
-  }
-  document.getElementById("securitiesHistorySnapshotBtn").addEventListener("click", () => { importSecuritiesHistoryFromSnapshots(); });
-
   // 資産構成の推移の「証券を時価で表示」トグル（状態はセッション内のみ保持。既定ON）
   document.getElementById("assetsHistorySecuritiesMV").addEventListener("change", (e) => {
     state.assetsHistorySecuritiesMV = e.target.checked;
     renderAssetsHistoryChart();
-  });
-
-  // バックフィルJSON（securities-history-backfill.json、または { securitiesHistory: [...] } 形式）のファイル取込。
-  // スナップショットボタンが使えない環境向けに、同じ履歴形式を取り込む手段として用意する。
-  document.getElementById("securitiesHistoryFileInput").addEventListener("change", (e) => {
-    const file = e.target.files && e.target.files[0];
-    const statusEl = document.getElementById("securitiesHistoryImportStatus");
-    const setStatus = (msg, isError) => { if (statusEl) { statusEl.textContent = msg; statusEl.style.color = isError ? "var(--red)" : "var(--ink-soft)"; } };
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      try {
-        const parsed = JSON.parse(ev.target.result);
-        const list = Array.isArray(parsed) ? parsed : parsed.securitiesHistory;
-        if (!Array.isArray(list)) { setStatus("履歴データ（配列）が見つからないJSONでした。", true); return; }
-        let days = 0;
-        list.forEach((h) => { if (upsertSecuritiesHistory(h)) days++; });
-        if (!days) { setStatus("取り込める履歴がありませんでした。", true); return; }
-        scheduleCloudSave();
-        renderAssetsHistoryChart();
-        setStatus(`バックフィルJSONから${days}日分の履歴を取り込みました。`, false);
-      } catch (err) {
-        setStatus("JSONの読み込みに失敗しました。", true);
-      }
-      e.target.value = "";
-    };
-    reader.onerror = () => { setStatus("ファイルの読み込みに失敗しました。", true); };
-    reader.readAsText(file);
   });
 
   // 「固定費（手動登録）」：一致タイプの切り替えに応じて、お店名／カテゴリ・内訳の入力欄を出し分ける
