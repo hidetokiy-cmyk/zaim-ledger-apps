@@ -202,6 +202,15 @@
     align-items: center; justify-content: center; font-size: 12px; line-height: 1; }
   .saved-filter-chip .del:hover { background: rgba(var(--ink-rgb),0.1); color: var(--red); }
   .saved-filter-empty { font-size: 12.5px; color: var(--ink-faint); }
+  /* ---- 分析の結論（Stage D）／台帳の保存ビュー（Stage D） ---- */
+  .concl-line { font-size: 16.5px; line-height: 1.95; }
+  .concl-seg { cursor: pointer; border-bottom: 1px dashed var(--ink-faint); }
+  .concl-seg:hover { color: var(--gold); border-bottom-color: var(--gold); }
+  .concl-sep { color: var(--ink-faint); margin: 0 2px; }
+  .saved-views-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 10px; }
+  .saved-views-label { font-size: 12.5px; color: var(--ink-soft); margin-right: 2px; }
+  .saved-views-bar .saved-filter-chip.on { border-color: var(--gold); color: var(--gold); font-weight: 600; }
+  .saved-views-active { font-size: 12.5px; color: var(--ink-soft); width: 100%; }
   .tab-bar { display: flex; align-items: flex-end; gap: 4px; margin-bottom: 28px; border-bottom: 2px solid var(--ink); flex-wrap: wrap; }
   .tab-btn { display: flex; align-items: center; gap: 8px; background: rgba(var(--ink-rgb),0.045); border: 1px solid var(--rule-strong);
     border-bottom: none; border-top: 3px solid transparent; border-radius: 7px 7px 0 0; color: var(--ink-soft);
@@ -1511,6 +1520,15 @@
 
       <div class="tab-page" id="tabCharts">
 
+      <div class="card panel" id="analysisConclusionPanel">
+        <div class="panel-head">
+          <div class="section-title serif" id="analysisConclusionTitle">今月の結論</div>
+          <div class="sub-meta" id="analysisConclusionMeta"></div>
+        </div>
+        <div class="concl-line" id="analysisConclusionBody"></div>
+        <div class="sub-meta-line" id="analysisConclusionNote"></div>
+      </div>
+
       <div class="card panel qgroup" id="chartsGroupSpend">
         <div class="panel-head qgroup-head">
           <div class="section-title serif">どこに使った？</div>
@@ -1788,6 +1806,7 @@
           </div>
         </div>
         <div id="txFilterChip"></div>
+        <div id="savedViewsBar" class="saved-views-bar"></div>
         <div id="txSummary" class="tx-summary"></div>
         <div id="txList"></div>
         <div class="pager">
@@ -2158,6 +2177,7 @@
     accountMetaInited: false,    // 初期値（SEED_*）からaccountMetaを作成済みか
     securitiesScrapeInfo: null, // { count, totalCostBasis, totalMarketValue, cash, other, importedAt }
     monthClose: {}, // 会計月ごとの決算状態 { 'YYYY-MM': { status: 'closing'|'closed', startedAt, closedAt, steps: { fresh, events }, ack: { 項目キー: ISO日時 }, summary: 確定時点のスナップショット } }
+    savedViews: [], // 台帳の保存ビュー [{ id, name, cond: { search, searchMode, amountMin, amountMax, adv, categoryFilter, filterLevel, periodMode, periodAnchor }, updatedAt }]
     securitiesHistory: [], // 証券の時価推移。取込・バックフィルのたびに1日1件を残す [{ date: 'YYYY-MM-DD'(JST), importedAt, totalMarketValue, totalCostBasis, cash, other, count, items: [{ name, qty, marketValue, costBasis }] }]
     zaimScrapeInfo: null, // { matched, unmatched: [names], importedAt }
     accountBalanceAsOfDate: null, // 口座残高（accountBalanceOverride）の確認日。YYYY-MM-DD文字列。未設定時は初期値にフォールバック
@@ -2375,6 +2395,7 @@
       accountMetaInited: settings.accountMetaInited,
       securitiesScrapeInfo: settings.securitiesScrapeInfo ? { ...settings.securitiesScrapeInfo, importedAt: settings.securitiesScrapeInfo.importedAt.toISOString() } : null,
       monthClose: settings.monthClose,
+      savedViews: settings.savedViews,
       securitiesHistory: settings.securitiesHistory.map((h) => ({ ...h, importedAt: h.importedAt instanceof Date ? h.importedAt.toISOString() : h.importedAt })),
       zaimScrapeInfo: settings.zaimScrapeInfo ? { ...settings.zaimScrapeInfo, importedAt: settings.zaimScrapeInfo.importedAt.toISOString() } : null,
       accountBalanceAsOfDate: settings.accountBalanceAsOfDate,
@@ -2438,6 +2459,7 @@
     settings.securitiesScrapeInfo = obj.securitiesScrapeInfo ? { ...obj.securitiesScrapeInfo, importedAt: new Date(obj.securitiesScrapeInfo.importedAt) } : null;
     settings.securitiesHistory = normalizeSecuritiesHistory(obj.securitiesHistory);
     settings.monthClose = normalizeMonthClose(obj.monthClose);
+    settings.savedViews = normalizeSavedViews(obj.savedViews);
     settings.zaimScrapeInfo = obj.zaimScrapeInfo ? { ...obj.zaimScrapeInfo, importedAt: new Date(obj.zaimScrapeInfo.importedAt) } : null;
     settings.accountBalanceAsOfDate = typeof obj.accountBalanceAsOfDate === "string" ? obj.accountBalanceAsOfDate : null;
     settings.pendingZaimImport = obj.pendingZaimImport && Array.isArray(obj.pendingZaimImport.items) ? obj.pendingZaimImport : null;
@@ -2761,6 +2783,7 @@
     merged.accountRenames = mergeMapField(base, local, remote, "accountRenames", conflicts);
     merged.categoryBudgets = mergeMapField(base, local, remote, "categoryBudgets", conflicts);
     merged.monthClose = mergeMapField(base, local, remote, "monthClose", conflicts);
+    merged.savedViews = mergeSavedViewsField(base, local, remote, conflicts);
     ["accountBalanceInited", "accountBalanceAsOfDate", "balancePattern", "furusatoKeyword", "securitiesScrapeInfo", "zaimScrapeInfo",
       "pendingZaimImport", "pendingZaimCsv", "zaimCsvSyncedAt", "pendingSecuritiesImport", "accountMetaInited", "syncHeartbeat"]
       .forEach((key) => { merged[key] = mergeScalarField(base, local, remote, key, conflicts); });
@@ -8307,6 +8330,267 @@ function svgEl(tag, attrs) {
     ]));
   }
 
+  // ===== Stage D：分析の結論ファースト／台帳の保存ビュー =====
+  // 結論は「選択期間そのものの診断」として、検索・カテゴリ等の絞り込みの影響を受けない行から
+  // 組み立てる（x* 系の診断関数と同じ作法）。使う計算は既存のものだけ：computeAccrualStats（収支）、
+  // computeCategoryBreakdown（最大の支出）、computeBalanceSheet＋periodEndBalanceDate（純資産の期間内変化）。
+  // 新しい指標は作らず、数値の裏付けが無い要素は出さない。
+
+  // 質問カード（グループ）を開いて、その位置までスクロールする。閉じている場合は既存の
+  // 開閉ボタン（.panel-collapse）を押して開く（開閉状態の保存も既存の仕組みに任せる）。
+  function openChartsGroup(id) {
+    activateAnalysisMode("charts");
+    const g = document.getElementById(id);
+    if (!g) return;
+    if (g.classList.contains("collapsed")) {
+      const btn = g.querySelector(":scope > .panel-head .panel-collapse");
+      if (btn) btn.click(); else g.classList.remove("collapsed");
+    }
+    g.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  const CONCL_PREV_LABEL = { day: "前日", week: "前週", month: "前月", year: "前年" };
+  // 選択期間の結論を組み立てる。戻り値：{ title, segments: [{ group, parts }], note }
+  function buildAnalysisConclusion() {
+    const mode = state.periodMode, anchor = state.periodAnchor;
+    const broad = isBroadPeriod(mode);
+    const range = periodRangeForMode(mode, anchor, 0);
+    const rows = rowsInRange(range);
+    const today = startOfDay(new Date());
+    const ongoing = range.start <= today && today < range.end;
+    const title = mode === "month" && ongoing ? "今月の結論" : `${periodDisplayForMode(mode, anchor, 0)}の結論`;
+    const segments = [];
+    const stats = computeAccrualStats(rows, broad);
+    // 収支の要約（発生ベース。概要タブの収益・費用・損益と同じ計算）
+    if (rows.length && (stats.revenue !== 0 || stats.cost !== 0)) {
+      segments.push({ group: "chartsGroupAssets", parts: [
+        `収支は ${stats.profit >= 0 ? "+" : "−"}${YEN(Math.abs(Math.round(stats.profit)))}（収入 ${YEN(Math.round(stats.revenue))} − 支出 ${YEN(Math.round(stats.cost))}）`,
+      ] });
+    }
+    // 支出ペース：前期との比較で判定する。進行中の会計月は「前月の同じ時点まで」と比べる
+    // （台帳への問いかけ askSpend と同じ考え方・同じ ±10% の判定幅）
+    if (mode !== "all" && stats.cost > 0) {
+      const prevRange = periodRangeForMode(mode, anchor, -1);
+      let prevCost = null, basis = CONCL_PREV_LABEL[mode] + "比";
+      if (mode === "month" && ongoing) {
+        const elapsed = Math.round((today - range.start) / 86400000) + 1;
+        prevCost = computeAccrualStats(rowsInRange({ start: prevRange.start, end: addDays(prevRange.start, elapsed) }), broad).cost;
+        basis = "前月の同じ時点と比べて";
+      } else if (range.end <= today) {
+        prevCost = computeAccrualStats(rowsInRange(prevRange), broad).cost;
+      }
+      if (prevCost != null && prevCost > 0) {
+        const pct = (stats.cost - prevCost) / prevCost * 100;
+        const word = pct <= -10 ? "抑えられています" : pct >= 10 ? "増えています" : "ほぼ横ばいです";
+        segments.push({ group: "chartsGroupSpend", parts: [
+          `支出は${basis} ${pct < 0 ? "−" : "+"}${Math.abs(pct).toFixed(1)}% で、${word}`,
+        ] });
+      }
+    }
+    // 最大の支出（ドーナツと同じ内訳計算・同じ粒度で数える）
+    if (stats.cost > 0) {
+      const bd = computeCategoryBreakdown(rows, state.filterLevel, broad);
+      if (bd.length) {
+        const top = bd.reduce((a, b) => (b.amount > a.amount ? b : a), bd[0]);
+        const total = bd.reduce((s, c) => s + c.amount, 0);
+        if (top.amount > 0 && total > 0) {
+          segments.push({ group: "chartsGroupSpend", parts: [
+            `最大の支出は ${top.key} ${YEN(Math.round(top.amount))}（支出全体の ${Math.round(top.amount / total * 100)}%）`,
+          ] });
+        }
+      }
+    }
+    // 純資産の期間内変化（B/S の期首・期末から復元する。期首より前に取引が無い期間では
+    // 期首残高を復元できないため出さない＝総資産ヒーローの前月比と同じガード）
+    try {
+      const openingDate = addDays(range.start, -1);
+      const closing = periodEndBalanceDate(mode, anchor);
+      const hasPrevData = (state.transactions || []).some((r) => r.date <= openingDate);
+      if (hasPrevData && closing.date > openingDate) {
+        const openNet = computeBalanceSheet(openingDate).netAssets;
+        const closeNet = computeBalanceSheet(closing.date).netAssets;
+        const diff = closeNet - openNet;
+        segments.push({ group: "chartsGroupAssets", parts: [
+          `純資産はこの期間で ${diff < 0 ? "−" : "+"}${YEN(Math.abs(Math.round(diff)))}（期末 ${YEN(Math.round(closeNet))}）`,
+        ] });
+      }
+    } catch (e) { /* 残高が復元できない場合は無理に出さない */ }
+    // 絞り込みが効いているときは、結論が期間全体の集計であることを注記する
+    const filtered = !!(state.categoryFilter || state.search.trim() || state.amountMin != null || state.amountMax != null || hasAdvFilters());
+    return { title, segments, note: filtered ? "検索・絞り込み条件は結論には反映していません（期間全体の集計です）" : "" };
+  }
+
+  function renderAnalysisConclusion() {
+    const body = document.getElementById("analysisConclusionBody");
+    if (!body) return;
+    const titleEl = document.getElementById("analysisConclusionTitle");
+    const metaEl = document.getElementById("analysisConclusionMeta");
+    const noteEl = document.getElementById("analysisConclusionNote");
+    let c = null;
+    try { c = buildAnalysisConclusion(); } catch (e) { console.error("分析の結論の計算に失敗", e); }
+    if (titleEl) titleEl.textContent = c ? c.title : "今月の結論";
+    if (metaEl) metaEl.textContent = periodLabelForMode(state.periodMode, state.periodAnchor, 0);
+    body.innerHTML = "";
+    if (!c || !c.segments.length) {
+      body.appendChild(el("span", null, ["この期間に集計できる収支がありません。"]));
+    } else {
+      c.segments.forEach((seg, i) => {
+        if (i) body.appendChild(el("span", { class: "concl-sep" }, ["／"]));
+        body.appendChild(el("span", { class: "concl-seg", title: "根拠のグラフを開く", onclick: () => openChartsGroup(seg.group) }, seg.parts));
+      });
+    }
+    if (noteEl) noteEl.textContent = c ? c.note : "";
+  }
+
+  // ---------- 台帳の保存ビュー ----------
+  // 絞り込み条件の名前付きセット。settings.savedViews に保存し、設定同期（GitHub）にそのまま乗る。
+  // 保存するのは表示条件だけ（検索語・一致条件・金額範囲・詳細条件・カテゴリ・集計粒度・期間）。
+  // ドリルダウン条件（txFilter / txPeriod）は他画面からの遷移専用の一時状態なのでビューには含めず、
+  // ビュー適用時は解除する（適用結果がぶれないようにするため）。
+  const SAVED_VIEWS_MAX = 50;
+  function normalizeViewCond(c) {
+    const src = c && typeof c === "object" ? c : {};
+    const num = (v) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null);
+    const adv = emptyAdv();
+    if (src.adv && typeof src.adv === "object") Object.keys(adv).forEach((k) => { if (typeof src.adv[k] === "string") adv[k] = src.adv[k]; });
+    const modes = ["day", "week", "month", "year", "all"];
+    // 基準日は YYYY-MM-DD として往復一致するものだけを採る（2026-13-40 のような日付は
+    // parseISODate が翌月へ繰り上げてしまうため、dkey で戻して一致するか確認する）
+    let periodAnchor = null;
+    if (typeof src.periodAnchor === "string" && /^\d{4}-\d{2}-\d{2}$/.test(src.periodAnchor)) {
+      const d = parseISODate(src.periodAnchor);
+      if (!isNaN(d.getTime()) && dkey(d) === src.periodAnchor) periodAnchor = src.periodAnchor;
+    }
+    return {
+      search: typeof src.search === "string" ? src.search.slice(0, 200) : "",
+      searchMode: src.searchMode === "and" ? "and" : "or",
+      amountMin: num(src.amountMin),
+      amountMax: num(src.amountMax),
+      adv,
+      categoryFilter: typeof src.categoryFilter === "string" && src.categoryFilter ? src.categoryFilter : null,
+      filterLevel: src.filterLevel === "sub" ? "sub" : "category",
+      periodMode: modes.includes(src.periodMode) ? src.periodMode : "month",
+      periodAnchor,
+    };
+  }
+  function normalizeSavedViews(arr) {
+    if (!Array.isArray(arr)) return [];
+    const seen = new Set(), out = [];
+    arr.forEach((v) => {
+      if (!v || typeof v !== "object") return;
+      const id = typeof v.id === "string" && v.id ? v.id : null;
+      const name = typeof v.name === "string" ? v.name.trim().slice(0, 50) : "";
+      if (!id || !name || seen.has(id)) return;
+      seen.add(id);
+      out.push({ id, name, cond: normalizeViewCond(v.cond), updatedAt: typeof v.updatedAt === "string" ? v.updatedAt : "" });
+    });
+    return out.slice(0, SAVED_VIEWS_MAX);
+  }
+  // 保存ビューの3-way merge：ビューIDをキーに、片方だけが変更したビューはその変更を採用し、
+  // 両方が同じビューを変更していた場合だけ updatedAt の新しい方を採る（mergeMapField と同じ考え方。
+  // 配列の単純な置き換えだと、片方の端末で作ったビューがもう片方の保存で消えてしまうため）。
+  function mergeSavedViewsField(base, local, remote, conflicts) {
+    const b = new Map(normalizeSavedViews(base && base.savedViews).map((v) => [v.id, v]));
+    const l = normalizeSavedViews(local && local.savedViews), r = normalizeSavedViews(remote && remote.savedViews);
+    const lm = new Map(l.map((v) => [v.id, v])), rm = new Map(r.map((v) => [v.id, v]));
+    const pick = new Map();
+    new Set([...b.keys(), ...lm.keys(), ...rm.keys()]).forEach((id) => {
+      const bv = b.get(id), lv = lm.get(id), rv = rm.get(id);
+      if (lv && rv) {
+        if (jstr(lv) === jstr(rv)) pick.set(id, rv);
+        else if (jstr(lv) === jstr(bv)) pick.set(id, rv);          // ローカル未変更 → リモートを採用
+        else if (jstr(rv) === jstr(bv)) pick.set(id, lv);          // リモート未変更 → ローカルを採用
+        else { pick.set(id, String(lv.updatedAt) >= String(rv.updatedAt) ? lv : rv); conflicts.push("savedViews." + (rv.name || id)); }
+      } else if (lv) {
+        if (!bv || jstr(lv) !== jstr(bv)) pick.set(id, lv);        // 新規追加、または相手の削除より自分の変更を優先
+        // base にあり remote に無く、ローカルも未変更 → リモート側の削除を尊重して落とす
+      } else if (rv) {
+        if (!bv || jstr(rv) !== jstr(bv)) pick.set(id, rv);
+      }
+    });
+    const out = [];
+    l.forEach((v) => { if (pick.has(v.id)) { out.push(pick.get(v.id)); pick.delete(v.id); } });
+    r.forEach((v) => { if (pick.has(v.id)) { out.push(pick.get(v.id)); pick.delete(v.id); } });
+    return out;
+  }
+  function captureViewCond() {
+    return normalizeViewCond({
+      search: state.search, searchMode: state.searchMode,
+      amountMin: state.amountMin, amountMax: state.amountMax,
+      adv: { ...state.adv },
+      categoryFilter: state.categoryFilter, filterLevel: state.filterLevel,
+      periodMode: state.periodMode, periodAnchor: dkey(state.periodAnchor),
+    });
+  }
+  function viewCondSig(cond) { return JSON.stringify(normalizeViewCond(cond)); }
+  // 現在の絞り込み条件と一致するビューがあればそれを返す（「適用中」の表示に使う。
+  // 条件を手で変えれば一致しなくなり、適用表示は自動で外れる）
+  function activeSavedView() {
+    const sig = viewCondSig(captureViewCond());
+    return (settings.savedViews || []).find((v) => viewCondSig(v.cond) === sig) || null;
+  }
+  function applySavedView(view) {
+    const cond = normalizeViewCond(view.cond);
+    state.search = cond.search;
+    state.searchMode = cond.searchMode;
+    state.amountMin = cond.amountMin;
+    state.amountMax = cond.amountMax;
+    state.adv = Object.assign(emptyAdv(), cond.adv);
+    state.categoryFilter = cond.categoryFilter;
+    state.filterLevel = cond.filterLevel;
+    state.periodMode = cond.periodMode;
+    state.periodBeforeForecast = null;
+    if (cond.periodAnchor) state.periodAnchor = parseISODate(cond.periodAnchor);
+    state.txFilter = null;
+    state.txPeriod = null;
+    state.page = 0;
+    syncAdvSearchInputs();
+    document.querySelectorAll("#levelToggle button").forEach((b) => b.classList.toggle("active", b.dataset.level === state.filterLevel));
+    render();
+  }
+  function saveCurrentAsView() {
+    if (!state.search.trim() && state.amountMin == null && state.amountMax == null && !hasAdvFilters() && !state.categoryFilter) {
+      alert("保存する条件がありません。検索語・金額範囲・詳細条件・カテゴリのいずれかを指定してください（期間は他の条件と一緒に保存されます）。");
+      return;
+    }
+    if ((settings.savedViews || []).length >= SAVED_VIEWS_MAX) { alert(`保存ビューは最大${SAVED_VIEWS_MAX}件までです。`); return; }
+    const name = prompt("この絞り込み条件（ビュー）の名前を入力してください：");
+    if (!name || !name.trim()) return;
+    if (!settings.savedViews) settings.savedViews = [];
+    settings.savedViews.push({
+      id: "v" + Date.now().toString(36) + Math.floor(Math.random() * 1679616).toString(36),
+      name: name.trim().slice(0, 50),
+      cond: captureViewCond(),
+      updatedAt: new Date().toISOString(),
+    });
+    scheduleCloudSave();
+    render();
+  }
+  function deleteSavedView(view) {
+    if (!confirm(`保存ビュー「${view.name}」を削除しますか？`)) return;
+    settings.savedViews = (settings.savedViews || []).filter((v) => v.id !== view.id);
+    scheduleCloudSave();
+    render();
+  }
+  function renderSavedViewsBar() {
+    const bar = document.getElementById("savedViewsBar");
+    if (!bar) return;
+    bar.innerHTML = "";
+    const views = settings.savedViews || [];
+    const active = activeSavedView();
+    bar.appendChild(el("span", { class: "saved-views-label" }, ["保存ビュー"]));
+    if (!views.length) bar.appendChild(el("span", { class: "saved-filter-empty" }, ["まだありません"]));
+    views.forEach((v) => {
+      const on = !!active && active.id === v.id;
+      bar.appendChild(el("span", { class: "saved-filter-chip" + (on ? " on" : ""), title: on ? "適用中" : "このビューを適用" }, [
+        el("span", { onclick: () => applySavedView(v) }, [v.name]),
+        el("span", { class: "del", title: "削除", onclick: (e) => { e.stopPropagation(); deleteSavedView(v); } }, ["×"]),
+      ]));
+    });
+    bar.appendChild(el("button", { class: "btn", type: "button", onclick: saveCurrentAsView }, ["現在の条件をビューとして保存"]));
+    if (active) bar.appendChild(el("div", { class: "saved-views-active" }, [`ビュー適用中：${active.name}（条件を変更すると適用表示は外れます）`]));
+  }
+
   const TX_DAY_STEP = 60;
   let txDayLimit = TX_DAY_STEP, txDayLimitKey = "";
   function renderTxList(rows) {
@@ -8325,6 +8609,7 @@ function svgEl(tag, attrs) {
         el("button", { onclick: () => { state.txFilter = null; state.page = 0; render(); } }, ["×"]),
       ]));
     }
+    renderSavedViewsBar();
     // 絞り込み結果（ページをまたいだ全件）の収入・支出・差額。振替・残高調整は含めない。
     const sumEl = document.getElementById("txSummary");
     sumEl.innerHTML = "";
@@ -8509,6 +8794,7 @@ function svgEl(tag, attrs) {
     renderMonthChart();
     renderAssetsHistoryChart();
     renderTrendChart();
+    try { renderAnalysisConclusion(); } catch (e) { console.error("分析の結論の表示に失敗", e); }
     renderSubscriptionPanel();
     [renderBudgetPanel, renderCardSchedulePanel, renderHeatmap].forEach((fn) => {
       try { fn(); } catch (e) { console.error("表示に失敗：" + fn.name, e); }
