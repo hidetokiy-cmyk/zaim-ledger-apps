@@ -3171,7 +3171,11 @@
       if (income !== 0) { type = "income"; amount = income; }
       else if (expense !== 0) { type = "expense"; amount = expense; }
       else if (transfer > 0) { type = "transfer"; amount = transfer; }
-      else if (balanceAdj !== 0) { type = "balance"; amount = Math.abs(balanceAdj); }
+      // 残高調整は符号が意味を持つ（マイナス＝残高を減らす調整）。Math.absで符号を落とすと、
+      // マイナス調整が「増やす調整」として二重に効いて残高計算がずれる（例：AEON Pay の
+      // −3,000/+3,000 の組が +6,000 と計算され、突合で差異になっていた。2026-11-14 実データで確認）。
+      // 収入・支出のマイナス行と同じく、符号のまま保持する（後段の計算は from:-amount / to:+amount で統一）。
+      else if (balanceAdj !== 0) { type = "balance"; amount = balanceAdj; }
       else { skippedNoAmount++; continue; }
 
       const fromAccount = clean(fromCol ? r[fromCol] : "");
