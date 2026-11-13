@@ -475,6 +475,7 @@
   .drill:hover { color: var(--gold); border-bottom-color: var(--gold); }
   .bal-tag { font-size: 12px; color: var(--ink-faint); border: 1px solid var(--rule-strong); border-radius: 3px; padding: 0 4px; }
   .bal-tag-warn { color: var(--gold); border-color: var(--gold); background: rgba(156,122,46,0.09); cursor: help; }
+  .sub-meta-line.sub-cov-warn { color: var(--red); font-weight: 700; }
   .bal-subtotal { display:flex; justify-content:space-between; padding: 7px 2px 2px; margin-top: 2px; border-top: 1px dashed var(--rule); font-size: 16px; color: var(--ink-soft); }
   .bal-grandtotal { display:flex; justify-content:space-between; padding: 14px 2px 2px; margin-top: 10px; border-top: 2px solid var(--ink); font-size: 19px; }
 
@@ -4169,6 +4170,94 @@
         rows: matchedRows, account: lastRow ? lastRow.fromAccount : null,
         cardLegs: key ? (cardLegsByKey.get(key) || []) : [], // 未払費用ブリッジ用（金額計算専用。表示には使わない）
         manual: true, manualId: id, manualCashPaidSetting: !!m.cashPaid,
+      });
+    });
+    results.sort((a, b) => b.monthlyEquivalent - a.monthlyEquivalent);
+    return results;
+  }
+  // 前払費用の按分サブスクリプション検出（Stage I）: 一括払い済みの継続サービスを、前払費用から
+  // 月次等で按分している支出行から検出する。通常検出（detectSubscriptionsUncached）は前払費用の行を
+  // 丸ごと除外するため、Evernote・povo のような按分サービスがアプリ上で一切見えなかった。
+  // 按分は現金支出ではないので、この結果は表示専用（renderSubscriptionPanel のみが使う）。
+  // 資金繰り予測などの金額合算には絶対に使わないこと。
+  function detectPrepaidSubscriptions() {
+    if (!state.transactions || state.transactions.length === 0) return [];
+    const lastDataDate = latestActualDate();
+    const groups = new Map();
+    state.transactions.forEach((r) => {
+      if (r.type !== "expense") return;
+      if (!isPrepaidAccount(r.fromAccount)) return;
+      // 将来行（Zaim の予定・定期登録）は除外しない。通常検出との最大の違いで、
+      // 残りの按分回数とカバー終了日はこの予定行から数える。
+      if (isExcludedRow(r, true)) return;
+      if (SUBSCRIPTION_EXCLUDED_CATEGORIES.has(r.category)) return;
+      const key = subscriptionGroupKey(r);
+      if (!key) return;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(r);
+    });
+    // 資金調達レッグ（一括払い）: 前払費用への振替を、按分行と同じグループキーで集めておく
+    const fundingByKey = new Map();
+    state.transactions.forEach((r) => {
+      if (r.type !== "transfer") return;
+      if (!isPrepaidAccount(r.toAccount)) return;
+      const key = subscriptionGroupKey(r);
+      if (!key) return;
+      if (!fundingByKey.has(key)) fundingByKey.set(key, []);
+      fundingByKey.get(key).push(r);
+    });
+    const results = [];
+    groups.forEach((rows, key) => {
+      const sorted = rows.slice().sort((a, b) => a.date - b.date);
+      const actuals = sorted.filter((r) => r.date <= lastDataDate);
+      const scheduled = sorted.filter((r) => r.date > lastDataDate);
+      if (actuals.length === 0) return;
+      // 規則性: 実績が3件以上あれば共通ロジックで判定する。満たなければ（実績が少ない新しい契約）、
+      // 全行（実績＋予定）の日付間隔の中央値が月次帯（28〜32日）のときだけ月次と推定する。
+      let rec = null;
+      if (actuals.length >= 3) {
+        rec = detectRecurrenceFreq(actuals, lastDataDate);
+        if (!rec) return;
+      } else {
+        if (sorted.length < 2) return;
+        const ivs = [];
+        for (let i = 1; i < sorted.length; i++) ivs.push((sorted[i].date - sorted[i - 1].date) / 86400000);
+        ivs.sort((a, b) => a - b);
+        const med = ivs[Math.floor(ivs.length / 2)];
+        if (!(med >= 28 && med <= 32)) return;
+        const lastA = actuals[actuals.length - 1];
+        const nextExpected = new Date(lastA.date);
+        nextExpected.setMonth(nextExpected.getMonth() + 1);
+        rec = {
+          freq: "month", last: lastA,
+          prev: actuals.length >= 2 ? actuals[actuals.length - 2] : null,
+          nextExpected,
+          likelyCancelled: lastDataDate > addDays(nextExpected, SUB_GRACE_DAYS.month),
+        };
+      }
+      const { freq, last, prev, nextExpected } = rec;
+      // 予定行が残っているグループは按分継続中なので、実績ベースの解約推定より予定の存在を優先する
+      const likelyCancelled = rec.likelyCancelled && scheduled.length === 0;
+      const amountChanged = prev ? last.amount !== prev.amount : false;
+      const label = last.store ? last.store : `${last.category} ・ ${last.subCategory}`;
+      // 資金調達レッグ: 最初の按分日以前（同日を含む）の振替のうち最新の1件。無ければ推測で作らない
+      let funding = null;
+      const legs = (fundingByKey.get(key) || []).filter((r) => r.date <= sorted[0].date).sort((a, b) => a.date - b.date);
+      if (legs.length) { const f = legs[legs.length - 1]; funding = { date: f.date, account: f.fromAccount, amount: f.amount }; }
+      const hasScheduled = scheduled.length > 0;
+      results.push({
+        key, label, category: last.category, amount: last.amount, freq,
+        count: actuals.length, lastDate: last.date, nextExpected, likelyCancelled,
+        amountChanged, prevAmount: prev ? prev.amount : null,
+        monthlyEquivalent: freq === "month" ? last.amount : last.amount / 12,
+        rows: sorted,
+        account: last.fromAccount, // 按分元口座（前払費用）
+        prepaid: true, funding,
+        // カバー終了: 予定行があれば最終の按分日。無ければ次回目安日で代用し、推定であることを明示する
+        coverageEnd: hasScheduled ? sorted[sorted.length - 1].date : nextExpected,
+        coverageEstimated: !hasScheduled,
+        remainingCount: scheduled.length,
+        scheduledCount: scheduled.length,
       });
     });
     results.sort((a, b) => b.monthlyEquivalent - a.monthlyEquivalent);
@@ -8822,8 +8911,9 @@ function svgEl(tag, attrs) {
     const metaEl = document.getElementById("subscriptionMonthlyTotal");
     if (!listEl) return;
     const subs = detectSubscriptions();
+    const prepaidSubs = detectPrepaidSubscriptions();
     listEl.innerHTML = "";
-    if (subs.length === 0) {
+    if (subs.length === 0 && prepaidSubs.length === 0) {
       metaEl.textContent = "";
       listEl.appendChild(emptyState("定期支払いのパターンは検出されませんでした"));
       return;
@@ -8831,7 +8921,7 @@ function svgEl(tag, attrs) {
     const active = subs.filter((s) => !s.likelyCancelled);
     const cancelled = subs.filter((s) => s.likelyCancelled);
     const monthlyTotal = active.reduce((s, x) => s + x.monthlyEquivalent, 0);
-    metaEl.textContent = `月換算合計 ${YEN(monthlyTotal)}（${active.length}件）`;
+    metaEl.textContent = subs.length ? `月換算合計 ${YEN(monthlyTotal)}（${active.length}件）` : "";
 
     function buildRow(s, dim) {
       const dateStr = (d) => d ? `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}` : "―";
@@ -8859,6 +8949,41 @@ function svgEl(tag, attrs) {
       listEl.appendChild(el("div", { style: "font-size:13.5px;color:var(--ink-faint);padding:10px 2px 2px;border-top:1px solid var(--rule);margin-top:4px;" },
         [`次回目安日を過ぎても支払いが確認できないもの（解約済みの可能性・月換算合計には含めていません）`]));
       cancelled.forEach((s) => listEl.appendChild(buildRow(s, true)));
+    }
+
+    // 前払いサブスク（Stage I）: 一括払い済み・按分中の継続サービスを、通常リストとは分けて表示する。
+    // 按分は現金支出ではないため、上の月換算合計には含めず、サブセクション側で小計を別表示する。
+    if (prepaidSubs.length > 0) {
+      const pActive = prepaidSubs.filter((s) => !s.likelyCancelled);
+      const pEnded = prepaidSubs.filter((s) => s.likelyCancelled);
+      const pTotal = pActive.reduce((sum, x) => sum + x.monthlyEquivalent, 0);
+      listEl.appendChild(el("div", { style: "font-size:13.5px;color:var(--ink-faint);padding:10px 2px 2px;border-top:1px solid var(--rule);margin-top:4px;" },
+        [`前払いサブスク（按分中）・按分月額の小計 ${YEN(pTotal)}（一括払い済みのため、上の月換算合計には含めていません）`]));
+      const dateStr = (d) => d ? `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}` : "―";
+      const today0 = startOfDay(new Date());
+      function buildPrepaidRow(s, dim) {
+        const lines = [
+          el("div", { class: "sub-name" }, [s.label,
+            el("span", { class: "bal-tag" }, ["前払済み・按分中"]),
+            dim ? el("span", { class: "bal-tag" }, ["按分終了"]) : null,
+          ]),
+          el("div", { class: "sub-meta-line" }, [`${FREQ_LABEL[s.freq]}・実績${s.count}回按分・${s.category}`]),
+        ];
+        if (s.funding) lines.push(el("div", { class: "sub-meta-line" }, [`${dateStr(s.funding.date)} に ${s.funding.account} から一括払い済み（${YEN(s.funding.amount)}）`]));
+        // カバー終了まで60日以内なら警告色で強調し、「まもなく更新」を足す
+        const daysLeft = Math.round((startOfDay(s.coverageEnd) - today0) / 86400000);
+        const soon = !dim && daysLeft >= 0 && daysLeft <= 60;
+        const covText = s.coverageEstimated
+          ? `カバー終了は ${dateStr(s.coverageEnd)} の見込み（推定）`
+          : `カバーは ${dateStr(s.coverageEnd)} まで（残り按分 ${s.remainingCount} 回）`;
+        lines.push(el("div", { class: "sub-meta-line" + (soon ? " sub-cov-warn" : "") }, [soon ? `${covText}・まもなく更新` : covText]));
+        return el("div", { class: "sub-row", style: dim ? "opacity:0.55;" : "" }, [
+          el("div", null, lines),
+          el("div", { class: "num amt" }, [YEN(s.amount)]),
+        ]);
+      }
+      pActive.forEach((s) => listEl.appendChild(buildPrepaidRow(s, false)));
+      pEnded.forEach((s) => listEl.appendChild(buildPrepaidRow(s, true)));
     }
   }
 
