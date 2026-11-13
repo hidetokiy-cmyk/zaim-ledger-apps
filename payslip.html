@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>給与明細シミュレータ — 家計元帳</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#23283A">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<script>
+/* テーマは index.html と同じ規則：手動で選んだ設定（zaimLedgerTheme）を優先、未選択のときだけOSのダーク設定に従う（読み取りのみ） */
+try{var _t=localStorage.getItem("zaimLedgerTheme");if(_t==="dark"||(_t===null&&window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches))document.documentElement.setAttribute("data-theme","dark");}catch(e){}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+:root{--paper:#F1EBDD;--paper-raised:#FBF8F1;--ink:#1E1B16;--ink-rgb:30,27,22;--ink-soft:#5E574C;--rule:#DDD3BE;--rule-strong:#857D6D;--accent:#C73E24;--green:#2F6B4F;--soft:rgba(30,27,22,.05);box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html[data-theme="dark"]{color-scheme:dark;--paper:#171614;--paper-raised:#201F1C;--ink:#EAE6DB;--ink-rgb:255,255,255;--ink-soft:#A49D8F;--rule:rgba(234,230,219,.13);--rule-strong:rgba(234,230,219,.26);--accent:#E8492F;--green:#82A97E;--soft:rgba(255,255,255,.05)}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.6 "Zen Kaku Gothic New","Hiragino Sans",sans-serif}
+.serif{font-family:"Shippori Mincho",serif}
+.num{font-family:ui-monospace,"SF Mono","Roboto Mono","Noto Sans Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+.topbar{background:#23283A;color:#EFEDE3;display:flex;gap:14px;align-items:center;padding:10px 18px;font-size:13px}
+.topbar a{color:#D9B65A;text-decoration:none;font-weight:700}.topbar span{opacity:.75}
+header{max-width:1180px;margin:auto;padding:24px 18px 6px}
+h1{font:700 22px/1.3 "Shippori Mincho",serif;margin:0 0 4px}
+header p{margin:0;color:var(--ink-soft);font-size:13px}
+main{max-width:1180px;margin:auto;padding:10px 18px 40px;display:grid;grid-template-columns:340px 1fr;gap:16px;align-items:start}
+@media (max-width:900px){main{grid-template-columns:1fr}}
+section.in{background:var(--paper-raised);border:1px solid var(--rule-strong);border-radius:6px;padding:12px 14px;margin-bottom:12px}
+h2{font-size:14px;margin:0 0 8px;color:var(--ink)}
+label{display:block;font-size:12.5px;color:var(--ink-soft);margin-bottom:8px}
+input{width:100%;margin-top:2px;padding:6px 8px;font:inherit;font-size:16px;color:var(--ink);background:var(--paper);border:1px solid var(--rule-strong);border-radius:4px}
+input.bad{border-color:var(--accent);outline:1px solid var(--accent)}
+.hint{font-size:11.5px;color:var(--ink-soft);margin-top:-4px;margin-bottom:8px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mnav{display:flex;align-items:center;gap:6px;margin-bottom:10px}
+.mnav .ym{flex:1;text-align:center;font:700 18px "Shippori Mincho",serif}
+button.sm{font:inherit;font-size:13px;padding:5px 11px;border:1px solid var(--rule-strong);border-radius:4px;background:var(--paper);color:var(--ink);cursor:pointer;white-space:nowrap}
+button.sm:hover{border-color:var(--ink)}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+details.in{background:var(--paper-raised);border:1px solid var(--rule-strong);border-radius:6px;padding:10px 14px;margin-bottom:12px}
+details.in summary{cursor:pointer;font-weight:700;font-size:14px}
+details.in[open] summary{margin-bottom:10px}
+.form{background:var(--paper-raised);border:2px solid var(--ink);padding:10px}
+.ttl{text-align:center;font:700 17px "Shippori Mincho",serif;border-bottom:2px solid var(--ink);padding-bottom:6px;margin-bottom:10px}
+.blocks{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:760px){.blocks{grid-template-columns:1fr}}
+table{width:100%;border-collapse:collapse;font-size:13.5px;margin-bottom:10px}
+th{background:var(--soft);border:1px solid var(--rule-strong);padding:4px 8px;text-align:left;font-size:12.5px}
+td{border:1px solid var(--rule-strong);padding:4px 8px}
+td.sub{color:var(--ink-soft);font-size:11.5px;width:1%;white-space:nowrap}
+td.v{text-align:right;white-space:nowrap;min-width:96px;font-weight:500}
+tr.t td{background:var(--soft);font-weight:700}
+tr.r td{color:var(--ink-soft)}tr.r td.v{font-weight:400}
+tr.warn td.v{color:var(--accent);font-weight:700}
+.res{padding:10px 14px;border:2px solid var(--ink);margin:2px 0 12px;display:flex;justify-content:space-between;align-items:baseline;font-weight:700}
+.res b{font:700 26px "Shippori Mincho",serif;color:var(--accent)}
+.note{font-size:12px;color:var(--ink-soft);line-height:1.7;margin-top:6px}
+#msg{color:var(--accent);font-size:12.5px;min-height:1.2em;margin-bottom:6px}
+</style></head><body>
+<div class="topbar"><a class="back" href="index.html">← 家計元帳</a><span>給与明細シミュレータ</span></div>
+<header><h1>給与明細シミュレータ</h1><p>勤怠を入れると、支給・控除・手取りを試算します（freee の明細に合わせた計算式）。家計元帳のデータとは連携しません。</p></header>
+<main>
+
+<div>
+<section class="in">
+<h2>対象月</h2>
+<div class="mnav"><button class="sm" id="prev" type="button" aria-label="前の月">◀</button><div class="ym" id="ymLabel"></div><button class="sm" id="next" type="button" aria-label="次の月">▶</button></div>
+<div class="acts" style="margin:0 0 10px"><button class="sm" id="thisMonth" type="button">今月へ</button></div>
+<h2>勤怠</h2>
+<div class="g2">
+<label>時間外1（法定内残業）<input id="ot1" inputmode="text" autocomplete="off" placeholder="5:48"></label>
+<label>時間外2（法定外）<input id="ot2" inputmode="text" autocomplete="off" placeholder="3:20"></label>
+</div>
+<div class="g2">
+<label>遅刻早退<input id="late" inputmode="text" autocomplete="off" placeholder="0:29"></label>
+<label>欠勤（日数）<input id="absent" inputmode="decimal" autocomplete="off" placeholder="0"></label>
+</div>
+<div class="hint">時間は「時:分」（例 5:48）。欠勤は 0.5 刻み可。</div>
+<div class="acts"><button class="sm" id="clearMonth" type="button">この月の入力を消す</button></div>
+</section>
+<details class="in" id="constBox"><summary>定数（全月共通）</summary>
+<label>所定月給<input id="c_base" inputmode="decimal" autocomplete="off"></label>
+<label>標準報酬月額（現行）<input id="c_std" inputmode="decimal" autocomplete="off"></label>
+<label>非課税通勤<input id="c_commute" inputmode="decimal" autocomplete="off"></label>
+<label>月所定労働時間<input id="c_hours" inputmode="decimal" autocomplete="off"></label>
+<label>年所定労働日数（参考表示のみ）<input id="c_yearDays" inputmode="decimal" autocomplete="off"></label>
+<label>月所定労働日数（参考表示のみ）<input id="c_monthDays" inputmode="decimal" autocomplete="off"></label>
+<div class="acts"><button class="sm" id="resetConst" type="button">既定値に戻す</button></div>
+<div class="note">空欄・不正な値は既定値として計算します。</div>
+</details>
+</div>
+<div class="form">
+<div class="ttl" id="ttl">給与明細</div>
+<div id="msg"></div>
+<div class="blocks"><div id="B1"></div><div id="B2"></div></div>
+
+<div id="res"></div>
+<div id="B3"></div>
+<div class="note">時間外1＝freee の「法定内残業」、時間外2＝「時間外労働（法定外）」。残業手当は freee の端数処理に合わせて、時間が 0 でない行だけ −1 円を補正しています。所得税は令和8年分 月額表（甲欄・扶養0人）。<br>金額は浮動小数のまま計算し、表示のときだけ円未満を四捨五入しています。この画面の試算は概算です。実際の支給額は会社の明細が正です。</div>
+</div>
+</main>
+<script>
+/* ===== 埋め込みデータ（Stage P 仕様のJSONそのまま） =====
+   taxTableFuyo0  [課税対象の下限, 所得税額] 令和8年分 月額表 甲欄・扶養0人（最終行の下限は文字列のまま → 読み込み時に数値化）
+   ryogakuGrades  [標準報酬月額, 支給額の下限] */
+const DATA={"taxTableFuyo0":[[105000,170],[107000,280],[109000,380],[111000,480],[113000,580],[115000,680],[117000,790],[119000,890],[121000,990],[123000,1090],[125000,1190],[127000,1300],[129000,1400],[131000,1500],[133000,1600],[135000,1710],[137000,1810],[139000,1910],[141000,2010],[143000,2110],[145000,2220],[147000,2320],[149000,2420],[151000,2520],[153000,2620],[155000,2730],[157000,2830],[159000,2910],[161000,2980],[163000,3050],[165000,3120],[167000,3200],[169000,3270],[171000,3340],[173000,3410],[175000,3480],[177000,3550],[179000,3620],[181000,3700],[183000,3770],[185000,3840],[187000,3910],[189000,3980],[191000,4050],[193000,4120],[195000,4200],[197000,4270],[199000,4340],[201000,4410],[203000,4480],[205000,4550],[207000,4630],[209000,4700],[211000,4770],[213000,4840],[215000,4910],[217000,4980],[219000,5050],[221000,5150],[224000,5250],[227000,5360],[230000,5460],[233000,5570],[236000,5680],[239000,5790],[242000,5890],[245000,6000],[248000,6110],[251000,6220],[254000,6320],[257000,6430],[260000,6530],[263000,6650],[266000,6750],[269000,6860],[272000,6960],[275000,7080],[278000,7180],[281000,7290],[284000,7390],[287000,7500],[290000,7610],[293000,7720],[296000,7820],[299000,7930],[302000,8060],[305000,8180],[308000,8300],[311000,8550],[314000,8790],[317000,9040],[320000,9280],[323000,9530],[326000,9770],[329000,10020],[332000,10260],[335000,10510],[338000,10750],[341000,11000],[344000,11240],[347000,11490],[350000,11730],[353000,11980],[356000,12220],[359000,12470],[362000,12710],[365000,12960],[368000,13200],[371000,13450],[374000,13690],[377000,13940],[380000,14180],[383000,14430],[386000,14670],[389000,14920],[392000,15160],[395000,15410],[398000,15650],[401000,15900],[404000,16140],[407000,16390],[410000,16630],[413000,16880],[416000,17120],[419000,17370],[422000,17610],[425000,17860],[428000,18100],[431000,18350],[434000,18590],[437000,18840],[440000,19080],[443000,19330],[446000,19570],[449000,19860],[452000,20350],[455000,20840],[458000,21330],[461000,21820],[464000,22310],[467000,22800],[470000,23290],[473000,23780],[476000,24270],[479000,24760],[482000,25250],[485000,25740],[488000,26230],[491000,26720],[494000,27210],[497000,27700],[500000,28190],[503000,28680],[506000,29170],[509000,29660],[512000,30150],[515000,30640],[518000,31130],[521000,31620],[524000,32110],[527000,32600],[530000,33090],[533000,33580],[536000,34070],[539000,34560],[542000,35050],[545000,35540],[548000,36030],[551000,36570],[554000,37120],[557000,37670],[560000,38230],[563000,38780],[566000,39330],[569000,39880],[572000,40430],[575000,40980],[578000,41530],[581000,42090],[584000,42640],[587000,43190],[590000,43740],[593000,44290],[596000,44840],[599000,45390],[602000,45950],[605000,46500],[608000,47050],[611000,47600],[614000,48150],[617000,48700],[620000,49250],[623000,49800],[626000,50360],[629000,50910],[632000,51460],[635000,52010],[638000,52560],[641000,53110],[644000,53660],[647000,54220],[650000,54770],[653000,55320],[656000,55870],[659000,56420],[662000,56970],[665000,57520],[668000,58070],[671000,58630],[674000,59180],[677000,59730],[680000,60280],[683000,60830],[686000,61380],[689000,61930],[692000,62490],[695000,63040],[698000,63590],[701000,64140],[704000,64690],[707000,65250],[710000,65860],[713000,66480],[716000,67090],[719000,67700],[722000,68320],[725000,68930],[728000,69540],[731000,70150],[734000,70770],[737000,71380],["740,000円",71680]],"ryogakuGrades":[[88000,0],[98000,93000],[104000,101000],[110000,107000],[118000,114000],[126000,122000],[134000,130000],[142000,138000],[150000,146000],[160000,155000],[170000,165000],[180000,175000],[190000,185000],[200000,195000],[220000,210000],[240000,230000],[260000,250000],[280000,270000],[300000,290000],[320000,310000],[340000,330000],[360000,350000],[380000,370000],[410000,395000],[440000,425000],[470000,455000],[500000,485000],[530000,515000],[560000,545000],[590000,575000],[620000,605000],[650000,635000]]};
+const toNum=x=>typeof x==='number'?x:Number(String(x).replace(/[^\d.]/g,''));
+const TAX=DATA.taxTableFuyo0.map(r=>[toNum(r[0]),r[1]]),GRADES=DATA.ryogakuGrades.map(r=>[toNum(r[1]),toNum(r[0])]); /* 料額表は [標準報酬月額, 支給額の下限]。検索しやすいよう [下限, 標準報酬月額] に並べ替える */
+
+/* ===== 計算（Excel シート「10」の移植） ===== */
+const DEF={base:242000,std:240000,commute:11162,hours:153.73,yearDays:246,monthDays:20.5};
+const KAIKIN=3000; /* 皆勤手当の額。基本給 = 所定月給 − この額（Excel の式に直書きされている 3,000） */
+/* Excel は計算結果を15桁に丸めてから ROUNDDOWN/ROUNDUP・比較をするので、同じ挙動に合わせる */
+const n15=x=>Number(Number(x).toPrecision(15));
+const RD=x=>{const y=n15(x);return y>=0?Math.floor(y):-Math.floor(-y)};
+const RU=x=>{const y=n15(x);return y>=0?Math.ceil(y):-Math.ceil(-y)};
+const lookup=(t,x,fallback)=>{x=n15(x);let r=null;for(const row of t){if(row[0]<=x)r=row;else break}return r?r[1]:fallback};
+function compute(c,a){
+  const wage=c.base/c.hours;                              /* 時給単価 */
+  const kihon=c.base-KAIKIN;                              /* 基本給 */
+  const kaikin=a.absent>0?0:KAIKIN;                       /* 皆勤手当 */
+  const z1=a.ot1>0?RD(wage*a.ot1)-1:0;                    /* 残業手当1（時間0なら −1 を付けない） */
+  const z2=a.ot2>0?RD(wage*a.ot2*1.25)-1:0;               /* 残業手当2 */
+  const late=-RD(wage*a.late);                            /* 遅早控除 */
+  const kekkin=-RU(kihon/c.hours*a.absent*7.5);           /* 欠勤控除 */
+  const sub=kihon+kaikin+z1+z2+late+kekkin;               /* 支給小計 */
+  const shikyu=sub+c.commute;                             /* 支給計 */
+  const kenpo=c.std*0.04925,kosodate=c.std*0.00115,nenkin=c.std*0.0915,koyo=RD(shikyu*0.005);
+  const shaho=kenpo+kosodate+nenkin+koyo;                 /* 社保合計 */
+  const kazei=sub-shaho;                                  /* 課税対象 */
+  const shotoku=lookup(TAX,kazei,0);                      /* 所得税（甲・扶養0人。表の下限未満は0円） */
+  const kojoSub=shaho+shotoku,kojo=kojoSub+c.commute;     /* 控除小計・控除計 */
+  const net=shikyu-kojo;                                  /* 差引支給額 */
+  const den=c.hours+a.ot1+a.ot2-a.late;
+  return{wage,kihon,kaikin,z1,z2,late,kekkin,sub,shikyu,kenpo,kosodate,nenkin,koyo,shaho,kazei,shotoku,kojoSub,kojo,net,
+    zangyo:z1+z2,stdTrue:lookup(GRADES,shikyu,GRADES[0][1]),eff:den>0?net/den:NaN}
+}
+
+/* ===== 入力の読み取り ===== */
+const $=i=>document.getElementById(i),nf=s=>String(s==null?'':s).normalize('NFKC').trim();
+function parseHM(s){s=nf(s);if(s==='')return{v:0,ok:true};const m=s.match(/^(\d+)(?::(\d{1,2}))?$/);if(!m)return{v:0,ok:false};const h=+m[1],mi=m[2]==null?0:+m[2];if(mi>59)return{v:0,ok:false};return{v:(h*60+mi)/60,ok:true}}
+function parseDays(s){s=nf(s);if(s==='')return{v:0,ok:true};if(!/^\d+(\.\d+)?$/.test(s))return{v:0,ok:false};return{v:parseFloat(s),ok:true}}
+function constVal(raw,k){const s=nf(raw);if(/^\d+(\.\d+)?$/.test(s)&&parseFloat(s)>0)return parseFloat(s);return DEF[k]}
+
+/* ===== 保存（このページ専用キー。家計元帳の settings・台帳データには触れない） ===== */
+const KEY='payslipSim.v1',CK=['base','std','commute','hours','yearDays','monthDays'],AK=['ot1','ot2','late','absent'];
+let S={v:1,ym:'',consts:{},months:{}};
+try{const o=JSON.parse(localStorage.getItem(KEY)||'null');if(o&&o.v===1){S.ym=typeof o.ym==='string'?o.ym:'';S.consts=o.consts||{};S.months=o.months||{}}}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const nowYM=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')};
+const okYM=s=>/^\d{4}-(0[1-9]|1[0-2])$/.test(s);
+if(!okYM(S.ym))S.ym=nowYM();
+const shiftYM=(ym,d)=>{let y=+ym.slice(0,4),m=+ym.slice(5)-1+d;y+=Math.floor(m/12);m=((m%12)+12)%12;return y+'-'+String(m+1).padStart(2,'0')};
+
+/* ===== 表示 ===== */
+const Y=x=>{const r=Math.round(n15(x));return(r<0?'−':'')+Math.abs(r).toLocaleString('ja-JP')};
+const D2=x=>isFinite(x)?(Math.round(x*100)/100).toLocaleString('ja-JP',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
+const row=(l,sub,v,cls)=>'<tr'+(cls?' class="'+cls+'"':'')+'><td>'+l+'</td><td class="sub">'+(sub||'')+'</td><td class="v num">'+v+'</td></tr>';
+const tbl=(t,rows)=>'<table><tr><th colspan="3">'+t+'</th></tr>'+rows.join('')+'</table>';
+const fmtH=h=>{const m=Math.round(h*60);return Math.floor(m/60)+':'+String(m%60).padStart(2,'0')};
+function readConsts(){const c={};CK.forEach(k=>{c[k]=constVal($('c_'+k).value,k)});return c}
+function readAtt(){const p={ot1:parseHM($('ot1').value),ot2:parseHM($('ot2').value),late:parseHM($('late').value),absent:parseDays($('absent').value)};return p}
+function render(){
+  const c=readConsts(),p=readAtt(),a={ot1:p.ot1.v,ot2:p.ot2.v,late:p.late.v,absent:p.absent.v};
+  const bad=[];AK.forEach(k=>{$(k).classList.toggle('bad',!p[k].ok);if(!p[k].ok)bad.push(k)});
+  $('msg').textContent=bad.length?'入力を読み取れない項目があります（時間は「5:48」の形、欠勤は数字）。その項目は 0 として計算しています。':'';
+  const r=compute(c,a);
+  $('ttl').textContent=S.ym.slice(0,4)+'年'+(+S.ym.slice(5))+'月分　給与明細';
+  $('B1').innerHTML=tbl('支給',[
+    row('基本給','',Y(r.kihon)),row('皆勤手当','',Y(r.kaikin)),
+    row('残業手当1','法定内残業',Y(r.z1)),row('残業手当2','法定外',Y(r.z2)),
+    row('遅早控除','',Y(r.late)),row('欠勤控除','',Y(r.kekkin)),
+    row('支給小計','',Y(r.sub),'t'),row('非課税通勤','',Y(c.commute)),row('支給計','',Y(r.shikyu),'t')]);
+  $('B2').innerHTML=tbl('控除',[
+    row('健康保険','',Y(r.kenpo)),row('子育支援金','',Y(r.kosodate)),row('厚生年金','',Y(r.nenkin)),row('雇用保険','',Y(r.koyo)),
+    row('社保合計','',Y(r.shaho),'t'),row('課税対象','支給小計−社保合計',Y(r.kazei),'r'),row('所得税','甲・扶養0人',Y(r.shotoku)),
+    row('控除小計','',Y(r.kojoSub),'t'),row('非課税通勤','支給と相殺',Y(c.commute)),row('控除計','',Y(r.kojo),'t')]);
+  $('res').innerHTML='<div class="res"><span>差引支給額（手取り）</span><b class="num">'+Y(r.net)+' 円</b></div>';
+  const diff=Math.round(r.stdTrue)!==Math.round(c.std);
+  $('B3').innerHTML=tbl('その他・参考',[
+    row('時給単価','所定月給÷月所定労働時間',D2(r.wage)+' 円'),
+    row('残業合計','残業手当1＋2',Y(r.zangyo)),
+    row('実効時給','差引支給額÷（所定＋時間外−遅早）',D2(r.eff)+' 円'),
+    row('標準報酬月額（現行）','設定値',Y(c.std)),
+    row('標準報酬月額（本来）','支給計に対応する等級',Y(r.stdTrue),diff?'warn':''),
+    row('年所定労働日数','参考',c.yearDays+' 日','r'),
+    row('月所定労働日数','参考',c.monthDays+' 日','r'),
+    row('時間外1／時間外2／遅早','入力の換算',fmtH(a.ot1)+' ／ '+fmtH(a.ot2)+' ／ '+fmtH(a.late),'r')]);
+  return r;
+}
+
+/* ===== 入出力の配線 ===== */
+function fillMonth(){const m=S.months[S.ym]||{};AK.forEach(k=>{$(k).value=m[k]||''});$('ymLabel').textContent=S.ym.slice(0,4)+'年'+(+S.ym.slice(5))+'月';render()}
+function fillConsts(){CK.forEach(k=>{$('c_'+k).value=S.consts[k]!=null?S.consts[k]:String(DEF[k])})}
+function saveMonth(){const m={};AK.forEach(k=>{const s=$(k).value;if(s.trim()!=='')m[k]=s});if(Object.keys(m).length)S.months[S.ym]=m;else delete S.months[S.ym];save()}
+function goto(ym){S.ym=ym;save();fillMonth()}
+AK.forEach(k=>$(k).addEventListener('input',()=>{saveMonth();render()}));
+CK.forEach(k=>$('c_'+k).addEventListener('input',()=>{S.consts[k]=$('c_'+k).value;save();render()}));
+$('prev').addEventListener('click',()=>goto(shiftYM(S.ym,-1)));
+$('next').addEventListener('click',()=>goto(shiftYM(S.ym,1)));
+$('thisMonth').addEventListener('click',()=>goto(nowYM()));
+$('clearMonth').addEventListener('click',()=>{delete S.months[S.ym];save();fillMonth()});
+$('resetConst').addEventListener('click',()=>{S.consts={};save();fillConsts();render()});
+fillConsts();fillMonth();
+</script></body></html>
