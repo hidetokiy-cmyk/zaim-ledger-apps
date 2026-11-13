@@ -237,7 +237,7 @@
   #printReport { display: none; }
   @media print {
     @page { size: A4 portrait; margin: 12mm 11mm 14mm;
-      @bottom-center { content: counter(page) " / " counter(pages); font-size: 8pt; color: #4f6df5; } }
+      @bottom-center { content: counter(page) " / " counter(pages); font-size: 8pt; color: #857d6d; } }
     body.printing-report { background: #fff !important; color: #1a1a1a !important; }
     body.printing-report #dashboardView, body.printing-report #uploadView { display: none !important; }
     body.printing-report #printReport { display: block !important; }
@@ -298,36 +298,36 @@
   .pr-opts summary { cursor: pointer; }
   .pr-opts-row { margin-top: 6px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
   .pr-opts label { cursor: pointer; white-space: nowrap; }
-  /* ---- 印刷レポートの配色（明るく・彩りを加える） ---- */
-  .pr { --pa: #4f6df5; --pa-d: #2b3a8f; --pa-l: #eef1ff; --pa-ll: #f8f9ff; }
-  .pr-head { background: linear-gradient(120deg, #4f6df5 0%, #8a63f2 100%); color: #fff; border: none; border-radius: 6pt; padding: 10pt 14pt; margin-bottom: 11pt; }
+  /* ---- 印刷レポートの配色（画面と同じ「紙・墨・朱」のシステムに統一。旧：青系の別配色） ---- */
+  .pr { --pa: #a23e32; --pa-d: #1e1b16; --pa-l: #f1ebdd; --pa-ll: #fbf8f1; }
+  .pr-head { background: #26211a; color: #fff; border: none; border-radius: 6pt; padding: 10pt 14pt; margin-bottom: 11pt; }
   .pr-head .pr-title, .pr-head .pr-period { color: #fff; }
   .pr-head .pr-period { opacity: .92; }
   .pr-head .pr-meta { color: rgba(255,255,255,.85); }
   .pr-kpis { border: none; gap: 7pt; }
-  .pr-kpi { border: none; border-top: 3pt solid var(--k, #4f6df5); border-radius: 5pt; background: var(--kb, #eef1ff); padding: 7pt 10pt 8pt; }
-  .pr-kpi:nth-child(1) { --k: #1fa67a; --kb: #e8f7f1; }
-  .pr-kpi:nth-child(2) { --k: #f0883e; --kb: #fff2e8; }
-  .pr-kpi:nth-child(3) { --k: #4f6df5; --kb: #eef1ff; }
-  .pr-kpi:nth-child(4) { --k: #9b5de5; --kb: #f4ecfd; }
+  .pr-kpi { border: none; border-top: 3pt solid var(--k, #a23e32); border-radius: 5pt; background: var(--kb, #fbf8f1); padding: 7pt 10pt 8pt; }
+  .pr-kpi:nth-child(1) { --k: #2f6b4f; }
+  .pr-kpi:nth-child(2) { --k: #9c7a2e; }
+  .pr-kpi:nth-child(3) { --k: #a23e32; }
+  .pr-kpi:nth-child(4) { --k: #1f4a39; }
   .pr-kpi .lbl { color: #555; font-weight: 600; }
   .pr-kpi .val { font-size: 15.5pt; }
   .pr h2 { background: var(--pa-l); color: var(--pa-d); border-left: 3.5pt solid var(--pa); border-radius: 0 4pt 4pt 0; }
-  .pr th { background: #e4e9ff; color: var(--pa-d); border-top: .75pt solid var(--pa); border-bottom: .75pt solid var(--pa); }
-  .pr td { border-bottom: .4pt solid #dde1f0; }
+  .pr th { background: #f1ebdd; color: var(--pa-d); border-top: .75pt solid var(--pa); border-bottom: .75pt solid var(--pa); }
+  .pr td { border-bottom: .4pt solid #ddd3be; }
   .pr tbody tr:nth-child(even) td { background: var(--pa-ll); }
   .pr tr.total td { background: var(--pa-l); border-top: .75pt solid var(--pa); border-bottom: 1.5pt double var(--pa); color: var(--pa-d); }
-  .pr tr.sub td { background: #fff7e0; }
+  .pr tr.sub td { background: #fbf8f1; }
   .pr .bar { height: 6pt; border-radius: 3pt; background: var(--pa); }
   .pr .dot { display: inline-block; width: 6pt; height: 6pt; border-radius: 50%; margin-right: 4pt; vertical-align: 0.5pt; }
-  .pr .neg { color: #d6452f; }
-  .pr .pos { color: #158a63; }
-  .pr-tx tr.grp td { background: #dfe5ff; color: var(--pa-d); }
-  .pr-tx tr.subt td { background: #f1f3ff; border-top: .5pt solid var(--pa); }
+  .pr .neg { color: #a23e32; }
+  .pr .pos { color: #2f6b4f; }
+  .pr-tx tr.grp td { background: #e8dfcb; color: var(--pa-d); }
+  .pr-tx tr.subt td { background: #fbf8f1; border-top: .5pt solid var(--pa); }
   .pr-stmt .bal-group-title, .pr-stmt .bal-grandtotal, .pr-stmt .bal-subtotal, .pr-stmt .bs-net-row { background: var(--pa-l); color: var(--pa-d); border-bottom: .6pt solid var(--pa); }
   .pr-stmt .bs-side-title { color: var(--pa-d); border-bottom: 1pt solid var(--pa); }
-  .pr-stmt .bal-row { border-bottom: .4pt solid #dde1f0; }
-  .pr-chart { border: .5pt solid #dde1f0; border-radius: 5pt; padding: 6pt 8pt; background: #fff; }
+  .pr-stmt .bal-row { border-bottom: .4pt solid #ddd3be; }
+  .pr-chart { border: .5pt solid #ddd3be; border-radius: 5pt; padding: 6pt 8pt; background: #fff; }
   .pr-chart-t { color: var(--pa-d); }
   @media print {
     .sidebar, .tab-bar, .no-print, .modal-overlay { display: none !important; }
