@@ -826,6 +826,22 @@
   .outlook-ev .a { white-space: nowrap; }
   .outlook-ev .a.plus { color: var(--green); }
   .outlook-ev .a.minus { color: var(--red); }
+  /* ---- Stage G ---- */
+  #cmdList .x-cmd.sel { box-shadow: inset 3px 0 0 var(--accent); }
+  #cmdAnswer { border: 1px solid var(--rule); border-left: 3px solid var(--accent); background: var(--paper-raised); border-radius: 6px; padding: 12px 14px; margin-bottom: 8px; }
+  #cmdAnswer .cmd-ans-head { font-size: 20px; font-weight: 700; line-height: 1.35; margin-bottom: 6px; }
+  #cmdAnswer .cmd-ans-line { font-size: 14.5px; color: var(--ink-soft); padding: 2px 0; line-height: 1.5; }
+  #cmdAnswer .cmd-ans-link { margin-top: 8px; border: 1px solid var(--rule); background: transparent; color: var(--ink); font: inherit; font-size: 13.5px; border-radius: 6px; padding: 5px 12px; cursor: pointer; }
+  #outlookWhatIfRow { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+  #outlookWhatIfRow .wi-label { font-size: 12.5px; color: var(--ink-faint); }
+  .wi-chip { border: 1px solid var(--rule); background: transparent; color: var(--ink-soft); font: inherit; font-size: 13px; border-radius: 999px; padding: 3px 12px; cursor: pointer; }
+  .wi-chip.on { border-color: var(--accent); color: var(--ink); font-weight: 700; }
+  .pt-row, .ml-row { display: flex; justify-content: space-between; gap: 12px; font-size: 14.5px; padding: 5px 2px; border-bottom: 1px solid var(--rule); }
+  .pt-row .num, .ml-row .num { white-space: nowrap; }
+  .pt-total { font-weight: 700; border-bottom: none; }
+  .ml-block { margin-bottom: 14px; }
+  .ml-sub { font-size: 13.5px; color: var(--ink-soft); font-weight: 600; margin-bottom: 4px; }
+  .ml-line { font-size: 14.5px; line-height: 1.55; padding: 2px 2px; }
   .fresh-strip { font-size: 13px; color: var(--ink-faint); padding: 0 4px 12px; line-height: 1.7; }
   .fresh-strip .warn { color: var(--red); }
   /* ---- 決算フロー・確定ドキュメント（Stage C） ---- */
@@ -1371,8 +1387,17 @@
         </div>
         <div id="outlookSpark"></div>
         <div class="outlook-nums" id="outlookNums"></div>
+        <div id="outlookWhatIfRow"></div>
         <div class="outlook-events" id="outlookEvents"></div>
         <div class="cash-note" id="outlookNote"></div>
+      </div>
+      <div class="card panel hidden" id="pointsCard">
+        <div class="panel-head">
+          <div class="section-title serif">ポイント残高</div>
+          <div class="sub-meta" id="pointsMeta"></div>
+        </div>
+        <div id="pointsBody"></div>
+        <div class="cash-note" id="pointsNote"></div>
       </div>
 
       <div class="card panel qgroup" id="overviewGroupFlow">
@@ -1616,6 +1641,10 @@
         </div>
         <div style="font-size:13px;color:var(--ink-soft);margin-top:6px;">※「証券を時価で表示」がONのとき、証券の履歴がある日は含み損益で調整して表示します。このときグラフの合計は、貸借対照表（簿価ベース）と含み損益の分だけ異なります。</div>
         <div style="font-size:13px;color:var(--ink-soft);margin-top:6px;">証券スクレイピングを取り込むたびに、その日の時価・取得原価を履歴に残します。</div>
+      </div>
+      <div class="card panel" id="memoryLayerPanel">
+        <div class="panel-head"><div class="section-title serif">残高の履歴（アプリの記憶層）</div></div>
+        <div id="memoryLayerBody"></div>
       </div>
         </div>
       </div>
@@ -1878,6 +1907,7 @@
 <div id="cmdOverlay" class="modal-overlay hidden" style="z-index:80;align-items:flex-start;padding-top:12vh;">
   <div class="modal" style="max-width:560px;padding:14px;">
     <input id="cmdInput" type="text" placeholder="コマンドや検索語を入力（例：月次、ダーク、コンビニ）" autocomplete="off" aria-label="コマンドパレット" style="width:100%;font-size:16px;margin-bottom:8px;">
+    <div id="cmdAnswer" class="hidden"></div>
     <div id="cmdList" role="listbox" style="max-height:52vh;overflow-y:auto;"></div>
     <div class="cash-note" style="margin-top:8px;">↑↓で選択・Enterで実行・Escで閉じる（開くのは Ctrl/⌘ + K）</div>
   </div>
@@ -7142,6 +7172,157 @@ function svgEl(tag, attrs) {
     events.sort((a, b) => a.date - b.date);
     return { startBal, endBal: bal, valley, pts, events, today, end };
   }
+  // ===== Stage G-1：90日見通しの what-if（保存しない） =====
+  let outlookWhatIf = 0;
+  const OUTLOOK_WHATIF_CHOICES = [[0, "置かない"], [30000, "¥30,000"], [100000, "¥100,000"], [300000, "¥300,000"]];
+  function renderOutlookWhatIfChips() {
+    const row = document.getElementById("outlookWhatIfRow");
+    if (!row) return;
+    if (!row.querySelector(".wi-chip")) {
+      row.textContent = "";
+      row.appendChild(el("span", { class: "wi-label" }, ["もし支出を置いたら："]));
+      OUTLOOK_WHATIF_CHOICES.forEach(([v, t]) => {
+        const b = el("button", { type: "button", class: "wi-chip", "data-v": String(v) }, [t]);
+        b.addEventListener("click", (e) => { e.stopPropagation(); outlookWhatIf = v; renderOutlookBand(); });
+        b.addEventListener("keydown", (e) => { e.stopPropagation(); });
+        row.appendChild(b);
+      });
+    }
+    row.querySelectorAll(".wi-chip").forEach((b) => {
+      const on = Number(b.getAttribute("data-v")) === outlookWhatIf;
+      b.classList.toggle("on", on);
+      b.setAttribute("aria-pressed", String(on));
+    });
+  }
+
+  // ===== Stage G-2：ポイントカード（ホーム） =====
+  function renderPointsCard() {
+    const card = document.getElementById("pointsCard");
+    if (!card) return;
+    let list = [];
+    try {
+      if (state.transactions && state.transactions.length) {
+        getAccountBalancesAsOf(parseAsofDate()).forEach((v, name) => {
+          if (/ポイント|POINT/i.test(name) && typeof v === "number" && isFinite(v) && v > 0) list.push({ name, v });
+        });
+      }
+    } catch (e) { list = []; }
+    if (!list.length) { card.classList.add("hidden"); return; }
+    card.classList.remove("hidden");
+    list.sort((a, b) => b.v - a.v);
+    const PT = (n) => Math.round(n).toLocaleString("ja-JP") + " pt";
+    const body = document.getElementById("pointsBody");
+    const note = document.getElementById("pointsNote");
+    const meta = document.getElementById("pointsMeta");
+    const total = list.reduce((s, x) => s + x.v, 0);
+    if (meta) meta.textContent = `合計 ${PT(total)}`;
+    if (body) {
+      body.textContent = "";
+      list.forEach((x) => body.appendChild(el("div", { class: "pt-row" }, [el("span", null, [x.name]), el("span", { class: "num" }, [PT(x.v)])])));
+      body.appendChild(el("div", { class: "pt-row pt-total" }, [el("span", null, ["合計"]), el("span", { class: "num" }, [PT(total)])]));
+    }
+    if (note) note.textContent = `残高は Zaim 同期時点（${accountBalanceAsOfLabel()}）のものです。失効日の情報は同期データに含まれないため、期限は表示していません。`;
+  }
+
+  // ===== Stage G-3：記憶層（分析タブ）＝同期スナップショットと証券の時価履歴を読むだけ =====
+  let snapHistory = null;      // null＝未取得。取得後は [{ date: "YYYY-MM-DD", balances: Map<name, number> }]（日付昇順）
+  let snapLoading = false;
+  async function loadSnapshotHistory() {
+    if (snapHistory !== null || snapLoading) return;               // キャッシュ済み・取得中は何もしない（セッション中1回だけ）
+    if (!cloudSync.repo || !cloudSync.token) return;               // 同期未設定・トークン未復号：静かに諦める（復号後の再描画で再挑戦）
+    snapLoading = true;
+    try {
+      const now = new Date();
+      const keys = [0, 1, 2].map((i) => {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+      });
+      const byDate = new Map();
+      for (const k of keys) {
+        try {
+          const f = await fetchRepoFile(`snapshots/${k}.json`);
+          if (!f || !f.text) continue;
+          const obj = JSON.parse(f.text);
+          if (!obj || typeof obj !== "object") continue;
+          Object.keys(obj).forEach((dk) => {
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(dk)) return;
+            const e = obj[dk];
+            if (!e || !Array.isArray(e.balances)) return;
+            const m = new Map();
+            e.balances.forEach((b) => { if (b && typeof b.name === "string" && typeof b.balance === "number" && isFinite(b.balance)) m.set(b.name, b.balance); });
+            if (m.size) byDate.set(dk, m);
+          });
+        } catch (e) { /* この月は読み飛ばす */ }
+      }
+      snapHistory = Array.from(byDate.entries()).sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)).map(([date, balances]) => ({ date, balances }));
+    } catch (e) {
+      snapHistory = [];
+    } finally {
+      snapLoading = false;
+    }
+    try { renderMemoryLayerPanel(); } catch (e) { console.error("記憶層パネルの再描画に失敗", e); }
+  }
+  function renderMemoryLayerPanel() {
+    const body = document.getElementById("memoryLayerBody");
+    if (!body) return;
+    loadSnapshotHistory().catch(() => {});   // 同期部分で snapLoading を立てるので、下の判定に間に合う
+    body.textContent = "";
+    const ymd = (k) => k.replace(/-/g, "/");
+    const sgn = (n) => { const r = Math.round(n); return (r > 0 ? "+" : r < 0 ? "−" : "±") + YEN(Math.abs(r)); };
+    const row = (l, r) => el("div", { class: "ml-row" }, [el("span", null, [l]), el("span", { class: "num" }, [r])]);
+
+    // 証券の時価履歴（settings.securitiesHistory）
+    const secBlock = el("div", { class: "ml-block" }, [el("div", { class: "ml-sub" }, ["証券の時価履歴"])]);
+    const h = (settings.securitiesHistory || []);
+    if (h.length) {
+      const a = h[0], b = h[h.length - 1];
+      secBlock.appendChild(el("div", { class: "ml-line" }, [
+        `${ymd(a.date)}〜${ymd(b.date)}（${h.length}日分）／開始 ${YEN(a.totalMarketValue)} → 最新 ${YEN(b.totalMarketValue)}（${sgn(b.totalMarketValue - a.totalMarketValue)}）`,
+      ]));
+    } else {
+      secBlock.appendChild(el("div", { class: "ml-line" }, ["証券の時価履歴はまだありません。"]));
+    }
+    body.appendChild(secBlock);
+
+    // 口座残高の履歴（同期スナップショット）。取得中は出さず、証券だけ先に見せる
+    if (!snapLoading) {
+      const snapBlock = el("div", { class: "ml-block" }, []);
+      if (snapHistory && snapHistory.length) {
+        const first = snapHistory[0], last = snapHistory[snapHistory.length - 1];
+        snapBlock.appendChild(el("div", { class: "ml-sub" }, [`口座残高の履歴（スナップショット）　${ymd(first.date)}〜${ymd(last.date)}（${snapHistory.length}日分）`]));
+        const acc = new Map();
+        snapHistory.forEach((s) => s.balances.forEach((v, name) => {
+          const r = acc.get(name);
+          if (!r) acc.set(name, { first: v, last: v, n: 1 }); else { r.last = v; r.n++; }
+        }));
+        const rows = Array.from(acc.entries()).filter(([, r]) => r.n >= 2)
+          .map(([name, r]) => ({ name, first: r.first, last: r.last, d: r.last - r.first }))
+          .sort((a, b) => Math.abs(b.d) - Math.abs(a.d));
+        if (rows.length) {
+          rows.slice(0, 12).forEach((r) => snapBlock.appendChild(row(r.name, `${YEN(r.first)} → ${YEN(r.last)}（${sgn(r.d)}）`)));
+          if (rows.length > 12) snapBlock.appendChild(el("div", { class: "ml-line" }, [`ほか ${rows.length - 12} 件`]));
+        } else {
+          snapBlock.appendChild(el("div", { class: "ml-line" }, ["2日以上記録された口座はまだありません。"]));
+        }
+      } else {
+        snapBlock.appendChild(el("div", { class: "ml-sub" }, ["口座残高の履歴（スナップショット）"]));
+        snapBlock.appendChild(el("div", { class: "ml-line" }, ["スナップショットは読み込めませんでした（同期設定のある環境で表示されます）"]));
+      }
+      body.appendChild(snapBlock);
+    }
+    body.appendChild(el("div", { class: "cash-note" }, ["Zaim は現在の残高しか保持しません。この履歴は、同期スナップショット（zaim-ledger-settings）とアプリが記録する証券の時価履歴によるものです。月次・年次の確定ドキュメントもアプリの記憶です。"]));
+  }
+
+  // ===== Stage G-5：アプリバッジ（未確認の例外数。通知はしない） =====
+  function updateAppBadge() {
+    try {
+      if (!("setAppBadge" in navigator) || !state.transactions) return;
+      const range = periodRangeForMode("month", new Date(), 0);
+      const n = closingFlowState(range.key, range).blocking.length;
+      if (n > 0) { const p = navigator.setAppBadge(n); if (p && p.catch) p.catch(() => {}); }
+      else if (typeof navigator.clearAppBadge === "function") { const p = navigator.clearAppBadge(); if (p && p.catch) p.catch(() => {}); }
+    } catch (e) { /* 無言で何もしない */ }
+  }
   function renderOutlookBand() {
     const card = document.getElementById("outlookCard");
     if (!card) return;
@@ -7150,6 +7331,11 @@ function svgEl(tag, attrs) {
       const go = () => { clickEl('.tab-btn[data-tab="analysis"]'); activateAnalysisMode("statements"); activateStatementsSubTab("forecast"); };
       card.addEventListener("click", go);
       card.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+      const wiRow = document.getElementById("outlookWhatIfRow");   // what-if チップ行は、カード全体の遷移を発火させない
+      if (wiRow) {
+        wiRow.addEventListener("click", (e) => e.stopPropagation());
+        wiRow.addEventListener("keydown", (e) => e.stopPropagation());
+      }
     }
     const meta = document.getElementById("outlookMeta");
     const spark = document.getElementById("outlookSpark");
@@ -7163,23 +7349,28 @@ function svgEl(tag, attrs) {
       if (spark) spark.textContent = "";
       if (nums) nums.textContent = "";
       if (evHost) evHost.textContent = "";
+      const wiRow0 = document.getElementById("outlookWhatIfRow"); if (wiRow0) wiRow0.textContent = "";
       if (note) note.textContent = "見通しを計算できるデータがありません";
       return;
     }
     if (meta) meta.textContent = `${xFmtDate(o.today)}〜${xFmtDate(o.end)}の簡易推計`;
+    // what-if：仮の支出を今日置く前提。モデルが線形なので、各点を一律に差し引けばよい（0 のときは従来表示のまま）
+    const wif = outlookWhatIf > 0 ? outlookWhatIf : 0;
+    const pts = wif ? o.pts.map((v) => v - wif) : o.pts;
+    try { renderOutlookWhatIfChips(); } catch (e) { console.error("what-if チップの表示に失敗", e); }
     if (spark) {
       spark.textContent = "";
-      const mx = Math.max(...o.pts), mn = Math.min(...o.pts), rg = (mx - mn) || 1;
-      const X = (i) => 2 + (i / (o.pts.length - 1)) * 116, Y = (v) => 34 - ((v - mn) / rg) * 30;
+      const mx = Math.max(...pts), mn = Math.min(...pts), rg = (mx - mn) || 1;
+      const X = (i) => 2 + (i / (pts.length - 1)) * 116, Y = (v) => 34 - ((v - mn) / rg) * 30;
       const svg = svgEl("svg", { viewBox: "0 0 120 36", width: "100%", height: 44, preserveAspectRatio: "none", "aria-hidden": "true", style: "display:block;overflow:visible;" });
-      svg.appendChild(svgEl("polyline", { points: o.pts.map((v, i) => `${X(i)},${Y(v)}`).join(" "), fill: "none", stroke: "var(--gold)", "stroke-width": 2, "stroke-linecap": "round", "stroke-linejoin": "round", "vector-effect": "non-scaling-stroke" }));
+      svg.appendChild(svgEl("polyline", { points: pts.map((v, i) => `${X(i)},${Y(v)}`).join(" "), fill: "none", stroke: "var(--gold)", "stroke-width": 2, "stroke-linecap": "round", "stroke-linejoin": "round", "vector-effect": "non-scaling-stroke" }));
       spark.appendChild(svg);
     }
     if (nums) {
       nums.textContent = "";
       const mk = (k, v) => el("div", { class: "outlook-num" }, [el("div", { class: "k" }, [k]), el("div", { class: "v num" }, [v])]);
-      nums.appendChild(mk("いちばん低くなる日（谷）", `${o.valley.date.getMonth() + 1}/${o.valley.date.getDate()} ${YEN(Math.round(o.valley.bal))}`));
-      nums.appendChild(mk("90日後の残高", YEN(Math.round(o.endBal))));
+      nums.appendChild(mk("いちばん低くなる日（谷）", `${o.valley.date.getMonth() + 1}/${o.valley.date.getDate()} ${YEN(Math.round(o.valley.bal - wif))}`));
+      nums.appendChild(mk("90日後の残高", YEN(Math.round(o.endBal - wif))));
       nums.appendChild(mk("現在の現金・預金", YEN(Math.round(o.startBal))));
     }
     if (evHost) {
@@ -7192,7 +7383,8 @@ function svgEl(tag, attrs) {
         ]));
       });
     }
-    if (note) note.textContent = "簡易推計です：給与は直近の手取り月額、引落はカード引落予定と定期投資、日々の支出はカード払いを除く直近3会計月の平均から計算しています。詳しくは資金繰り予測（分析タブ）へ。";
+    if (note) note.textContent = "簡易推計です：給与は直近の手取り月額、引落はカード引落予定と定期投資、日々の支出はカード払いを除く直近3会計月の平均から計算しています。詳しくは資金繰り予測（分析タブ）へ。"
+      + (wif > 0 ? ` 仮の支出 ${YEN(wif)} を今日置いた場合の試算です（単純な差し引き）。` : "");
   }
 
   // データ鮮度ストリップ：最終同期・同期失敗・データの最終日・連携で一致しない口座を、既存の仕組みから拾える範囲で出す。
@@ -7219,6 +7411,7 @@ function svgEl(tag, attrs) {
     try { renderPhaseBand(); } catch (e) { console.error("フェーズ帯の表示に失敗", e); }
     try { renderAutoCheckCard(); } catch (e) { console.error("自動点検カードの表示に失敗", e); }
     try { renderOutlookBand(); } catch (e) { console.error("90日見通しの表示に失敗", e); }
+    try { renderPointsCard(); } catch (e) { console.error("ポイントカードの表示に失敗", e); }
     try { renderFreshnessStrip(); } catch (e) { console.error("データ鮮度ストリップの表示に失敗", e); }
   }
 
@@ -9111,6 +9304,7 @@ function svgEl(tag, attrs) {
     subsCacheOn = true; subsCache = null;
     try { renderBody(); } finally { subsCacheOn = false; subsCache = null; }
     try { turnPage(); } catch (e) { console.error("ページめくりの動きに失敗", e); }
+    try { updateAppBadge(); } catch (e) { /* 無言 */ }
   }
   function renderBody() {
     if (!state.transactions) return;
@@ -9167,6 +9361,7 @@ function svgEl(tag, attrs) {
     renderStatementsPanel(filtered, broad);
     renderMonthChart();
     renderAssetsHistoryChart();
+    try { renderMemoryLayerPanel(); } catch (e) { console.error("記憶層パネルの表示に失敗", e); }
     renderTrendChart();
     try { renderAnalysisConclusion(); } catch (e) { console.error("分析の結論の表示に失敗", e); }
     renderSubscriptionPanel();
@@ -11353,6 +11548,7 @@ function svgEl(tag, attrs) {
     const subs = [["貸借対照表（B/S）", "bs"], ["損益計算書（P/L）", "pl"], ["キャッシュフロー計算書（C/F）", "cf"], ["財務指標", "ratios"], ["資金繰り予測", "forecast"], ["仕訳・試算表", "journal"]];
     const modes = [["日次", "day"], ["週次", "week"], ["月次", "month"], ["年次", "year"], ["全期間", "all"]];
     const items = [];
+    cmdQaItems().forEach((q) => items.push(q));
     tabs.forEach(([n, t]) => items.push({ label: n + "タブを開く", hint: "移動", run: () => clickEl('.tab-btn[data-tab="' + t + '"]') }));
     items.push({ label: "グラフを開く", hint: "分析", run: () => { clickEl('.tab-btn[data-tab="analysis"]'); activateAnalysisMode("charts"); } });
     items.push({ label: "取引明細を開く", hint: "台帳", run: () => { clickEl('.tab-btn[data-tab="ledger"]'); activateLedgerMode("tx"); } });
@@ -11399,10 +11595,11 @@ function svgEl(tag, attrs) {
     cmdRender();
     cmdInput.focus();
   }
-  function cmdClose() { cmdOverlay.classList.add("hidden"); }
+  function cmdClose() { cmdOverlay.classList.add("hidden"); hideCmdAnswer(); }
   function cmdRun(i) {
     const it = cmdItemsShown[i];
     if (!it) return;
+    if (it.qa) { showCmdAnswer(it); return; }   // 質問は閉じずに、答えをパレット内に出す
     cmdClose();
     try { it.run(); } catch (e) { console.error("コマンドの実行に失敗", e); }
   }
@@ -11419,6 +11616,88 @@ function svgEl(tag, attrs) {
     else if (e.key === "Escape" && !cmdOverlay.classList.contains("hidden")) cmdClose();
   });
   document.getElementById("cmdBtn").addEventListener("click", cmdOpen);
+  // ===== Stage G-4：Q&A パレット（定型3問のみ。数値はクリック時に既存計算で求める） =====
+  const qaMD = (d) => `${d.getMonth() + 1}/${d.getDate()}`;
+  const QA_NODATA = { head: "データがありません", body: [] };
+  function qaSpendTrend() {
+    if (!state.transactions || !state.transactions.length) return QA_NODATA;
+    const cyc = [0, -1, -2].map((k) => ({ label: askCycLabel(k), cost: computeAccrualStats(rowsInRange(askCycleAt(k)), false).cost }));
+    if (!cyc.some((c) => c.cost > 0)) return QA_NODATA;
+    let head = `${cyc[0].label}の支出 ${YEN(cyc[0].cost)}`;
+    if (cyc[1].cost > 0) {
+      const pct = (cyc[0].cost - cyc[1].cost) / cyc[1].cost * 100;
+      head += `（前サイクル比 ${pct < 0 ? "−" : "+"}${Math.abs(pct).toFixed(1)}%）`;
+    }
+    const body = cyc.map((c) => `${c.label}：${YEN(c.cost)}`);
+    body.push("集計対象外の取引は除いています。定期券の購入は振替のため、もともと支出には含まれません。");
+    body.push("今サイクルは進行中です。");
+    return { head, body };
+  }
+  function qaCategoryIncrease() {
+    if (!state.transactions || !state.transactions.length) return QA_NODATA;
+    const cur = computePLBreakdown(rowsInRange(askCycleAt(0)), "expense", false);
+    const prev = computePLBreakdown(rowsInRange(askCycleAt(-1)), "expense", false);
+    if (!cur.length && !prev.length) return QA_NODATA;
+    const pm = new Map(prev.map((x) => [x.category, x.amount]));
+    const inc = cur.map((x) => ({ category: x.category, a: pm.get(x.category) || 0, b: x.amount, d: x.amount - (pm.get(x.category) || 0) }))
+      .filter((x) => x.d > 0).sort((x, y) => y.d - x.d);
+    if (!inc.length) return { head: "増えたカテゴリはありません", body: ["今サイクルは進行中です。"] };
+    const incBody = inc.slice(0, 3).map((x) => `${x.category}：+${YEN(x.d)}（${YEN(x.a)} → ${YEN(x.b)}）`);
+    incBody.push("今サイクルは進行中です。");
+    return {
+      head: `${inc[0].category}：+${YEN(inc[0].d)}`,
+      body: incBody,
+    };
+  }
+  function qaNextCardPayments() {
+    if (!state.transactions || !state.transactions.length) return QA_NODATA;
+    const next = computeCardSchedule().cards.filter((c) => c.items && c.items[0] && c.items[0].amount > 0).map((c) => ({ account: c.account, it: c.items[0] }));
+    if (!next.length) return QA_NODATA;
+    const total = next.reduce((s, x) => s + x.it.amount, 0);
+    const nearest = next.reduce((m, x) => (x.it.settle < m ? x.it.settle : m), next[0].it.settle);
+    const liquid = sumCashFromMap(getAccountBalancesAsOf(parseAsofDate()));
+    const diff = liquid - total;
+    const body = next.map((x) => `${x.account}：${qaMD(x.it.settle)}　${YEN(x.it.amount)}`);
+    body.push(`流動性のある残高 ${YEN(liquid)}`);
+    body.push(diff < 0 ? `差し引き −${YEN(Math.abs(diff))}（不足）` : `差し引き ${YEN(diff)}`);
+    return {
+      head: `次回の支払い合計 ${YEN(total)}（最も近い支払日 ${qaMD(nearest)}）`,
+      body,
+      linkLabel: "資金繰り予測を開く",
+      linkRun: () => { clickEl('.tab-btn[data-tab="analysis"]'); activateAnalysisMode("statements"); activateStatementsSubTab("forecast"); },
+    };
+  }
+  function cmdQaItems() {
+    return [
+      { label: "月の支出の推移は？", hint: "質問", qa: true, answer: qaSpendTrend },
+      { label: "先月より増えた支出カテゴリは？", hint: "質問", qa: true, answer: qaCategoryIncrease },
+      { label: "次の引き落としまでにいくら必要？", hint: "質問", qa: true, answer: qaNextCardPayments },
+    ];
+  }
+  function hideCmdAnswer() {
+    const box = document.getElementById("cmdAnswer");
+    if (!box) return;
+    box.textContent = "";
+    box.classList.add("hidden");
+  }
+  function showCmdAnswer(it) {
+    const box = document.getElementById("cmdAnswer");
+    if (!box) return;
+    let a = null;
+    try { a = it.answer(); } catch (e) { console.error("質問の答えの計算に失敗", e); }
+    if (!a || !a.head) a = QA_NODATA;
+    box.textContent = "";
+    box.appendChild(el("div", { class: "num cmd-ans-head" }, [a.head]));
+    (a.body || []).forEach((line) => box.appendChild(el("div", { class: "cmd-ans-line" }, [line])));
+    if (a.linkLabel && typeof a.linkRun === "function") {
+      box.appendChild(el("button", { type: "button", class: "cmd-ans-link", onclick: () => {
+        cmdClose();
+        try { a.linkRun(); } catch (e) { console.error("根拠リンクの実行に失敗", e); }
+      } }, [a.linkLabel]));
+    }
+    box.classList.remove("hidden");
+  }
+  cmdInput.addEventListener("input", hideCmdAnswer);   // 入力が変わったら答えを隠す
 
 })();
 </script>
