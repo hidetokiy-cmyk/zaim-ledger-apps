@@ -844,6 +844,11 @@
   .doc-kv { display: flex; justify-content: space-between; gap: 12px; padding: 7px 2px; border-bottom: 1px solid var(--rule); font-size: 15px; }
   .doc-kv .k { color: var(--ink-faint); }
   .doc-kv .v { font-weight: 700; white-space: nowrap; }
+  .yc-badge { display: inline-block; border: 1px solid var(--rule-strong); border-radius: 999px; padding: 2px 12px; font-size: 13px; color: var(--ink-soft); }
+  .yc-badge.on { border-color: var(--green); color: var(--green); }
+  .yc-links { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; font-size: 13.5px; margin: 0 0 10px; }
+  .yc-links a { color: var(--ink-soft); text-decoration: underline; cursor: pointer; }
+  .yc-links a.cur { color: var(--ink); font-weight: 700; }
   #cmdList .x-cmd { display: flex; justify-content: space-between; gap: 10px; padding: 9px 12px; cursor: pointer; border-radius: 4px; }
   #cmdList .x-cmd.sel { background: rgba(var(--ink-rgb), 0.09); }
   #cmdList .x-cmd small { color: var(--ink-faint); white-space: nowrap; }
@@ -1472,6 +1477,23 @@
           <div class="sub-meta" id="finalDocMeta"></div>
         </div>
         <div id="finalDocBody"></div>
+      </div>
+
+      <div class="card panel" id="yearClosePanel">
+        <div class="panel-head">
+          <div class="section-title serif">年次の締め</div>
+          <div class="sub-meta" id="yearCloseMeta"></div>
+        </div>
+        <div id="yearCloseBody"></div>
+      </div>
+
+      <div class="card panel hidden" id="yearDocPanel">
+        <div class="panel-head">
+          <div class="section-title serif" id="yearDocTitle">年ドキュメント</div>
+          <div class="sub-meta" id="yearDocMeta"></div>
+          <button class="btn" id="yearDocCloseBtn" type="button">閉じる</button>
+        </div>
+        <div id="yearDocBody"></div>
       </div>
 
       <div class="card panel" id="monthCheckPanel">
@@ -2176,6 +2198,7 @@
     accountGroupList: [],        // ①決済チェーン別グループの管理用リスト（ユーザーが追加・改名・削除できる。固定の「その他」は含まない）
     accountMetaInited: false,    // 初期値（SEED_*）からaccountMetaを作成済みか
     securitiesScrapeInfo: null, // { count, totalCostBasis, totalMarketValue, cash, other, importedAt }
+    yearClose: {}, // 暦年ごとの年次決算状態 { 'YYYY': { status: 'closing'|'closed', startedAt, closedAt, summary: 年次確定時点のスナップショット } }
     monthClose: {}, // 会計月ごとの決算状態 { 'YYYY-MM': { status: 'closing'|'closed', startedAt, closedAt, steps: { fresh, events }, ack: { 項目キー: ISO日時 }, summary: 確定時点のスナップショット } }
     savedViews: [], // 台帳の保存ビュー [{ id, name, cond: { search, searchMode, amountMin, amountMax, adv, categoryFilter, filterLevel, periodMode, periodAnchor }, updatedAt }]
     securitiesHistory: [], // 証券の時価推移。取込・バックフィルのたびに1日1件を残す [{ date: 'YYYY-MM-DD'(JST), importedAt, totalMarketValue, totalCostBasis, cash, other, count, items: [{ name, qty, marketValue, costBasis }] }]
@@ -2395,6 +2418,7 @@
       accountMetaInited: settings.accountMetaInited,
       securitiesScrapeInfo: settings.securitiesScrapeInfo ? { ...settings.securitiesScrapeInfo, importedAt: settings.securitiesScrapeInfo.importedAt.toISOString() } : null,
       monthClose: settings.monthClose,
+      yearClose: settings.yearClose,
       savedViews: settings.savedViews,
       securitiesHistory: settings.securitiesHistory.map((h) => ({ ...h, importedAt: h.importedAt instanceof Date ? h.importedAt.toISOString() : h.importedAt })),
       zaimScrapeInfo: settings.zaimScrapeInfo ? { ...settings.zaimScrapeInfo, importedAt: settings.zaimScrapeInfo.importedAt.toISOString() } : null,
@@ -2459,6 +2483,7 @@
     settings.securitiesScrapeInfo = obj.securitiesScrapeInfo ? { ...obj.securitiesScrapeInfo, importedAt: new Date(obj.securitiesScrapeInfo.importedAt) } : null;
     settings.securitiesHistory = normalizeSecuritiesHistory(obj.securitiesHistory);
     settings.monthClose = normalizeMonthClose(obj.monthClose);
+    settings.yearClose = normalizeYearClose(obj.yearClose);
     settings.savedViews = normalizeSavedViews(obj.savedViews);
     settings.zaimScrapeInfo = obj.zaimScrapeInfo ? { ...obj.zaimScrapeInfo, importedAt: new Date(obj.zaimScrapeInfo.importedAt) } : null;
     settings.accountBalanceAsOfDate = typeof obj.accountBalanceAsOfDate === "string" ? obj.accountBalanceAsOfDate : null;
@@ -2783,6 +2808,7 @@
     merged.accountRenames = mergeMapField(base, local, remote, "accountRenames", conflicts);
     merged.categoryBudgets = mergeMapField(base, local, remote, "categoryBudgets", conflicts);
     merged.monthClose = mergeMapField(base, local, remote, "monthClose", conflicts);
+    merged.yearClose = mergeMapField(base, local, remote, "yearClose", conflicts);
     merged.savedViews = mergeSavedViewsField(base, local, remote, conflicts);
     ["accountBalanceInited", "accountBalanceAsOfDate", "balancePattern", "furusatoKeyword", "securitiesScrapeInfo", "zaimScrapeInfo",
       "pendingZaimImport", "pendingZaimCsv", "zaimCsvSyncedAt", "pendingSecuritiesImport", "accountMetaInited", "syncHeartbeat"]
@@ -7675,9 +7701,9 @@ function svgEl(tag, attrs) {
 
   // ふるさと納税の寄附先一覧（寄附先＝お店。お店が空なら品目・メモ）と、ワンストップ特例の申請期限（翌年1月10日必着）
   const ONESTOP_MAX_CITIES = 5;
-  function renderFurusatoList(year) {
-    const listEl = document.getElementById("furusatoList"), dlEl = document.getElementById("furusatoDeadline");
-    if (!listEl || !dlEl) return;
+  // 寄附先の集計（寄附先＝お店。お店が空なら品目・メモ）。[{ name, amount, n, last }] を金額の大きい順に返す。
+  // last は一覧表示用の最終日（年ドキュメントのスナップショットには name / amount / n だけを保存する）
+  function furusatoCitiesFor(year) {
     const kw = (settings.furusatoKeyword || "").trim();
     const map = new Map();
     (state.transactions || []).forEach((r) => {
@@ -7687,7 +7713,12 @@ function svgEl(tag, attrs) {
       o.amount += r.amount; o.n++; if (r.date > o.last) o.last = r.date;
       map.set(name, o);
     });
-    const list = Array.from(map.values()).sort((a, b) => b.amount - a.amount);
+    return Array.from(map.values()).sort((a, b) => b.amount - a.amount);
+  }
+  function renderFurusatoList(year) {
+    const listEl = document.getElementById("furusatoList"), dlEl = document.getElementById("furusatoDeadline");
+    if (!listEl || !dlEl) return;
+    const list = furusatoCitiesFor(year);
     listEl.innerHTML = "";
     if (list.length === 0) { listEl.appendChild(emptyState(`${year}年の寄附はまだありません`)); dlEl.textContent = ""; return; }
     list.forEach((o) => {
@@ -7924,6 +7955,8 @@ function svgEl(tag, attrs) {
 
   function renderClosingPanel() {
     try { renderFinalDocPanel(); } catch (e) { console.error("確定ドキュメントの表示に失敗", e); }
+    try { renderYearClosePanel(); } catch (e) { console.error("年次の締めの表示に失敗", e); }
+    try { renderYearDocPanel(); } catch (e) { console.error("年ドキュメントの表示に失敗", e); }
     const body = document.getElementById("closingFlowBody");
     if (!body) return;
     const meta = document.getElementById("closingFlowMeta");
@@ -8124,6 +8157,345 @@ function svgEl(tag, attrs) {
       el("button", { class: "btn", type: "button", onclick: () => closingReopen(key) }, ["再オープンする"]),
     ]));
   }
+  // ===== 年ドキュメント・年次の締め（Stage E） =====
+  // 暦年（1/1〜12/31）の集計。このアプリは入力面を持たない（入力はすべて Zaim、税の計算は tax-furusato.html）。
+  // 数値は既存の計算だけを使う：computeTaxYearTotals()／settings.monthClose の確定スナップショット／readTaxResult()。
+  // settings.yearClose = { 'YYYY': { status: 'closing'|'closed', startedAt, closedAt, summary } }
+  // summary は年次確定時点のスナップショット。確定した年は summary からのみ描き、再計算しない。
+  const YEAR_CLOSE_MONTHS = 12;
+  let yearDocView = { open: false, year: null };
+
+  function normalizeYearClose(obj) {
+    const out = {};
+    if (!obj || typeof obj !== "object") return out;
+    const num = (x) => (typeof x === "number" && Number.isFinite(x) ? x : 0);
+    const numOrNull = (x) => (typeof x === "number" && Number.isFinite(x) ? x : null);
+    Object.entries(obj).forEach(([key, v]) => {
+      if (!/^\d{4}$/.test(key) || !v || typeof v !== "object") return;
+      if (v.status !== "closing" && v.status !== "closed") return;
+      let summary = null;
+      const s = v.summary;
+      if (s && typeof s === "object") {
+        const t = s.tax && typeof s.tax === "object" ? s.tax : {};
+        const tr = s.trial && typeof s.trial === "object" && numOrNull(s.trial.limit) !== null ? {
+          limit: s.trial.limit, remain: num(s.trial.remain), balance: numOrNull(s.trial.balance),
+          savedAt: typeof s.trial.savedAt === "string" ? s.trial.savedAt : null,
+        } : null;
+        const os = s.onestop && typeof s.onestop === "object" ? s.onestop : {};
+        const cities = Array.isArray(os.cities) ? os.cities.filter((c) => c && typeof c.name === "string").map((c) => ({ name: c.name, amount: num(c.amount), n: num(c.n) })) : [];
+        summary = {
+          monthsClosed: num(s.monthsClosed),
+          monthsTotal: num(s.monthsTotal) || YEAR_CLOSE_MONTHS,
+          profitConfirmed: num(s.profitConfirmed),
+          tax: { gross: num(t.gross), net: num(t.net), shakai: num(t.shakai), wh: num(t.wh), res: num(t.res), don: num(t.don), donN: num(t.donN) },
+          trial: tr,
+          onestop: {
+            cities,
+            cityCount: numOrNull(os.cityCount) !== null ? os.cityCount : cities.length,
+            deadline: typeof os.deadline === "string" && /^\d{4}-\d{2}-\d{2}$/.test(os.deadline) ? os.deadline : `${Number(key) + 1}-01-10`,
+          },
+        };
+      }
+      out[key] = {
+        status: v.status,
+        startedAt: typeof v.startedAt === "string" ? v.startedAt : null,
+        closedAt: v.status === "closed" && typeof v.closedAt === "string" ? v.closedAt : null,
+        summary,
+      };
+    });
+    return out;
+  }
+
+  function yearCloseRecord(year) {
+    return (settings.yearClose && settings.yearClose[String(year)]) || null;
+  }
+  function saveYearClose(year, rec) {
+    if (!settings.yearClose) settings.yearClose = {};
+    settings.yearClose[String(year)] = rec;
+    scheduleCloudSave();
+    render();
+  }
+
+  // 暦年の12会計月（'YYYY-01'〜'YYYY-12'）の確定状況。収支は確定済みの月 summary.profit の累計（確定分のみ）
+  function yearCloseProgress(year) {
+    let closedN = 0, profit = 0;
+    const remaining = [];
+    for (let m = 1; m <= YEAR_CLOSE_MONTHS; m++) {
+      const key = year + "-" + String(m).padStart(2, "0"), r = monthCloseRecord(key);
+      if (r && r.status === "closed") { closedN++; if (r.summary) profit += r.summary.profit; }
+      else remaining.push(cycleLabel(key));
+    }
+    return { closedN, profit, remaining };
+  }
+  // 年次確定のゲート：12会計月すべて確定済み、かつ現在日が翌年1月1日以降
+  function yearCloseGate(year, prog) {
+    const reasons = [];
+    if (prog.closedN < YEAR_CLOSE_MONTHS) reasons.push(`月次が未確定です（${prog.closedN}/${YEAR_CLOSE_MONTHS}。残り：${prog.remaining.join("、")}）`);
+    if (startOfDay(new Date()) < new Date(year + 1, 0, 1)) reasons.push(`${year + 1}年1月1日以降に確定できます`);
+    return { ok: reasons.length === 0, reasons };
+  }
+  // 表示用の状態（導出のみ）：進行中 → 年次決算中 → 年次確定
+  function yearCloseStatus(rec, prog) {
+    if (rec && rec.status === "closed") return { key: "closed", label: "年次確定" };
+    if (rec || prog.closedN >= YEAR_CLOSE_MONTHS) return { key: "closing", label: "年次決算中" };
+    return { key: "open", label: "進行中" };
+  }
+
+  // 未確定の年のサマリ（＝確定時にスナップショットとして保存する内容）。既存の計算だけを呼ぶ
+  function yearCloseLive(year) {
+    const prog = yearCloseProgress(year);
+    const t = computeTaxYearTotals()[year] || { gross: 0, net: 0, shakai: 0, wh: 0, res: 0, don: 0, donN: 0 };
+    const tax = { gross: t.gross, net: t.net, shakai: t.shakai, wh: t.wh, res: t.res, don: t.don, donN: t.donN };
+    const res = readTaxResult();
+    let trial = null, otherYear = null;
+    if (res && typeof res.year === "number") {
+      if (res.year !== year) otherYear = res.year;
+      else if (typeof res.limit === "number") {
+        trial = {
+          limit: res.limit, remain: res.limit - t.don,
+          balance: typeof res.balance === "number" && Number.isFinite(res.balance) ? res.balance : null,
+          savedAt: typeof res.savedAt === "string" ? res.savedAt : null,
+        };
+      }
+    }
+    const cities = furusatoCitiesFor(year).map((c) => ({ name: c.name, amount: c.amount, n: c.n }));
+    return {
+      remaining: prog.remaining, otherYear,
+      summary: {
+        monthsClosed: prog.closedN, monthsTotal: YEAR_CLOSE_MONTHS, profitConfirmed: prog.profit, tax, trial,
+        onestop: { cities, cityCount: cities.length, deadline: `${year + 1}-01-10` },
+      },
+    };
+  }
+  // 描画用データ。確定済みの年は summary からのみ（再計算しない）
+  function yearCloseData(year) {
+    const rec = yearCloseRecord(year), prog = yearCloseProgress(year), status = yearCloseStatus(rec, prog);
+    if (rec && rec.status === "closed") {
+      return { year, rec, prog, status, frozen: true, summary: rec.summary, otherYear: null, remaining: [] };
+    }
+    const live = yearCloseLive(year);
+    return { year, rec, prog, status, frozen: false, summary: live.summary, otherYear: live.otherYear, remaining: live.remaining };
+  }
+
+  function yearCloseFinalize(year) {
+    const rec0 = yearCloseRecord(year);
+    if (rec0 && rec0.status === "closed") return;
+    if (!yearCloseGate(year, yearCloseProgress(year)).ok) return;
+    const now = new Date().toISOString();
+    const rec = rec0 || { status: "closing", startedAt: now, closedAt: null, summary: null };
+    rec.summary = yearCloseLive(year).summary;
+    rec.status = "closed";
+    rec.closedAt = now;
+    saveYearClose(year, rec);
+  }
+  // 再オープン：確定を取り消して年次決算中に戻す。summary は前回確定の記録として残し、再確定時に上書きする
+  function yearCloseReopen(year) {
+    const rec = yearCloseRecord(year);
+    if (!rec) return;
+    rec.status = "closing";
+    rec.closedAt = null;
+    saveYearClose(year, rec);
+  }
+
+  function openYearDoc(year) {
+    yearDocView = { open: true, year: Number(year) };
+    try { renderYearDocPanel(); renderYearClosePanel(); } catch (e) { console.error("年ドキュメントの表示に失敗", e); }
+    const p = document.getElementById("yearDocPanel");
+    if (p) p.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  function closeYearDoc() {
+    yearDocView = { open: false, year: null };
+    try { renderYearDocPanel(); renderYearClosePanel(); } catch (e) { console.error("年ドキュメントの表示に失敗", e); }
+    const p = document.getElementById("yearClosePanel");
+    if (p) p.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  const yearSigned = (n) => (n >= 0 ? "+" : "−") + YEN(Math.abs(n));
+  function yearKv(k, v, note, wrap) {
+    const row = el("div", { class: "doc-kv" }, [el("span", { class: "k" }, [k]), el("span", { class: "v num", style: wrap ? "white-space:normal;text-align:right;" : "" }, [v])]);
+    if (!note) return row;
+    const box = el("div", null, [row, el("div", { class: "cs-detail", style: "margin:2px 0 4px 2px;" }, [note])]);
+    return box;
+  }
+
+  function yearCheckRow(status, title, detail) {
+    const marks = { ok: "✓", warn: "!", info: "i" };
+    return el("div", { class: "x-check" }, [
+      el("div", { class: "x-mark " + status }, [marks[status] || "i"]),
+      el("div", { class: "x-body" }, [el("div", { class: "x-title" }, [title]), detail ? el("div", { class: "x-detail" }, [detail]) : null]),
+    ]);
+  }
+  function yearDeadlineText(iso) {
+    const [y, m, d] = String(iso).split("-").map(Number);
+    return `${y}年${m}月${d}日 必着`;
+  }
+
+  // 3.1 入口パネル（#yearClosePanel）
+  function renderYearClosePanel() {
+    const body = document.getElementById("yearCloseBody");
+    if (!body) return;
+    const meta = document.getElementById("yearCloseMeta");
+    body.innerHTML = "";
+    const year = new Date().getFullYear();
+    const d = yearCloseData(year);
+    if (meta) meta.textContent = `${year}年：${d.status.label}`;
+
+    // 過去年のリンク列（年次の記録がある年、または月次の確定がある年。年が明けた後に前年を確定するための入口）
+    const ys = new Set();
+    Object.keys(settings.yearClose || {}).forEach((k) => ys.add(Number(k)));
+    Object.keys(settings.monthClose || {}).forEach((k) => { const r = settings.monthClose[k]; if (r && r.status === "closed" && /^\d{4}-\d{2}$/.test(k)) ys.add(Number(k.slice(0, 4))); });
+    const past = Array.from(ys).filter((y) => y < year).sort((a, b) => b - a);
+    if (past.length) {
+      body.appendChild(el("div", { class: "yc-links" }, [
+        el("span", { class: "cs-state", style: "margin-left:0;" }, ["過去の年"]),
+        ...past.map((y) => el("a", {
+          href: "#", role: "button", class: yearDocView.open && yearDocView.year === y ? "cur" : "",
+          onclick: (e) => { e.preventDefault(); openYearDoc(y); },
+        }, [`${y}年`])),
+      ]));
+    }
+
+    const s = d.summary;
+    if (!s) {
+      body.appendChild(el("div", { class: "cs-detail" }, ["確定時点のサマリが保存されていません（記録の形式が古い可能性があります）。"]));
+    } else {
+      body.appendChild(el("div", { style: "margin:0 0 8px;display:flex;gap:8px;flex-wrap:wrap;" }, [
+        el("span", { class: "yc-badge" + (s.monthsClosed >= s.monthsTotal ? " on" : "") }, [`月次確定 ${s.monthsClosed}/${s.monthsTotal}`]),
+        el("span", { class: "yc-badge" + (d.status.key === "closed" ? " on" : "") }, [d.status.label]),
+      ]));
+      body.appendChild(yearKv("年間の収支（確定分のみ）", yearSigned(s.profitConfirmed)));
+      body.appendChild(yearKv("ふるさと納税（寄附額）", `${YEN(s.tax.don)}（${s.tax.donN}件）`));
+      if (s.trial) {
+        body.appendChild(yearKv("寄附の上限額（試算）", YEN(s.trial.limit)));
+        body.appendChild(yearKv(s.trial.remain >= 0 ? "残り枠" : "上限を超えている額", YEN(Math.abs(s.trial.remain))));
+      }
+    }
+    body.appendChild(el("div", { class: "cs-actions" }, [
+      el("button", { class: "btn", type: "button", onclick: () => openYearDoc(year) }, ["年ドキュメントを開く"]),
+    ]));
+  }
+
+  // 3.2 年ドキュメントパネル（#yearDocPanel）
+  function renderYearDocPanel() {
+    const panel = document.getElementById("yearDocPanel");
+    if (!panel) return;
+    const body = document.getElementById("yearDocBody"), title = document.getElementById("yearDocTitle"), meta = document.getElementById("yearDocMeta");
+    const closeBtn = document.getElementById("yearDocCloseBtn");
+    if (closeBtn) closeBtn.onclick = closeYearDoc;
+
+    if (!yearDocView.open || yearDocView.year === null) {
+      panel.classList.add("hidden");
+      if (body) body.innerHTML = "";
+      if (title) title.textContent = "年ドキュメント";
+      if (meta) meta.textContent = "";
+      return;
+    }
+    panel.classList.remove("hidden");
+    if (!body) return;
+    body.innerHTML = "";
+    const year = yearDocView.year;
+    const d = yearCloseData(year), rec = d.rec, s = d.summary;
+    if (title) title.textContent = `年ドキュメント（${year}年）`;
+    if (meta) meta.textContent = d.status.label;
+
+    // (a) 表紙部
+    body.appendChild(el("div", { style: "margin:2px 0 6px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;" }, [
+      el("span", { class: "yc-badge" + (d.status.key === "closed" ? " on" : "") }, [d.status.label]),
+      d.status.key === "closed" && rec && rec.closedAt ? el("span", { style: "font-size:14px;color:var(--ink-soft);" }, [`${closeFmtDateTime(rec.closedAt)} に確定`]) : null,
+    ]));
+    body.appendChild(el("div", { class: "cash-note", style: "margin:0 0 4px;" }, ["暦年（1/1〜12/31）で集計します。月ドキュメントの会計月（25日始まり）とは区切りが異なります"]));
+
+    if (!s) {
+      body.appendChild(el("div", { class: "cs-detail" }, ["確定時点のサマリが保存されていません（記録の形式が古い可能性があります）。"]));
+    } else {
+      // (b) 年間サマリ
+      body.appendChild(el("div", { class: "cs-sect" }, ["年間サマリ"]));
+      body.appendChild(yearKv("月次確定", `${s.monthsClosed} / ${s.monthsTotal}`));
+      body.appendChild(yearKv("年間の収支（確定分のみ）", yearSigned(s.profitConfirmed), "確定済みの月ドキュメントの収支の合計です（未確定の月は含みません）"));
+      body.appendChild(yearKv("残りの月", d.remaining.length ? d.remaining.join("、") : "なし（12か月すべて確定）", null, true));
+      body.appendChild(yearKv("年次確定の見通し", d.status.key === "closed" && rec && rec.closedAt ? `${closeFmtDate(rec.closedAt)} に年次確定` : `${year + 1}年1月（12月度の確定＋暦年の締め）`, null, true));
+
+      // (c) 税務集計（暦年）
+      const t = s.tax;
+      body.appendChild(el("div", { class: "cs-sect" }, [`税務集計（${year}年・暦年）`]));
+      body.appendChild(yearKv("給与収入（額面）", YEN(t.gross), "給与カテゴリの収入行の合計（手取りの振込＋天引き行）"));
+      body.appendChild(yearKv("手取り", YEN(t.net), "給与カテゴリの収入行のうち、天引き以外（振込分）"));
+      body.appendChild(yearKv("社会保険料", YEN(t.shakai), "給与の天引き行。無ければ「税金」カテゴリの支出（翌月ずらし）で代用し、自分で払った国民年金などを加えます"));
+      body.appendChild(yearKv("源泉所得税", YEN(t.wh), "給与の天引き行。無ければ「税金」カテゴリの所得税"));
+      body.appendChild(yearKv("住民税", YEN(t.res), "給与の天引き行。無ければ「税金」カテゴリの住民税"));
+      body.appendChild(yearKv("ふるさと納税（寄附額）", YEN(t.don), `ふるさと納税として判定した支出 ${t.donN}件`));
+      const sum = t.net + t.shakai + t.wh + t.res;
+      if (!t.gross && !sum) body.appendChild(el("div", { class: "cs-detail" }, ["この年の給与の記録はありません。"]));
+      else if (t.gross === sum) body.appendChild(yearCheckRow("ok", "検算：額面 ＝ 手取り ＋ 天引き合計 ✓"));
+      else body.appendChild(yearCheckRow("info", `検算：差額 ${YEN(Math.abs(t.gross - sum))}（給与以外の支払い分を含むため一致しません）`));
+      body.appendChild(el("div", { class: "cash-note", style: "margin-top:6px;" }, ["Zaim で「集計に含めない」にした取引は含みません。"]));
+
+      // (d) 試算ブロック（計算は tax-furusato.html 側。ここは結果の表示のみ）
+      body.appendChild(el("div", { class: "cs-sect" }, ["試算（ふるさと納税・確定申告）"]));
+      if (s.trial) {
+        const tr = s.trial;
+        body.appendChild(yearKv("寄附の上限額", YEN(tr.limit)));
+        body.appendChild(yearKv(tr.remain >= 0 ? "残り枠" : "上限を超えている額", YEN(Math.abs(tr.remain)), `上限額 − 寄附額（${YEN(t.don)}、元帳の集計）`));
+        if (tr.savedAt && closeFmtDateTime(tr.savedAt)) body.appendChild(yearKv("試算時点", closeFmtDateTime(tr.savedAt)));
+        if (tr.balance !== null) {
+          if (tr.balance > 0) body.appendChild(yearKv("第3期分の納税見込み", YEN(tr.balance)));
+          else if (tr.balance < 0) body.appendChild(yearKv("還付見込み", YEN(-tr.balance)));
+          else body.appendChild(el("div", { class: "cs-detail" }, ["試算上の納税・還付はありません。"]));
+        }
+      } else if (d.frozen) {
+        body.appendChild(el("div", { class: "cs-detail" }, ["確定時点で、この年の試算は保存されていませんでした。"]));
+      } else if (d.otherYear !== null) {
+        body.appendChild(el("div", { class: "cs-detail" }, [`保存済みの試算は ${d.otherYear} 年分です`]));
+      } else {
+        body.appendChild(el("div", { class: "cs-detail" }, ["この年の試算はまだ保存されていません。試算ページで計算した結果を元帳に送ると、ここに表示されます。"]));
+      }
+      const openBtn = el("a", { class: "btn", id: "yearTaxOpenBtn", href: "tax-furusato.html", style: "text-decoration:none;" }, ["試算を開く ↗"]);
+      const srcBtn = document.getElementById("taxOpenBtn");
+      if (srcBtn && srcBtn.getAttribute("href")) openBtn.setAttribute("href", srcBtn.getAttribute("href"));
+      body.appendChild(el("div", { class: "cs-actions" }, [openBtn]));
+
+      // (e) ワンストップ特例の判定
+      const os = s.onestop;
+      body.appendChild(el("div", { class: "cs-sect" }, ["ワンストップ特例の判定"]));
+      if (!os.cities.length) {
+        body.appendChild(emptyState(`${year}年の寄附はまだありません`));
+      } else {
+        os.cities.forEach((c) => body.appendChild(el("div", { class: "sub-row" }, [
+          el("div", null, [el("div", { class: "sub-name" }, [c.name]), el("div", { class: "sub-meta-line" }, [`${c.n}回`])]),
+          el("div", { class: "num amt" }, [YEN(c.amount)]),
+        ])));
+        body.appendChild(yearKv("寄附先の自治体数", `${os.cityCount} / ${ONESTOP_MAX_CITIES}`));
+        body.appendChild(os.cityCount > ONESTOP_MAX_CITIES
+          ? yearCheckRow("warn", "確定申告が必要です", `ワンストップ特例は${ONESTOP_MAX_CITIES}自治体までです`)
+          : yearCheckRow("ok", "使える見込み", `寄附先は${ONESTOP_MAX_CITIES}自治体以内です`));
+        body.appendChild(yearKv("申請期限", yearDeadlineText(os.deadline)));
+        body.appendChild(el("div", { class: "cash-note", style: "margin-top:6px;" }, ["寄附先はお店の名前でまとめています。同じ自治体が別の名前で記録されている場合は別々に数えます"]));
+      }
+    }
+
+    // (f) 年次の確定カード
+    body.appendChild(el("div", { class: "cs-sect" }, ["年次の確定"]));
+    if (d.status.key === "closed") {
+      body.appendChild(el("div", { style: "margin:2px 0 10px;" }, [
+        el("span", { class: "stamp-box serif" }, ["年次確定"]),
+        rec && rec.closedAt ? el("span", { style: "margin-left:12px;font-size:14px;color:var(--ink-soft);" }, [`${closeFmtDateTime(rec.closedAt)} に確定`]) : null,
+      ]));
+      body.appendChild(el("div", { class: "cash-note" }, ["このドキュメントは確定時点の記録です。後からデータが変わっても再計算はされません。"]));
+      body.appendChild(el("div", { class: "cs-actions" }, [
+        el("button", { class: "btn", type: "button", onclick: () => yearCloseReopen(year) }, ["再オープンする"]),
+        el("button", { class: "btn", type: "button", onclick: closeYearDoc }, ["閉じる"]),
+      ]));
+    } else {
+      const gate = yearCloseGate(year, d.prog);
+      body.appendChild(el("div", { class: "cs-detail" }, [gate.ok
+        ? "条件を満たしています。確定すると、この年のサマリ・税務集計・試算・ワンストップ判定が年ドキュメントとして記録されます（以後は再計算されません）。"
+        : `確定するには：${gate.reasons.join("／")}`]));
+      const finBtn = el("button", { class: "btn", type: "button", onclick: () => yearCloseFinalize(year) }, ["この年を確定する"]);
+      if (!gate.ok) finBtn.disabled = true;
+      body.appendChild(el("div", { class: "cs-actions" }, [finBtn, el("button", { class: "btn", type: "button", onclick: closeYearDoc }, ["閉じる"])]));
+    }
+  }
+
   function renderTaxSummary() {
     if (!document.getElementById("taxSummaryPanel")) return;
     const year = state.periodAnchor.getFullYear();
@@ -8160,7 +8532,7 @@ function svgEl(tag, attrs) {
     const json = JSON.stringify(payload);
     try { localStorage.setItem(TAX_HANDOFF_KEY, json); } catch (e) { /* 保存できなくてもハッシュ経由で渡せる */ }
     const href = "tax-furusato.html#from=ledger&d=" + encodeURIComponent(json);
-    ["taxOpenBtn", "taxLinkSide"].forEach((id) => { const a = document.getElementById(id); if (a) a.setAttribute("href", href); });
+    ["taxOpenBtn", "taxLinkSide", "yearTaxOpenBtn"].forEach((id) => { const a = document.getElementById(id); if (a) a.setAttribute("href", href); });
   }
   importTaxResultFromHash();
 
@@ -10990,6 +11362,7 @@ function svgEl(tag, attrs) {
     items.push({ label: "今日を含む期間に戻る", hint: "期間", run: () => { state.periodAnchor = startOfDay(new Date()); state.page = 0; render(); } });
     items.push({ label: "月次チェックを見る", hint: "決算", run: () => { clickEl('.tab-btn[data-tab="closing"]'); const p = document.getElementById("monthCheckPanel"); if (p) p.scrollIntoView({ behavior: "smooth", block: "start" }); } });
     items.push({ label: "税務集計を見る", hint: "決算", run: () => { clickEl('.tab-btn[data-tab="closing"]'); const p = document.getElementById("taxSummaryPanel"); if (p) p.scrollIntoView({ behavior: "smooth", block: "start" }); } });
+    items.push({ label: "年ドキュメントを開く", hint: "決算", run: () => { clickEl('.tab-btn[data-tab="closing"]'); openYearDoc(new Date().getFullYear()); } });
     items.push({ label: "ダークモード／ライトモードを切り替える", hint: "表示", run: () => clickEl("#themeToggleBtn") });
     items.push({ label: "設定を開く", hint: "設定", run: () => openSettingsModal() });
     items.push({ label: "印刷／PDF出力", hint: "出力", run: () => clickEl("#printPdfBtn") });
