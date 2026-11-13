@@ -4976,6 +4976,21 @@
   // 締め期間内の利用合計」の誤差が最小になるものを採用し、それでも誤差が大きい・決済回数が少ない
   // 場合は確信を持って推定できないとしてnullを返す（呼び出し側は口座単位の粗い集計にフォールバックする）。
   const CARD_CYCLE_CLOSING_DAYS = [...Array.from({ length: 28 }, (_, i) => i + 1), "eom"];
+// ===== Stage H: カード締め日・支払日の確認済みルール =====
+// 2026-11-13 に Zaim 全履歴（引落振替 最大35回分）で金額まで照合して確定したルール。
+// キーは Zaim 上の口座名と「完全一致」。
+// 「楽天カード 楽天銀行カード(JCB) …」のような別口座は意図的に含めない
+// （完全一致なので自然に従来の推定へフォールバックする）。
+// closingDay: 数値 = その日締め / "eom" = 月末締め
+// lag: 締め月から支払月までの月数 / settlementDay: 名目支払日（土日祝は cardSettleDate で翌営業日へ）
+const CARD_KNOWN_CYCLES = {
+  "三井住友カード": { closingDay: "eom", lag: 1, settlementDay: 26 },
+  "三井住友カード Olive": { closingDay: "eom", lag: 1, settlementDay: 26 },
+  "楽天カード": { closingDay: "eom", lag: 1, settlementDay: 27 },
+  "ビューカード スタンダードJ": { closingDay: 5, lag: 1, settlementDay: 4 },
+  "イオンカードセレクト": { closingDay: 10, lag: 1, settlementDay: 2 },
+  "リクルートカード": { closingDay: 15, lag: 1, settlementDay: 10 }
+};
   const CARD_CYCLE_LAGS = [0, 1, 2];
   const CARD_CYCLE_FIT_THRESHOLD = 0.12; // 決済額に対する誤差率がこれを超えたら不採用
 
@@ -4990,6 +5005,29 @@
     while (m < 0) { m += 12; y -= 1; }
     return cardCycleClosingDate(y, m, closingDay);
   }
+// Stage H: 名目支払日を、その月の末日で切り詰めたうえで、
+// confirmed（known）サイクルのときだけ土日祝を翌営業日へ繰り下げる。
+// 締め日は動かさない。推定サイクルは名目日をそのまま返す
+// （推定の平均日を二重にずらさないため）。
+function cardSettleDate(year, month0, cycle) {
+  const lastDay = new Date(year, month0 + 1, 0).getDate();
+  let d = new Date(year, month0, Math.min(cycle.settlementDayOfMonth, lastDay));
+  if (!cycle.known) return d; // 推定は調整しない
+  while (!isBusinessDay(d)) d = addDays(d, 1);
+  return d;
+}
+// Stage H: パネル注記の出し分け。
+// cycles: 表示中カードのサイクル配列（各要素は getCardBillingCycle の返却値）。
+// legacyText: 従来の注記本文（「引落日・締め日は過去の決済実績からの推定です…」の全文）。
+// skipped がある場合の追加注記は呼び出し側で従来どおり追加する（ここでは扱わない）。
+function cardPanelBaseNote(cycles, legacyText) {
+  const knownCount = cycles.filter((c) => c && c.known).length;
+  if (knownCount === 0) return legacyText;
+  if (knownCount === cycles.length) {
+    return "引落日・締め日は、決済実績で確認済みのルールで計算しています（引落日が土日祝の場合は翌営業日）。「利用期間の途中」の金額は、今日までの利用分だけです。";
+  }
+  return "一部のカードは確認済みのルール（土日祝は翌営業日）で、その他は過去の決済実績からの推定で計算しています。「利用期間の途中」の金額は、今日までの利用分だけです。";
+}
   function collectCardRawData(account) {
     const purchases = [], settlements = [];
     for (const r of state.transactions) {
@@ -5027,6 +5065,19 @@
   }
   let cardCycleCacheTx = null, cardCycleCache = new Map();
   function getCardBillingCycle(account) {
+// Stage H: 確認済みルールがあれば推定を回さずそれを正とする。
+// 未知口座はここを通らず従来どおり推定（known は付けない = undefined）。
+const knownCycle = CARD_KNOWN_CYCLES[account];
+if (knownCycle) {
+  return {
+    closingDay: knownCycle.closingDay,
+    lag: knownCycle.lag,
+    score: 0,
+    settlementDayOfMonth: knownCycle.settlementDay,
+    settlementCount: collectCardRawData(account).settlements.length,
+    known: true
+  };
+}
     if (cardCycleCacheTx !== state.transactions) { cardCycleCacheTx = state.transactions; cardCycleCache = new Map(); }
     if (cardCycleCache.has(account)) return cardCycleCache.get(account);
     const { purchases, settlements } = collectCardRawData(account);
@@ -5044,8 +5095,7 @@
     if (purchaseDate.getDate() > dayLimit) { m += 1; if (m > 11) { m -= 12; y += 1; } }
     let sy = y, sm = m + cycle.lag;
     while (sm > 11) { sm -= 12; sy += 1; }
-    const lastDay = new Date(sy, sm + 1, 0).getDate();
-    const settleDate = new Date(sy, sm, Math.min(cycle.settlementDayOfMonth, lastDay));
+    const settleDate = cardSettleDate(sy, sm, cycle);
     return getCycleBounds(settleDate).key;
   }
 
@@ -7689,7 +7739,7 @@ function svgEl(tag, attrs) {
       const items = [];
       for (let k = 0; k < 4 && items.length < 2; k++) {
         const y = today.getFullYear() + Math.floor((today.getMonth() + k) / 12), m0 = (today.getMonth() + k) % 12;
-        const settle = new Date(y, m0, Math.min(cycle.settlementDayOfMonth, new Date(y, m0 + 1, 0).getDate()));
+        const settle = cardSettleDate(y, m0, cycle);
         if (settle < today) continue;
         if (lastSettle && lastSettle >= addDays(settle, -10)) continue;   // 今月分がもう引き落とされている（推定日より早かった）
         const end = cardCycleClosingDateForSettlement(settle, cycle.closingDay, cycle.lag);
@@ -7749,7 +7799,7 @@ function svgEl(tag, attrs) {
         ]));
       });
     });
-    const notes = ["引落日・締め日は過去の決済実績からの推定です（土日祝の前後のずれは考慮していません）。「利用期間の途中」の金額は、今日までの利用分だけです。"];
+    const notes = [cardPanelBaseNote(cards.map((c) => c.cycle), "引落日・締め日は過去の決済実績からの推定です（土日祝の前後のずれは考慮していません）。「利用期間の途中」の金額は、今日までの利用分だけです。")];
     if (skipped.length) notes.push(`推定できなかったカード：${skipped.join("、")}`);
     body.appendChild(el("div", { class: "cash-note" }, [notes.join(" ")]));
   }
