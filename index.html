@@ -845,6 +845,12 @@
   .ml-line { font-size: 14.5px; line-height: 1.55; padding: 2px 2px; }
   .fresh-strip { font-size: 13px; color: var(--ink-faint); padding: 0 4px 12px; line-height: 1.7; }
   .fresh-strip .warn { color: var(--red); }
+  /* ---- Stage Q ---- */
+  .pt-exp { font-size: 12.5px; color: var(--ink-faint); margin-top: 1px; }
+  .po-head { font-size: 13.5px; color: var(--ink-soft); font-weight: 600; margin: 12px 0 2px; }
+  .po-line { font-size: 14.5px; line-height: 1.55; padding: 2px 2px; }
+  .po-link-row { padding-top: 10px; }
+  .po-link { color: var(--accent); text-decoration: none; font-size: 14.5px; }
   /* ---- 決算フロー・確定ドキュメント（Stage C） ---- */
   .close-step { display: flex; gap: 12px; padding: 12px 2px; border-bottom: 1px solid var(--rule); }
   .close-step:last-of-type { border-bottom: none; }
@@ -1400,6 +1406,13 @@
         </div>
         <div id="pointsBody"></div>
         <div class="cash-note" id="pointsNote"></div>
+      </div>
+      <div class="card panel" id="portalCard">
+        <div class="panel-head">
+          <div class="section-title serif">ポータル</div>
+          <div class="sub-meta" id="portalMeta"></div>
+        </div>
+        <div id="portalBody"></div>
       </div>
 
       <div class="card panel qgroup" id="overviewGroupFlow">
@@ -2243,6 +2256,7 @@
     syncHeartbeat: null, // 自動同期スクリプトの生存記録 { at, ok, warnings: [], version, tokenExpiresAt }。停止・トークン期限の警告バナー用（スクリプトのみが書く）
     zaimCsvSyncedAt: null, // pendingZaimCsvのうち、この端末（および同期先）で既に取込済みのdownloadedAt値
     pendingSecuritiesImport: null, // 証券スクレイピングスクリプトがクラウド経由で置いていく未取込データ { stocks, funds, cash, other, totalCostBasis, totalMarketValue, scrapedAt }
+    pendingPointExpiry: null, // ポイント有効期限のスクレイプ結果 { programs: [{ name, totalPoints, expiry: [{ date: 'YYYY-MM-DD'|null, points }] }], scrapedAt }。ルーティーンのみが書く読み取り専用データ。アプリ側は書き換えない
     manualFixedCosts: new Map(), // 手動登録した固定費。id -> { matchType:'store'|'sub'|'none', matchValue, category, label, amount, cashPaid }
     accountRenames: new Map(), // 口座名の変更記録。旧口座名 -> 新口座名（Zaim側で名前を変えた口座の設定・取引を引き継ぐ）
     categoryBudgets: new Map(), // カテゴリ別の月予算。カテゴリ名 -> 月額（円）。会計月（25日始まり）単位で使う
@@ -2462,6 +2476,7 @@
       zaimCsvSyncedAt: settings.zaimCsvSyncedAt,
       syncHeartbeat: settings.syncHeartbeat,
       pendingSecuritiesImport: settings.pendingSecuritiesImport,
+      pendingPointExpiry: settings.pendingPointExpiry,
       manualFixedCosts: Object.fromEntries(settings.manualFixedCosts),
       accountRenames: Object.fromEntries(settings.accountRenames),
       categoryBudgets: Object.fromEntries(settings.categoryBudgets),
@@ -2525,6 +2540,7 @@
     settings.pendingZaimCsv = obj.pendingZaimCsv && typeof obj.pendingZaimCsv.downloadedAt === "string" ? obj.pendingZaimCsv : null;
     settings.zaimCsvSyncedAt = typeof obj.zaimCsvSyncedAt === "string" ? obj.zaimCsvSyncedAt : null;
     settings.syncHeartbeat = obj.syncHeartbeat && typeof obj.syncHeartbeat.at === "string" ? obj.syncHeartbeat : null;
+    settings.pendingPointExpiry = obj.pendingPointExpiry && Array.isArray(obj.pendingPointExpiry.programs) ? obj.pendingPointExpiry : null;
     settings.pendingSecuritiesImport = obj.pendingSecuritiesImport && (Array.isArray(obj.pendingSecuritiesImport.stocks) || Array.isArray(obj.pendingSecuritiesImport.funds)) ? obj.pendingSecuritiesImport : null;
     settings.manualFixedCosts = new Map(Object.entries(obj.manualFixedCosts || {}));
     settings.accountRenames = new Map(Object.entries(obj.accountRenames || {}));
@@ -2845,7 +2861,7 @@
     merged.yearClose = mergeMapField(base, local, remote, "yearClose", conflicts);
     merged.savedViews = mergeSavedViewsField(base, local, remote, conflicts);
     ["accountBalanceInited", "accountBalanceAsOfDate", "balancePattern", "furusatoKeyword", "securitiesScrapeInfo", "zaimScrapeInfo",
-      "pendingZaimImport", "pendingZaimCsv", "zaimCsvSyncedAt", "pendingSecuritiesImport", "accountMetaInited", "syncHeartbeat"]
+      "pendingZaimImport", "pendingZaimCsv", "zaimCsvSyncedAt", "pendingSecuritiesImport", "accountMetaInited", "syncHeartbeat", "pendingPointExpiry"]
       .forEach((key) => { merged[key] = mergeScalarField(base, local, remote, key, conflicts); });
     merged.securitiesHistory = mergeSecuritiesHistoryField(local, remote);
     merged.v = remote.v || local.v || 1;
@@ -7393,10 +7409,106 @@ function svgEl(tag, attrs) {
     if (meta) meta.textContent = `合計 ${PT(total)}`;
     if (body) {
       body.textContent = "";
-      list.forEach((x) => body.appendChild(el("div", { class: "pt-row" }, [el("span", null, [x.name]), el("span", { class: "num" }, [PT(x.v)])])));
+      list.forEach((x) => {
+        const exp = pointExpiryLine(x.name);
+        const left = exp ? el("div", null, [el("div", null, [x.name]), el("div", { class: "pt-exp" }, [exp])]) : el("span", null, [x.name]);
+        body.appendChild(el("div", { class: "pt-row" }, [left, el("span", { class: "num" }, [PT(x.v)])]));
+      });
       body.appendChild(el("div", { class: "pt-row pt-total" }, [el("span", null, ["合計"]), el("span", { class: "num" }, [PT(total)])]));
     }
-    if (note) note.textContent = `残高は Zaim 同期時点（${accountBalanceAsOfLabel()}）のものです。失効日の情報は同期データに含まれないため、期限は表示していません。`;
+    if (note) {
+      const expData = pointExpiryData();
+      if (expData) {
+        const sd = new Date(expData.scrapedAt);
+        note.textContent = `有効期限は Zaim のポイント口座ページで取得した実績値です（${sd.getMonth() + 1}/${sd.getDate()} 取得）。残高は Zaim 同期時点（${accountBalanceAsOfLabel()}）のものです。`;
+      } else {
+        note.textContent = `残高は Zaim 同期時点（${accountBalanceAsOfLabel()}）のものです。失効日の情報は同期データに含まれないため、期限は表示していません。`;
+      }
+    }
+  }
+
+  // ===== Stage Q-1：ポイント有効期限（Zaim ルーティーンが取得した実績値） =====
+  // settings.pendingPointExpiry はルーティーンのみが書く読み取り専用データ。
+  // 形が崩れていたら null を返し、期限表示は静かに諦める（残高のみの従来表示にフォールバック）。
+  function pointExpiryData() {
+    const p = settings.pendingPointExpiry;
+    if (!p || typeof p !== "object" || !Array.isArray(p.programs) || !p.programs.length) return null;
+    if (typeof p.scrapedAt !== "string" || isNaN(Date.parse(p.scrapedAt))) return null;
+    return p;
+  }
+  // プログラム名（完全一致）→ 期限行の文言。表示すべきものが無ければ null。
+  // 期限付き分がある場合は最直近の1件だけを示し、無期限分は併記しない（失効の警告が目的）。
+  function pointExpiryLine(name) {
+    const data = pointExpiryData();
+    if (!data) return null;
+    const prog = data.programs.find((x) => x && x.name === name);
+    if (!prog || !Array.isArray(prog.expiry) || !prog.expiry.length) return null;
+    const dated = prog.expiry.filter((e) => e && typeof e.date === "string")
+      .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    if (dated.length) {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dated[0].date);
+      if (!m) return null;
+      const pts = typeof dated[0].points === "number" ? dated[0].points : 0;
+      return `${Number(m[2])}/${Number(m[3])} までに ${Math.round(pts).toLocaleString("ja-JP")} pt 失効`;
+    }
+    return "有効期限なし";
+  }
+
+  // ===== Stage Q-2：ポータル集約（オルカン最新値・次回引落・給与導線） =====
+  // 既存データの読み取り専用ダイジェスト。新しい計算は作らず、欠けたブロックは静かに省く。
+  // payslip 行だけは静的リンクなので、他のブロックが無くてもカードは常設する。
+  function orukanLatestDigest() {
+    const hist = Array.isArray(settings.securitiesHistory) ? settings.securitiesHistory : [];
+    if (!hist.length) return null;
+    const last = hist[hist.length - 1];
+    if (!last || !Array.isArray(last.items)) return null;
+    const items = last.items.filter((it) => it && typeof it.name === "string" && /オール・カントリー|全世界株式/.test(it.name));
+    if (!items.length) return null;
+    const mv = items.reduce((s, it) => s + (typeof it.marketValue === "number" ? it.marketValue : 0), 0);
+    const cb = items.reduce((s, it) => s + (typeof it.costBasis === "number" ? it.costBasis : 0), 0);
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(last.date || ""));
+    if (!m) return null;
+    return { marketValue: mv, gain: mv - cb, md: `${Number(m[2])}/${Number(m[3])}` };
+  }
+  // 次回引落の選択は Stage G の Q&A（qaNextCardPayments）と同一：各カードの items[0] かつ金額 > 0。
+  function nextCardPaymentsDigest() {
+    if (!state.transactions || !state.transactions.length) return null;
+    const next = computeCardSchedule().cards
+      .filter((c) => c.items && c.items[0] && c.items[0].amount > 0)
+      .map((c) => ({ account: c.account, it: c.items[0] }));
+    if (!next.length) return null;
+    next.sort((a, b) => a.it.settle - b.it.settle);
+    return { rows: next, total: next.reduce((s, x) => s + x.it.amount, 0) };
+  }
+  function renderPortalCard() {
+    const card = document.getElementById("portalCard");
+    if (!card) return;
+    const body = document.getElementById("portalBody");
+    if (!body) return;
+    body.textContent = "";
+    const MD = (d) => `${d.getMonth() + 1}/${d.getDate()}`;
+    // ① オルカン（全世界株式）の最新値
+    let orukan = null;
+    try { orukan = orukanLatestDigest(); } catch (e) { orukan = null; }
+    if (orukan) {
+      const gainText = (orukan.gain < 0 ? "−" : "+") + YEN(Math.abs(orukan.gain));
+      body.appendChild(el("div", { class: "po-line" }, [`オルカン（全世界株式）　評価額 ${YEN(orukan.marketValue)}（評価損益 ${gainText}）・${orukan.md} 時点`]));
+    }
+    // ② 次回の引落（最大3件＋合計は全件分）
+    let pay = null;
+    try { pay = nextCardPaymentsDigest(); } catch (e) { pay = null; }
+    if (pay) {
+      body.appendChild(el("div", { class: "po-head" }, ["次回の引落"]));
+      pay.rows.slice(0, 3).forEach((x) => body.appendChild(el("div", { class: "pt-row" }, [
+        el("span", null, [`${MD(x.it.settle)} ${x.account}`]),
+        el("span", { class: "num" }, [YEN(x.it.amount)]),
+      ])));
+      if (pay.rows.length > 3) body.appendChild(el("div", { class: "pt-row" }, [el("span", null, [`他 ${pay.rows.length - 3} 件`])]));
+      body.appendChild(el("div", { class: "pt-row pt-total" }, [el("span", null, ["合計"]), el("span", { class: "num" }, [YEN(pay.total)])]));
+      body.appendChild(el("div", { class: "cash-note" }, ["詳細は下の『カード引落の予定』に"]));
+    }
+    // ③ 給与明細シミュレータへの導線（サイドバーと同じ文言・同一タブ遷移）
+    body.appendChild(el("div", { class: "po-link-row" }, [el("a", { href: "payslip.html", class: "po-link" }, ["給与明細シミュレータ ↗"])]));
   }
 
   // ===== Stage G-3：記憶層（分析タブ）＝同期スナップショットと証券の時価履歴を読むだけ =====
@@ -7587,6 +7699,7 @@ function svgEl(tag, attrs) {
     try { renderAutoCheckCard(); } catch (e) { console.error("自動点検カードの表示に失敗", e); }
     try { renderOutlookBand(); } catch (e) { console.error("90日見通しの表示に失敗", e); }
     try { renderPointsCard(); } catch (e) { console.error("ポイントカードの表示に失敗", e); }
+    try { renderPortalCard(); } catch (e) { console.error("ポータルカードの表示に失敗", e); }
     try { renderFreshnessStrip(); } catch (e) { console.error("データ鮮度ストリップの表示に失敗", e); }
   }
 
