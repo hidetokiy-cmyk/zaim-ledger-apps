@@ -7398,18 +7398,35 @@ function svgEl(tag, attrs) {
         });
       }
     } catch (e) { list = []; }
-    if (!list.length) { card.classList.add("hidden"); return; }
+    // ===== Stage R：スクレイプ行（Zaim ポイント口座ページの全プログラム） =====
+    // 口座残高行と一致しないプログラムは totalPoints を残高として行を追加する（0 pt のものも含め全部出す）。
+    // 突合は Stage Q の期限付与と同じ完全一致。プログラム内の重複名は先勝ち（期限付与の find と同じ）。
+    let scrape = [];
+    try {
+      const data = pointExpiryData();
+      if (data) {
+        const seen = new Set(list.map((x) => x.name));
+        data.programs.forEach((p) => {
+          if (!p || typeof p.name !== "string" || !p.name || seen.has(p.name)) return;
+          seen.add(p.name);
+          scrape.push({ name: p.name, v: typeof p.totalPoints === "number" && isFinite(p.totalPoints) ? p.totalPoints : 0 });
+        });
+        scrape.sort((a, b) => (b.v - a.v) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+      }
+    } catch (e) { scrape = []; }
+    if (!list.length && !scrape.length) { card.classList.add("hidden"); return; }
     card.classList.remove("hidden");
     list.sort((a, b) => b.v - a.v);
+    const rows = list.concat(scrape);
     const PT = (n) => Math.round(n).toLocaleString("ja-JP") + " pt";
     const body = document.getElementById("pointsBody");
     const note = document.getElementById("pointsNote");
     const meta = document.getElementById("pointsMeta");
-    const total = list.reduce((s, x) => s + x.v, 0);
+    const total = rows.reduce((s, x) => s + x.v, 0);
     if (meta) meta.textContent = `合計 ${PT(total)}`;
     if (body) {
       body.textContent = "";
-      list.forEach((x) => {
+      rows.forEach((x) => {
         const exp = pointExpiryLine(x.name);
         const left = exp ? el("div", null, [el("div", null, [x.name]), el("div", { class: "pt-exp" }, [exp])]) : el("span", null, [x.name]);
         body.appendChild(el("div", { class: "pt-row" }, [left, el("span", { class: "num" }, [PT(x.v)])]));
