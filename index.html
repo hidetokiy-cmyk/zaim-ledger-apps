@@ -4056,9 +4056,10 @@
   }
 
   // ---------- サブスク（定期支払い）自動検出 ----------
-  // 「同じお店（無ければカテゴリ・内訳）」で3回以上の支出があり、間隔がおおむね月次（25〜35日）
+  // 「同じお店（無ければカテゴリ・内訳）」で3回以上の支出があり、間隔がおおむね月次（25〜35日、または1か月分が欠けた50〜70日）
   // または年次（350〜380日）で揃っている場合に定期支払いとみなす。集計除外設定・簿外勘定は対象外。
   const SUB_MONTHLY_MIN = 25, SUB_MONTHLY_MAX = 35;
+  const SUB_MONTHLY_SKIP_MIN = 50, SUB_MONTHLY_SKIP_MAX = 70; // 1か月分が欠けた場合の間隔も月次ヒットとして数える（Stage J）
   const SUB_YEARLY_MIN = 350, SUB_YEARLY_MAX = 380;
   // 税金・水道光熱費は同じ支払先への規則的な支払いという点ではサブスクと同じパターンになるが、
   // 解約可能な任意契約ではなく固定費・義務的支払いのため、検出対象からは外す。
@@ -4077,7 +4078,7 @@
     if (sorted.length < 3) return null;
     const intervals = [];
     for (let i = 1; i < sorted.length; i++) intervals.push((sorted[i].date - sorted[i - 1].date) / 86400000);
-    const monthlyHits = intervals.filter((d) => d >= SUB_MONTHLY_MIN && d <= SUB_MONTHLY_MAX).length;
+    const monthlyHits = intervals.filter((d) => (d >= SUB_MONTHLY_MIN && d <= SUB_MONTHLY_MAX) || (d >= SUB_MONTHLY_SKIP_MIN && d <= SUB_MONTHLY_SKIP_MAX)).length;
     const yearlyHits = intervals.filter((d) => d >= SUB_YEARLY_MIN && d <= SUB_YEARLY_MAX).length;
     let freq = null;
     if (monthlyHits >= Math.ceil(intervals.length * 0.6) && monthlyHits >= 2) freq = "month";
@@ -4113,6 +4114,23 @@
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(r);
     });
+    // 未払費用ブリッジ（Stage J）: カード等から未払費用への振替行（利用レッグ）を、サブスクと同じ
+    // グループキーで集めておく。費用行は未払費用にぶら下がるため、決済カード側で固定費を照合するには
+    // この振替行が必要になる（computeForecastMonthlyHistory のピンポイント照合・フォールバックが参照）。
+    // 精算口座は当面「未払費用」に限定する（将来、別の精算口座に対応する場合はこの口座名を拡張する）。
+    // cardLegs は表示には使わず、金額計算専用。
+    const cardLegsByKey = new Map();
+    state.transactions.forEach((r) => {
+      if (r.type !== "transfer") return;
+      if (r.toAccount !== "未払費用") return;
+      if (isFutureRow(r)) return;
+      if (isExcludedRow(r, true)) return;
+      const key = subscriptionGroupKey(r);
+      if (!key) return;
+      if (!cardLegsByKey.has(key)) cardLegsByKey.set(key, []);
+      cardLegsByKey.get(key).push(r);
+    });
+    cardLegsByKey.forEach((legs) => legs.sort((a, b) => a.date - b.date)); // フォールバック側が「最新の leg」を末尾から探せるよう日付昇順にそろえる
     const results = [];
     groups.forEach((rows, key) => {
       const sorted = rows.slice().sort((a, b) => a.date - b.date);
@@ -4127,6 +4145,7 @@
         amountChanged, prevAmount: prev ? prev.amount : null,
         monthlyEquivalent: freq === "month" ? last.amount : last.amount / 12,
         rows: sorted, // 資金繰り予測の根拠パネルから、この定期支払いの実際の取引明細へドリルダウンするために保持
+        cardLegs: cardLegsByKey.get(key) || [], // 未払費用ブリッジ用（金額計算専用。表示には使わない）
         account: last.fromAccount, // 直近の支払元口座（現金/預金以外＝カード等かどうかの判定に使う）
       });
     });
@@ -4148,6 +4167,7 @@
         lastDate: lastRow ? lastRow.date : null, nextExpected, likelyCancelled: false,
         amountChanged: false, prevAmount: null, monthlyEquivalent: m.amount,
         rows: matchedRows, account: lastRow ? lastRow.fromAccount : null,
+        cardLegs: key ? (cardLegsByKey.get(key) || []) : [], // 未払費用ブリッジ用（金額計算専用。表示には使わない）
         manual: true, manualId: id, manualCashPaidSetting: !!m.cashPaid,
       });
     });
@@ -5112,7 +5132,19 @@ if (knownCycle) {
     const cardFixedByAccount = new Map();
     activeSubs.forEach((s) => {
       if (s.freq !== "month" || s.cashPaid || !s.account) return;
-      cardFixedByAccount.set(s.account, (cardFixedByAccount.get(s.account) || 0) + s.amount);
+      let keyAccount = s.account;
+      if (keyAccount === "未払費用" && s.cardLegs && s.cardLegs.length) {
+        // 未払費用経由のサブスクは、フォールバックのキー口座を実際の決済口座にする（キー「未払費用」の
+        // ままでは、どの決済口座の充当にも使われず固定費に計上されない）。決済として充当され得るのは
+        // 非現金口座からの振替だけなので、cardLegs（日付昇順）を新しい順に見て、最初に見つかった
+        // 非現金口座の leg の振替元を使う。非現金の leg が無ければ従来どおり「未払費用」キーのまま
+        // （=従来と同一の挙動）になる。
+        for (let i = s.cardLegs.length - 1; i >= 0; i--) {
+          const from = s.cardLegs[i].fromAccount;
+          if (from && !forecastIsCashAccount(from)) { keyAccount = from; break; }
+        }
+      }
+      cardFixedByAccount.set(keyAccount, (cardFixedByAccount.get(keyAccount) || 0) + s.amount);
     });
 
     const map = new Map();
@@ -5190,7 +5222,10 @@ if (knownCycle) {
             let fixedAmt = 0;
             activeSubs.forEach((s) => {
               if (s.cashPaid) return;
-              s.rows.forEach((sr) => { if (sr.fromAccount === account && sr.date > cycleStart && sr.date <= cycleEnd) fixedAmt += sr.amount; });
+              // 未払費用経由のサブスクは費用行（fromAccount=未払費用）がカードと一致しないため、
+              // カード→未払費用の振替行（cardLegs）も走査対象に含める。rows と cardLegs は互いに素
+              // （費用行は fromAccount が未払費用、leg はカード発の振替のみ）なので二重計上は起きない。
+              s.rows.concat(s.cardLegs || []).forEach((sr) => { if (sr.fromAccount === account && sr.date > cycleStart && sr.date <= cycleEnd) fixedAmt += sr.amount; });
             });
             fixedAmt = Math.min(fixedAmt, r.amount);
             if (fixedAmt > 0) { b.fixed += fixedAmt; b.fixedRows.push(r); b.cardSub += fixedAmt; b.cardSubRows.push(r); }
