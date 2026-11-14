@@ -1,0 +1,1 @@
+{"description":"家計元帳のテスト。CI では合成フィクスチャのみで完結する tests/ci/ が回る。実データ検証は tests/local/（README 参照）。","devDependencies":{"jsdom":"31.0.0"},"name":"zaim-ledger-apps-tests","private":true,"scripts":{"test":"node ci/run_all.js"},"version":"1.0.0"}
