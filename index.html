@@ -90,11 +90,11 @@
     --ink: #EAE6DB;
     --ink-rgb: 255,255,255;
     --ink-soft: #A49D8F;
-    --ink-faint: #7B7668;
+    --ink-faint: #8D897D; /* M9：元は#7B7668でカード背景（--paper-raised）に対し3.64:1しかなく、通常テキストの基準4.5:1未満だったため明度を上げた（4.71:1） */
     --rule: rgba(234,230,219,.13);
     --rule-strong: rgba(234,230,219,.26);
-    --red: #CF5346;
-    --red-rgb: 207,83,70;
+    --red: #D66B60; /* M9：元は#CF5346で3.91:1だったため明度を上げた（--paper-raised に対し4.81:1）。--cat-1 と同値を維持 */
+    --red-rgb: 214,107,96;
     --green: #82A97E;
     --gold: #BFA05E;
     --gold-rgb: 191,160,94;
@@ -102,8 +102,8 @@
     --chart-grid-strong: #4C4538;
     --chart-zero: #70685A;
     --icon-neutral: #70685A;
-    --accent: #E8492F;
-    --cat-0: #BFA05E; --cat-1: #CF5346; --cat-2: #82A97E; --cat-3: #7396B5;
+    --accent: #EA5840; /* M9：元は#E8492Fで--paper-raised に対し4.26:1だったため明度を上げた（4.68:1）。スタンプ・リンクの文字色として使う */
+    --cat-0: #BFA05E; --cat-1: #D66B60; --cat-2: #82A97E; --cat-3: #7396B5;
     --cat-4: #9A8AB5; --cat-5: #6FA39A; --cat-6: #CF9264; --cat-7: #A9AE7A; --cat-8: #8D91A0;
   }
   * { box-sizing: border-box; }
