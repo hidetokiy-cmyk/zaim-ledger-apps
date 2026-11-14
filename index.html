@@ -696,8 +696,8 @@
   .sub-row:last-child { border-bottom: none; }
   .sub-name { font-size: 16px; }
   .sub-meta-line { font-size: 13px; color: var(--ink-faint); margin-top: 3px; }
-  .sub-tag-up { font-size: var(--fs-cap); color: var(--red); border: 1px solid var(--red); border-radius: 3px; padding: 0 4px; margin-left: 6px; }
-  .sub-tag-down { font-size: var(--fs-cap); color: var(--green); border: 1px solid var(--green); border-radius: 3px; padding: 0 4px; margin-left: 6px; }
+  .sub-tag-up { font-size: var(--fs-cap); color: var(--red); border: 1px solid var(--red); border-radius: 3px; padding: 0 4px; margin-left: 6px; white-space: nowrap; }
+  .sub-tag-down { font-size: var(--fs-cap); color: var(--green); border: 1px solid var(--green); border-radius: 3px; padding: 0 4px; margin-left: 6px; white-space: nowrap; }
 
   /* ---- スマホ（640px以下）：サイドバーを縦の簡易ヘッダーにし、絞り込み・ファイル操作は折りたたむ ---- */
   #sbMoreBtn { display: none; }
@@ -877,6 +877,7 @@
   .ml-sub { font-size: 13.5px; color: var(--ink-soft); font-weight: 600; margin-bottom: 4px; }
   .ml-line { font-size: 14.5px; line-height: 1.55; padding: 2px 2px; }
   .fresh-strip { font-size: 13px; color: var(--ink-faint); padding: 0 4px 12px; line-height: 1.7; }
+  .fresh-strip .fresh-part { white-space: nowrap; } /* L4：状態行の折り返しは項目の途中では割らない */
   .fresh-strip-tab { padding-top: 4px; }
   .fresh-detail { font-size: 12.5px; color: var(--ink-faint); padding-left: 24px; line-height: 1.6; }
   /* ---- S5：警告の定型（3段階×アイコン＋1行文＋任意リンク）。段階色は設計案 2.2 の意味色マッピング：error=--red / warn=--gold / info=--ink-soft ---- */
@@ -8293,7 +8294,11 @@ function svgEl(tag, attrs) {
     const info = document.createElement("div");
     parts.forEach((t, i) => {
       if (i) info.appendChild(document.createTextNode("　・　"));
-      info.appendChild(document.createTextNode(t));
+      // 折り返しは区切り（・）の位置だけにし、項目の途中で割れないようにする（L4）
+      const sp = document.createElement("span");
+      sp.className = "fresh-part";
+      sp.textContent = t;
+      info.appendChild(sp);
     });
     s.appendChild(info);
   }
