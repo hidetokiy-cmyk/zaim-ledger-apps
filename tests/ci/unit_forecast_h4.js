@@ -1,6 +1,6 @@
-// 【配置メモ】この検証は H4（computeForecast のメモ化）が前提。H4 は未マージ
-// （ローカルブランチ fix-h4-forecast-memoize）のため、main では宣言抽出に失敗して
-// 終了するのが正常。H4 のマージ後は tests/ci/ へ移して CI の関門に加えること。
+// H4（欠点修正）のユニット検証：資金繰り予測（computeForecast）のメモ化。
+// H4 は PR #38 でマージ済みのため、tests/ci/ に置いて CI の関門に加える
+// （旧 tests/local/ 配置では fixtures_make の相対パスも解決できなかった）。
 // H4（欠点修正）のユニット検証：資金繰り予測（computeForecast）のメモ化。
 // 合成フィクスチャ（fixtures_make、asOf=2026-11-14 固定）で次を確認する。
 //   - 同じ入力で2回呼んでも実計算（computeForecastUncached）は1回だけ走り、同じオブジェクトが返る
