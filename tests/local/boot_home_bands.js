@@ -1,8 +1,8 @@
 // UX再構築 Stage S2（ホームの3帯再編）の検証（jsdom実起動・実データ）。
 // assert する内容：
 //   1. #tabOverview 直下の要素 ID の出現順が帯構成どおり（状態バー→統合ヒーロー→引落要約→
-//      今月（お金の流れ／ポイント／ポータル）→先読み・点検（見通し／今日の確認／予定と契約／
-//      日別／期間比較）→台帳に聞く）。
+//      今月（お金の流れ）→先読み・点検（見通し／今日の確認／ポイント／ポータル／予定と契約／
+//      日別／期間比較）→台帳に聞く）。M8 でポイント／ポータルを見通し・今日の確認の下へ移動。
 //   2. 統合ヒーローの内包（総資産→今日使える額→heroMini（現金・預金／予測残高））。
 //   3. 今日の確認の内包（ドキュメント→フェーズ→気づきフィード→自動点検）と phaseMeta の移設。
 //   4. 引落：旧 cardSchedulePanel が存在しないこと、詳細（cardScheduleMeta/Body）が
@@ -55,8 +55,8 @@ const ok = (cond, label) => { console.log((cond ? '  PASS ' : '  FAIL ') + label
 
   // --- 1. 帯構成（直下の出現順） ---
   const kids = [...doc.getElementById('tabOverview').children].filter((e) => e.id).map((e) => e.id);
-  const EXPECTED = ['freshStrip', 'heroUnified', 'debitSummaryCard', 'overviewGroupFlow', 'pointsCard',
-    'portalCard', 'outlookCard', 'todayCheckCard', 'overviewGroupSchedule', 'calPanel', 'periodComparePanel', 'askWrap'];
+  const EXPECTED = ['freshStrip', 'heroUnified', 'debitSummaryCard', 'overviewGroupFlow', 'outlookCard',
+    'todayCheckCard', 'pointsCard', 'portalCard', 'overviewGroupSchedule', 'calPanel', 'periodComparePanel', 'askWrap'];
   ok(JSON.stringify(kids) === JSON.stringify(EXPECTED), `帯構成の出現順: ${kids.join(' > ')}`);
 
   // --- 2. 統合ヒーロー ---
