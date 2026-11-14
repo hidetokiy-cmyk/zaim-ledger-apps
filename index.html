@@ -1872,24 +1872,10 @@
         <div class="modal-section-title" style="margin-top:24px;">予測の前提</div>
         <div id="forecastBasisBox" style="margin-top:8px;"></div>
 
-        <div class="modal-section-title" style="margin-top:24px;">給与（契約手取り）</div>
-<div class="cash-note" style="margin:6px 0 10px;">標準月の手取り額を入れると、資金繰り予測と90日見通しの給与見込みをこの額で計算します（0にすると従来の実績ベース推計に戻ります）。定期券の交通費精算（購入月の給料日に購入額が一緒に振り込まれる分）は、データから自動で見込みに加えます。この端末のブラウザにだけ保存されます。</div>
-<div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
-<input id="salaryNetInput" class="pw-input" type="number" inputmode="numeric" min="0" step="1" placeholder="標準月の手取り（円）" style="width:170px;">
-<button id="salaryNetSaveBtn" class="btn" type="button" style="cursor:pointer; white-space:nowrap;">保存</button>
-<span id="salaryNetMsg" class="cash-note"></span>
+<div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:12px;">
+<button id="forecastAssumpEditBtn" class="btn" type="button" style="cursor:pointer; white-space:nowrap;">前提を設定で変更する</button>
+<span class="cash-note">給与（契約手取り）と配当・分配金の手入力は、設定の「予測の前提」に集約しました（この端末のみに保存されます）。</span>
 </div>
-
-        <div class="modal-section-title" style="margin-top:24px;">配当・分配金（手入力）</div>
-<div class="cash-note" style="margin:6px 0 10px;">税引後の受取額と受取月を入れると、その月の収入として予測に足します。この端末のブラウザにだけ保存されます。</div>
-<div id="forecastDivList"></div>
-<div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-top:8px;">
-<input id="divName" class="pw-input" type="text" maxlength="40" placeholder="銘柄名" style="flex:1; min-width:110px;">
-<input id="divAmount" class="pw-input" type="number" inputmode="numeric" min="0" placeholder="1回の受取額（円）" style="width:150px;">
-<input id="divMonths" class="pw-input" type="text" placeholder="受取月 例 3,9" style="width:110px;">
-<button id="divAddBtn" class="btn" type="button" style="cursor:pointer; white-space:nowrap;">追加</button>
-</div>
-<div id="divMsg" class="cash-note" style="margin-top:6px;"></div>
 
 <div class="modal-section-title" style="margin-top:24px;">月次実績</div>
         <div id="forecastMonthTable" style="margin-top:8px; overflow-x:auto;"></div>
@@ -2004,6 +1990,7 @@
         <div class="settings-nav-group">よく触る</div>
         <button class="settings-nav-btn" data-pane="budget">予算</button>
         <button class="settings-nav-btn" data-pane="fixedManual">固定費（手動）</button>
+        <button class="settings-nav-btn" data-pane="assumptions">予測の前提</button>
         <div class="settings-nav-group">たまに触る</div>
         <button class="settings-nav-btn" data-pane="accounts">口座</button>
         <button class="settings-nav-btn" data-pane="prepaid">簿外勘定</button>
@@ -2028,7 +2015,7 @@
         <div class="modal-section-title">固定費（手動登録）</div>
         <div class="field-hint" style="margin-top:8px;">
           上の「定期支払い（サブスク）検出」は、同じお店・カテゴリでおおむね一定間隔・3回以上の支出パターンを自動検出しますが、間隔が不規則だったり実績がまだ少なかったりすると検出されないことがあります。ここに登録すると、概要タブの一覧と資金繰り予測の固定費見込みの両方に反映されます。<br>
-          「一致させる取引」を指定すると、対応する実際の取引が変動費側の集計から自動的に除かれ、代わりにここで指定した金額で固定費として計上されます（二重計上の防止）。一致する取引が見つからない場合は、登録した金額のみで固定費見込みに追加されます（変動費からは何も除かれません）。
+          「一致させる取引」を指定すると、対応する実際の取引が変動費側の集計から自動的に除かれ、代わりにここで指定した金額で固定費として計上されます（二重計上の防止）。一致する取引が見つからない場合は、登録した金額のみで固定費見込みに追加されます（変動費からは何も除かれません）。保存先：設定として保存され、GitHub同期・バックアップに含まれます。
         </div>
         <div id="manualFixedList" style="margin-top:10px;"></div>
 
@@ -2056,6 +2043,34 @@
         </label>
         <button id="manualFixedAddBtn" class="btn" style="margin-top:10px; cursor:pointer;">追加</button>
         <div class="field-hint" id="manualFixedAddStatus" style="margin-top:8px;"></div>
+      </div>
+
+      <div class="field-group settings-pane hidden" data-pane="assumptions">
+        <div class="modal-section-title">予測の前提（手入力）</div>
+        <div class="field-hint" style="margin-top:8px;">
+          資金繰り予測と90日見通しで使う前提値の手入力は、ここに集約しています。このペインの2つの欄はどちらも<strong>この端末のブラウザにだけ保存</strong>され、GitHub同期・バックアップには含まれません（予算・固定費（手動）は設定として保存され、同期・バックアップに含まれます）。端末ごとに、それぞれで入れ直してください。
+        </div>
+
+        <div class="modal-section-title" style="margin-top:20px;">給与（契約手取り）</div>
+        <div class="field-hint" style="margin-top:8px;">標準月の手取り額を入れると、資金繰り予測と90日見通しの給与見込みをこの額で計算します（0にすると従来の実績ベース推計に戻ります）。定期券の交通費精算（購入月の給料日に購入額が一緒に振り込まれる分）は、データから自動で見込みに加えます。</div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-top:10px;">
+          <input id="salaryNetInput" class="pw-input" type="number" inputmode="numeric" min="0" step="1" placeholder="標準月の手取り（円）" style="width:170px;">
+          <button id="salaryNetSaveBtn" class="btn" type="button" style="cursor:pointer; white-space:nowrap;">保存</button>
+          <span id="salaryNetMsg" class="cash-note"></span>
+        </div>
+        <div class="field-hint" style="margin-top:6px;">保存先：この端末のみ（同期されません）</div>
+
+        <div class="modal-section-title" style="margin-top:20px;">配当・分配金（手入力）</div>
+        <div class="field-hint" style="margin-top:8px;">税引後の受取額と受取月を入れると、その月の収入として予測に足します。</div>
+        <div id="forecastDivList" style="margin-top:10px;"></div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-top:8px;">
+          <input id="divName" class="pw-input" type="text" maxlength="40" placeholder="銘柄名" style="flex:1; min-width:110px;">
+          <input id="divAmount" class="pw-input" type="number" inputmode="numeric" min="0" placeholder="1回の受取額（円）" style="width:150px;">
+          <input id="divMonths" class="pw-input" type="text" placeholder="受取月 例 3,9" style="width:110px;">
+          <button id="divAddBtn" class="btn" type="button" style="cursor:pointer; white-space:nowrap;">追加</button>
+        </div>
+        <div id="divMsg" class="cash-note" style="margin-top:6px;"></div>
+        <div class="field-hint" style="margin-top:6px;">保存先：この端末のみ（同期されません）</div>
       </div>
 
       <div class="field-group settings-pane hidden" data-pane="accounts">
@@ -5591,10 +5606,20 @@ if (knownCycle) {
     lines.push("（ここに質問を書いてください）");
     return lines.join("\n");
   }
+  // 設定モーダル「予測の前提」ペインの入力欄を、保存済みの値で表示する。
+  // 資金繰り予測サブタブを開く前に設定を開いても空欄にならないよう、ペイン表示のたびに呼ぶ。
+  function refreshAssumptionInputs() {
+    wireForecastUi();
+    renderDividendList();
+    const salInput = document.getElementById("salaryNetInput");
+    if (salInput && document.activeElement !== salInput) salInput.value = String(salaryNetStoredValue());
+  }
   let forecastUiWired = false;
   function wireForecastUi() {
     if (forecastUiWired) return;
     forecastUiWired = true;
+    const assumpEditBtn = document.getElementById("forecastAssumpEditBtn");
+    if (assumpEditBtn) assumpEditBtn.addEventListener("click", () => openSettingsPane("assumptions"));
     document.getElementById("divAddBtn").addEventListener("click", () => {
       const msg = document.getElementById("divMsg");
       const name = document.getElementById("divName").value.trim();
@@ -10644,6 +10669,7 @@ function svgEl(tag, attrs) {
     document.querySelectorAll(".settings-nav-btn").forEach((b) => b.classList.toggle("active", b === btn));
     document.querySelectorAll(".settings-pane").forEach((p) => p.classList.toggle("hidden", p.dataset.pane !== btn.dataset.pane));
     document.getElementById("settingsPanes").scrollTop = 0;
+    if (btn.dataset.pane === "assumptions") refreshAssumptionInputs();
   });
 
   function renderDuplicateCheck() {
