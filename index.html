@@ -5640,7 +5640,7 @@ if (knownCycle) {
     lines.push("■ 予測の前提");
     if (f.basis) {
       const avgPart = `直近${f.windowSize}か月の移動平均${f.seasonal ? "と前年同月の平均" : ""}`;
-      const fixedPart = `固定費は検出した定期支払い（月額 ${YEN(f.basis.fixedMonthlyTotal)}${f.basis.fixedYearlyTotal ? `、年払い合計 ${YEN(f.basis.fixedYearlyTotal)}` : ""}）`;
+      const fixedPart = `固定費は検出した定期支払い（月額 ${YEN(f.basis.fixedMonthlyTotal)}${f.basis.fixedYearlyTotal ? `、年払い合計 ${YEN(f.basis.fixedYearlyTotal)}` : ""}）${f.basis.fixedCardBaseAvg ? `とカード決済の基礎額（月平均 ${YEN(Math.round(f.basis.fixedCardBaseAvg))}）` : ""}`;
       lines.push(f.basis.salaryAssumption != null
         ? `- 給与は契約手取りの前提（月 ${YEN(f.basis.salaryAssumption)}・手入力）、変動費は${avgPart}、${fixedPart}`
         : `- 給与・変動費は${avgPart}、${fixedPart}`);
@@ -5719,6 +5719,12 @@ if (knownCycle) {
     const recentInvestFin = recentUsable.map((m) => m.investFin); // ブレ幅（標準偏差）の算出にのみ使う実績値
     const baseVariableAvg = forecastAvg(recentVariable);
     const baseIncomeAvg = forecastAvg(recentIncome);
+    // カード決済の「基礎額」（サブスク外の継続的なカード支出。実績集計では固定費側に
+    // 数えられている分＝ fixed − fixedCash − cardSub）は、サブスクではないため下の
+    // fixedForecast には入らず、変動費（variable）にも含まれないので、そのままでは
+    // 予測から丸ごと落ちる。実績表の分類と前提を揃えるため、同じ窓の平均を固定費に足す。
+    const cardBaseAvg = forecastAvg(recentUsable.map((m) => Math.max(0, m.fixed - m.fixedCash - m.cardSub)));
+    const cardBaseRows = recentUsable.flatMap((m) => m.cardFixedRows || []);
     // 給与（契約手取り）の前提（手入力）。あれば実績平均ではなく前提額を標準月の給与とする
     const salaryAssumption = loadSalaryNetAssumption();
     const passMap = passReimbursementMap();
@@ -5749,6 +5755,8 @@ if (knownCycle) {
       activeInvestSubs,
       fixedMonthlyTotal: activeSubs.filter((s) => s.freq === "month").reduce((s, x) => s + x.amount, 0),
       fixedYearlyTotal: activeSubs.filter((s) => s.freq === "year").reduce((s, x) => s + x.amount, 0),
+      fixedCardBaseAvg: cardBaseAvg,
+      fixedCardBaseRows: cardBaseRows,
     };
 
     const lastKey = history[history.length - 1].key;
@@ -5787,7 +5795,7 @@ if (knownCycle) {
       // （推定できなかった口座は、次回目安日と同じ年月という従来の近似にとどめる）。
       // カード等払いのサブスクも、実績側（変動費）ではすでにその決済額から同額を差し引いてあるので、
       // ここでは支払方法を問わず一律に含めてよい。
-      let fixedForecast = 0;
+      let fixedForecast = cardBaseAvg;   // カード決済の基礎額（同じ窓の月平均）を毎月見込む
       activeSubs.forEach((s) => {
         if (s.freq === "month") { fixedForecast += s.amount; return; }
         if (!s.cashPaid && s.account) {
@@ -6196,6 +6204,12 @@ if (knownCycle) {
             }).join("、"),
           ]));
         }
+      }
+      if (basis.fixedCardBaseAvg > 0) {
+        fixedGroup.appendChild(el("div", { class: "bal-row" }, [
+          forecastDrillLabel(el("span", { class: "name" }, ["カード決済の基礎額（サブスク外の継続支出）"]), basis.fixedCardBaseRows, "カード決済の基礎額（予測の根拠）"),
+          el("span", { class: "amt num" }, [YEN(Math.round(basis.fixedCardBaseAvg))]),
+        ]));
       }
       basisWrap.appendChild(fixedGroup);
     }
