@@ -696,8 +696,8 @@
   .sub-row:last-child { border-bottom: none; }
   .sub-name { font-size: 16px; }
   .sub-meta-line { font-size: 13px; color: var(--ink-faint); margin-top: 3px; }
-  .sub-tag-up { font-size: var(--fs-cap); color: var(--red); border: 1px solid var(--red); border-radius: 3px; padding: 0 4px; margin-left: 6px; }
-  .sub-tag-down { font-size: var(--fs-cap); color: var(--green); border: 1px solid var(--green); border-radius: 3px; padding: 0 4px; margin-left: 6px; }
+  .sub-tag-up { font-size: var(--fs-cap); color: var(--red); border: 1px solid var(--red); border-radius: 3px; padding: 0 4px; margin-left: 6px; white-space: nowrap; }
+  .sub-tag-down { font-size: var(--fs-cap); color: var(--green); border: 1px solid var(--green); border-radius: 3px; padding: 0 4px; margin-left: 6px; white-space: nowrap; }
 
   /* ---- スマホ（640px以下）：サイドバーを縦の簡易ヘッダーにし、絞り込み・ファイル操作は折りたたむ ---- */
   #sbMoreBtn { display: none; }
@@ -877,6 +877,7 @@
   .ml-sub { font-size: 13.5px; color: var(--ink-soft); font-weight: 600; margin-bottom: 4px; }
   .ml-line { font-size: 14.5px; line-height: 1.55; padding: 2px 2px; }
   .fresh-strip { font-size: 13px; color: var(--ink-faint); padding: 0 4px 12px; line-height: 1.7; }
+  .fresh-strip .fresh-part { white-space: nowrap; } /* L4：状態行の折り返しは項目の途中では割らない */
   .fresh-strip-tab { padding-top: 4px; }
   .fresh-detail { font-size: 12.5px; color: var(--ink-faint); padding-left: 24px; line-height: 1.6; }
   /* ---- S5：警告の定型（3段階×アイコン＋1行文＋任意リンク）。段階色は設計案 2.2 の意味色マッピング：error=--red / warn=--gold / info=--ink-soft ---- */
@@ -7835,7 +7836,7 @@ function svgEl(tag, attrs) {
     try {
       if (state.transactions && state.transactions.length) {
         getAccountBalancesAsOf(parseAsofDate()).forEach((v, name) => {
-          if (/ポイント|POINT/i.test(name) && typeof v === "number" && isFinite(v) && v > 0) list.push({ name, v });
+          if (/ポイント|POINT/i.test(name) && typeof v === "number" && isFinite(v) && v >= 0) list.push({ name, v });
         });
       }
     } catch (e) { list = []; }
@@ -7870,14 +7871,22 @@ function svgEl(tag, attrs) {
         ext.sort((a, b) => (b.v - a.v) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
       }
     } catch (e) { ext = []; }
-    if (!list.length && !scrape.length && !ext.length) { card.classList.add("hidden"); return; }
+    const body = document.getElementById("pointsBody");
+    const note = document.getElementById("pointsNote");
+    const meta = document.getElementById("pointsMeta");
+    if (!list.length && !scrape.length && !ext.length) {
+      // ポイントのデータ自体が無い（未同期・対象口座なし）場合は、残高ゼロの
+      // プログラムがある場合と区別できるよう、カードを隠さず「データなし」を出す（L6）。
+      card.classList.remove("hidden");
+      if (meta) meta.textContent = "";
+      if (body) { body.textContent = ""; body.appendChild(el("div", { class: "pt-row" }, [el("span", null, ["ポイントのデータがありません"])])); }
+      if (note) note.textContent = "";
+      return;
+    }
     card.classList.remove("hidden");
     list.sort((a, b) => b.v - a.v);
     const rows = list.concat(scrape, ext);
     const PT = (n) => Math.round(n).toLocaleString("ja-JP") + " pt";
-    const body = document.getElementById("pointsBody");
-    const note = document.getElementById("pointsNote");
-    const meta = document.getElementById("pointsMeta");
     const total = rows.reduce((s, x) => s + x.v, 0);
     if (meta) meta.textContent = `合計 ${PT(total)}`;
     if (body) {
@@ -8314,7 +8323,11 @@ function svgEl(tag, attrs) {
     const info = document.createElement("div");
     parts.forEach((t, i) => {
       if (i) info.appendChild(document.createTextNode("　・　"));
-      info.appendChild(document.createTextNode(t));
+      // 折り返しは区切り（・）の位置だけにし、項目の途中で割れないようにする（L4）
+      const sp = document.createElement("span");
+      sp.className = "fresh-part";
+      sp.textContent = t;
+      info.appendChild(sp);
     });
     s.appendChild(info);
   }
@@ -8695,10 +8708,12 @@ function svgEl(tag, attrs) {
     const th = [q(0.25), q(0.5), q(0.75), q(0.92)];
     const level = (v) => (v <= 0 ? 0 : v <= th[0] ? 1 : v <= th[1] ? 2 : v <= th[2] ? 3 : v <= th[3] ? 4 : 5);
     const alpha = [0, 0.18, 0.34, 0.52, 0.72, 0.95];
-    const cell = 12, gap = 2, padL = 22, padT = 16, weeks = 53;
+    const cell = 12, gap = 2, padL = 26, padT = 20, weeks = 53;
     const w = padL + weeks * (cell + gap), h = padT + 7 * (cell + gap);
     const svg = svgEl("svg", { viewBox: `0 0 ${w} ${h}`, width: w, height: h, role: "img", "aria-label": "支出カレンダー", style: "display:block;font-family:inherit;" });
-    ["月", "水", "金"].forEach((t, i) => { const tx = svgEl("text", { x: 0, y: padT + (i * 2) * (cell + gap) + cell - 2, "font-size": 9, fill: "var(--ink-soft)" }); tx.textContent = t; svg.appendChild(tx); });
+    // 軸ラベル（曜日・月）もアプリの文字サイズ下限（--fs-cap = 12.5px）に揃える（L5）。
+    // カレンダー金額のような密なグリッド内数値ではなく、読むためのラベルなので例外にしない。
+    ["月", "水", "金"].forEach((t, i) => { const tx = svgEl("text", { x: 0, y: padT + (i * 2) * (cell + gap) + cell - 2, "font-size": 12.5, fill: "var(--ink-soft)" }); tx.textContent = t; svg.appendChild(tx); });
     let prevMonth = -1, total = 0, activeDays = 0;
     for (let wk = 0; wk < weeks; wk++) {
       for (let d = 0; d < 7; d++) {
@@ -8706,7 +8721,7 @@ function svgEl(tag, attrs) {
         if (day > last) continue;
         if (d === 0 && day.getMonth() !== prevMonth) {
           prevMonth = day.getMonth();
-          const tx = svgEl("text", { x: padL + wk * (cell + gap), y: 10, "font-size": 9, fill: "var(--ink-soft)" });
+          const tx = svgEl("text", { x: padL + wk * (cell + gap), y: 14, "font-size": 12.5, fill: "var(--ink-soft)" });
           tx.textContent = `${day.getMonth() + 1}月`;
           svg.appendChild(tx);
         }

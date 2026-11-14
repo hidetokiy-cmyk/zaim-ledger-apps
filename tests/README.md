@@ -20,6 +20,7 @@ PR と main への push で GitHub Actions（`.github/workflows/test.yml`）が�
 | `unit_outlook_m2.js` | M2：90日見通しの前提統一（前払費用の按分を日割り支出から除く、配当を受取月の収入に数える） |
 | `unit_csv_import_m10.js` | M10：CSV 取り込みの部分欠落（金額解釈不能・マイナスの振替）を件数つき警告にすること、正常 CSV では警告なし |
 | `unit_contrast_m9.js` | M9：ダークモードの通常テキスト用トークンが両背景で WCAG 4.5:1 以上（ライトは現行達成トークンの回帰ガード） |
+| `boot_points_l6.js` | L6：ポイントの「データなし／残高ゼロ」の区別（データなし表示・0 pt 行表示）。L4 の状態行ラップと L5 のヒートマップラベル 12.5px も併せて確認 |
 | `unit_holidays_l1.js` | L1：内蔵の祝日カレンダーが内閣府の公式一覧と完全一致すること（2019 即位特例・2020/2021 五輪特例・2026/2027 の実カレンダー） |
 | `unit_forecast_l2.js` | L2：ブレ幅（標準偏差）の母集団から不定期な投資・財務を除き、予測本体（給与−変動費）に揃えること |
 | `unit_pass_filled_l3.js` | L3：定期券の交通費精算の自動補完に passFilled（補完マーカー）が立つこと。検出分の passFilled = false は `unit_salary_model.js` で確認 |
