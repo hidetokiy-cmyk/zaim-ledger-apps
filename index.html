@@ -39,8 +39,10 @@
     --rule: #DDD3BE;
     --rule-strong: #857D6D; /* 元は#ABA492。タグ等の枠線がほぼ見えなかったため、UI部品の境界線基準（3:1）を満たす濃さに調整 */
     --red: #A23E32;
+    --red-rgb: 162,62,50;   /* S5：警告帯の薄い地色用（--red と同値の RGB） */
     --green: #2F6B4F;
     --gold: #9C7A2E;
+    --gold-rgb: 156,122,46; /* S5：警告帯の薄い地色用（--gold と同値の RGB） */
     --sidebar-w: 260px;
     --chart-grid: #E6DEC9;
     --chart-grid-strong: #CFC4AB;
@@ -88,8 +90,10 @@
     --rule: rgba(234,230,219,.13);
     --rule-strong: rgba(234,230,219,.26);
     --red: #CF5346;
+    --red-rgb: 207,83,70;
     --green: #82A97E;
     --gold: #BFA05E;
+    --gold-rgb: 191,160,94;
     --chart-grid: #3A342A;
     --chart-grid-strong: #4C4538;
     --chart-zero: #70685A;
@@ -490,7 +494,7 @@
   .drill:hover { color: var(--gold); border-bottom-color: var(--gold); }
   .bal-tag { font-size: 12px; color: var(--ink-faint); border: 1px solid var(--rule-strong); border-radius: 3px; padding: 0 4px; }
   .bal-tag-warn { color: var(--gold); border-color: var(--gold); background: rgba(156,122,46,0.09); cursor: help; }
-  .sub-meta-line.sub-cov-warn { color: var(--red); font-weight: 700; }
+  .sub-meta-line.sub-cov-warn { color: var(--gold); font-weight: 700; } /* S5：警告の意味色マッピングに合わせ warn 段階の色（旧 --red） */
   .bal-subtotal { display:flex; justify-content:space-between; padding: 7px 2px 2px; margin-top: 2px; border-top: 1px dashed var(--rule); font-size: 16px; color: var(--ink-soft); }
   .bal-grandtotal { display:flex; justify-content:space-between; padding: 14px 2px 2px; margin-top: 10px; border-top: 2px solid var(--ink); font-size: 19px; }
 
@@ -588,8 +592,8 @@
   .panel-collapse { margin-left: auto; flex-shrink: 0; width: 28px; height: 28px; border-radius: 4px; cursor: pointer;
     background: none; border: 1px solid var(--rule-strong); color: var(--ink-soft); font-size: 13px; line-height: 1; }
   .panel-collapse:hover { color: var(--ink); border-color: var(--ink); }
-  .sync-health-banner { background: #fff4d6; color: #7a4b00; border-bottom: 1px solid #f0d28a; padding: 8px 14px; font-size: 14px; line-height: 1.5; cursor: pointer; white-space: pre-line; }
-  html[data-theme="dark"] .sync-health-banner { background: #3a3018; color: #f0d28a; border-bottom-color: #6b5520; }
+  .sync-health-banner { background: rgba(var(--gold-rgb), .16); color: var(--ink); border-bottom: 1px solid rgba(var(--gold-rgb), .5); padding: 8px 14px; font-size: 14px; line-height: 1.5; cursor: pointer; }
+  .sync-health-banner.has-error { background: rgba(var(--red-rgb), .13); border-bottom-color: rgba(var(--red-rgb), .5); }
   .tx-more { text-align: center; padding: 14px; border-top: 1px solid var(--rule); }
   mark.hl { background: rgba(156,122,46,0.30); color: inherit; padding: 0 1px; border-radius: 2px; }
   /* 取引明細の合計欄は、スクロールしても上に残す（スマホは日付見出しが上に固定されるため対象外） */
@@ -859,9 +863,17 @@
   .ml-sub { font-size: 13.5px; color: var(--ink-soft); font-weight: 600; margin-bottom: 4px; }
   .ml-line { font-size: 14.5px; line-height: 1.55; padding: 2px 2px; }
   .fresh-strip { font-size: 13px; color: var(--ink-faint); padding: 0 4px 12px; line-height: 1.7; }
-  .fresh-strip .warn { color: var(--red); }
+  .fresh-strip-tab { padding-top: 4px; }
+  /* ---- S5：警告の定型（3段階×アイコン＋1行文＋任意リンク）。段階色は設計案 2.2 の意味色マッピング：error=--red / warn=--gold / info=--ink-soft ---- */
+  .alert-line { display: flex; gap: 6px; align-items: baseline; }
+  .alert-line .alert-ico { flex-shrink: 0; }
+  .alert-line.lv-error { color: var(--red); font-weight: 600; }
+  .alert-line.lv-warn { color: var(--gold); font-weight: 600; }
+  .alert-line.lv-info { color: var(--ink-soft); }
+  .alert-line a { color: inherit; }
   /* ---- Stage Q ---- */
   .pt-exp { font-size: 12.5px; color: var(--ink-faint); margin-top: 1px; }
+  .pt-exp.soon { color: var(--gold); font-weight: 600; } /* S5：失効60日以内は警告の定型（warn段階）に寄せる */
   .po-head { font-size: 13.5px; color: var(--ink-soft); font-weight: 600; margin: 12px 0 2px; }
   .po-line { font-size: 14.5px; line-height: 1.55; padding: 2px 2px; }
   .po-link-row { padding-top: 10px; }
@@ -1547,6 +1559,8 @@
 
       <div class="tab-page hidden" id="tabClosing">
 
+      <div class="fresh-strip fresh-strip-tab" id="freshStripClosing" hidden></div>
+
       <div class="card panel" id="closingFlowPanel">
         <div class="panel-head">
           <div class="section-title serif">決算フロー</div>
@@ -1623,6 +1637,8 @@
         <button class="substab-btn active" data-amode="charts">グラフ</button>
         <button class="substab-btn" data-amode="statements">財務三表</button>
       </div>
+
+      <div class="fresh-strip fresh-strip-tab" id="freshStripAnalysis" hidden></div>
 
       <div class="tab-page" id="tabCharts">
 
@@ -1897,6 +1913,8 @@
         <button class="substab-btn active" data-lmode="tx">取引明細</button>
         <button class="substab-btn" data-lmode="timeline">時間軸</button>
       </div>
+
+      <div class="fresh-strip fresh-strip-tab" id="freshStripLedger" hidden></div>
 
       <div class="tab-page" id="tabTx">
 
@@ -2396,8 +2414,9 @@
     lastSyncAt = Date.now(); lastSyncErr = "";
     try { localStorage.setItem(SYNC_TS_KEY, String(lastSyncAt)); } catch (e) {}
     renderSyncBadge();
+    try { renderFreshnessStrip(); } catch (e) { /* 鮮度表示の追随だけなので無視 */ }
   }
-  function markSyncFail(err, status) { lastSyncErr = syncFailReason(err, status); renderSyncBadge(); }
+  function markSyncFail(err, status) { lastSyncErr = syncFailReason(err, status); renderSyncBadge(); try { renderFreshnessStrip(); } catch (e) { /* 同上 */ } }
   setTimeout(renderSyncBadge, 0);
   setInterval(renderSyncBadge, 60000);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") renderSyncBadge(); });
@@ -2552,38 +2571,50 @@
     };
   }
 
+  // S5：警告の定型（アイコン＋1行文）。段階は error / warn / info の3段階で、色は CSS の .lv-* が
+  // 意味色マッピング（error=--red / warn=--gold / info=--ink-soft）で決める。鮮度・同期まわりの警告は
+  // すべてこの形に寄せ、文言は「何が・いつまでに・どうすれば」の順を基本とする。
+  function alertLineEl(level, text) {
+    return el("div", { class: "alert-line lv-" + level }, [
+      level === "info" ? null : el("span", { class: "alert-ico", "aria-hidden": "true" }, ["⚠"]),
+      el("span", null, [text]),
+    ]);
+  }
+
   // 自動同期スクリプトの生存記録を見て、同期の停止・警告・GitHubトークンの期限を画面上部に知らせる。
   // 生存記録が無い（スクリプト未導入・旧版）場合は何も出さない。クリックでこのセッションだけ閉じる。
   const SYNC_STALE_DAYS = 3, TOKEN_WARN_DAYS = 14;
   let syncBannerDismissed = false;
   function renderSyncHealthBanner() {
     const hb = settings.syncHeartbeat;
-    const msgs = [];
+    const items = [];
     if (hb) {
       const ageDays = (Date.now() - new Date(hb.at).getTime()) / 86400000;
       if (ageDays >= SYNC_STALE_DAYS) {
-        msgs.push(`Zaim自動同期が${Math.floor(ageDays)}日間更新されていません（Zaimのマイページを開くと同期されます）。`);
+        items.push({ level: "warn", text: `Zaim自動同期が${Math.floor(ageDays)}日間更新されていません（Zaimのマイページを開くと同期されます）。` });
       } else if (hb.ok === false && Array.isArray(hb.warnings) && hb.warnings.length) {
-        msgs.push("直近のZaim自動同期に警告があります: " + hb.warnings.map((m) => String(m).replace(/^⚠️\s*/, "")).join(" / "));
+        items.push({ level: "warn", text: "直近のZaim自動同期に警告があります: " + hb.warnings.map((m) => String(m).replace(/^⚠️\s*/, "")).join(" / ") });
       }
       if (hb.tokenExpiresAt) {
         const d = Math.ceil((new Date(hb.tokenExpiresAt).getTime() - Date.now()) / 86400000);
         if (Number.isFinite(d) && d <= TOKEN_WARN_DAYS) {
-          msgs.push(d <= 0 ? "GitHubトークンの期限が切れています。再生成して設定し直してください。" : `GitHubトークンの期限まであと${d}日です。再生成して設定し直してください。`);
+          items.push({ level: d <= 0 ? "error" : "warn", text: d <= 0 ? "GitHubトークンの期限が切れています。再生成して設定し直してください。" : `GitHubトークンの期限まであと${d}日です。再生成して設定し直してください。` });
         }
       }
     }
-    let el = document.getElementById("syncHealthBanner");
-    if (!msgs.length || syncBannerDismissed) { if (el) el.remove(); return; }
-    if (!el) {
-      el = document.createElement("div");
-      el.id = "syncHealthBanner";
-      el.className = "sync-health-banner";   // 配色はCSS側（ダークモード対応）
-      el.title = "クリックで閉じる";
-      el.addEventListener("click", () => { syncBannerDismissed = true; el.remove(); });
-      document.body.prepend(el);
+    let el2 = document.getElementById("syncHealthBanner");
+    if (!items.length || syncBannerDismissed) { if (el2) el2.remove(); return; }
+    if (!el2) {
+      el2 = document.createElement("div");
+      el2.id = "syncHealthBanner";
+      el2.className = "sync-health-banner";   // 配色はCSS側（ダークモード対応）
+      el2.title = "クリックで閉じる";
+      el2.addEventListener("click", () => { syncBannerDismissed = true; el2.remove(); });
+      document.body.prepend(el2);
     }
-    el.textContent = "⚠️ " + msgs.join("\n");
+    el2.textContent = "";
+    el2.classList.toggle("has-error", items.some((x) => x.level === "error"));
+    items.forEach((x) => el2.appendChild(alertLineEl(x.level, x.text)));
   }
 
   function applyCloudObject(obj) {
@@ -7664,13 +7695,13 @@ function svgEl(tag, attrs) {
           // Zaim外行：期限は自前の expiring から同じ基準で作り、出所（ラム確認＋最終確認日）を併記する
           const parts = [el("div", null, [x.name])];
           const exp = expiryLineFromEntries(x.ext.expiring);
-          if (exp) parts.push(el("div", { class: "pt-exp" }, [exp]));
+          if (exp) parts.push(el("div", { class: "pt-exp" + expirySoonClass(nearestExpiryDays(x.ext.expiring)) }, [exp]));
           parts.push(el("div", { class: "pt-exp" }, [externalPointSourceLabel(x.ext)]));
           body.appendChild(el("div", { class: "pt-row" }, [el("div", null, parts), el("span", { class: "num" }, [PT(x.v)])]));
           return;
         }
         const exp = pointExpiryLine(x.name);
-        const left = exp ? el("div", null, [el("div", null, [x.name]), el("div", { class: "pt-exp" }, [exp])]) : el("span", null, [x.name]);
+        const left = exp ? el("div", null, [el("div", null, [x.name]), el("div", { class: "pt-exp" + expirySoonClass(nearestExpiryDays(pointExpiryEntries(x.name))) }, [exp])]) : el("span", null, [x.name]);
         body.appendChild(el("div", { class: "pt-row" }, [left, el("span", { class: "num" }, [PT(x.v)])]));
       });
       body.appendChild(el("div", { class: "pt-row pt-total" }, [el("span", null, ["合計"]), el("span", { class: "num" }, [PT(total)])]));
@@ -7719,6 +7750,26 @@ function svgEl(tag, attrs) {
     if (!prog) return null;
     return expiryLineFromEntries(prog.expiry);
   }
+  // プログラム名（完全一致）→ 期限エントリ配列。無ければ null（pointExpiryLine と同じ突合）。
+  function pointExpiryEntries(name) {
+    const data = pointExpiryData();
+    if (!data) return null;
+    const prog = data.programs.find((x) => x && x.name === name);
+    return prog && Array.isArray(prog.expiry) ? prog.expiry : null;
+  }
+  // 期限エントリ配列 → 最直近の失効まで何日か（過ぎていれば負）。期限付きが無ければ null。
+  function nearestExpiryDays(expiry) {
+    if (!Array.isArray(expiry)) return null;
+    const dated = expiry.filter((e) => e && typeof e.date === "string").map((e) => e.date).sort();
+    if (!dated.length) return null;
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dated[0]);
+    if (!m) return null;
+    return Math.round((new Date(+m[1], +m[2] - 1, +m[3]) - startOfDay(new Date())) / 86400000);
+  }
+  // 失効まで60日以内（当日含む）なら、期限行に警告の定型（warn段階）の追加クラスを返す。
+  // 期限行そのものの表示条件・文言は変えず、様式だけを揃えるためのもの。
+  const POINT_EXPIRY_WARN_DAYS = 60;
+  function expirySoonClass(days) { return days != null && days >= 0 && days <= POINT_EXPIRY_WARN_DAYS ? " soon" : ""; }
 
   // ===== Zaim外ポイント（JRE POINT等）：settings.externalPoints の正規化と表示補助 =====
   // externalPoints はラムが定期確認して settings.json に書く読み取り専用データ。アプリは表示のみ。
@@ -7998,23 +8049,60 @@ function svgEl(tag, attrs) {
       + (wif > 0 ? ` 仮の支出 ${YEN(wif)} を今日置いた場合の試算です（単純な差し引き）。` : "");
   }
 
-  // データ鮮度ストリップ：最終同期・同期失敗・データの最終日・連携で一致しない口座を、既存の仕組みから拾える範囲で出す。
+  // データ最終日の古さの警告しきい値（日）。カード明細の取り込みは数日遅れるのが通常なので、
+  // 同期停止の判定（SYNC_STALE_DAYS=3日）より長く取り、遅延を異常と誤認しないようにする。
+  const FRESH_DATA_STALE_DAYS = 7;
+  // 鮮度まわりの異常を、警告の定型（段階＋文言）の一覧で返す。ホームの状態バーと他タブの帯で共用する。
+  // 段階の付け方：同期失敗=error／最終同期の停止・データ最終日の古さ・未一致口座=warn。
+  function freshnessAlerts() {
+    const alerts = [];
+    if (lastSyncErr) alerts.push({ level: "error", text: `同期失敗：${lastSyncErr}` });
+    if (lastSyncAt) {
+      const ageDays = (Date.now() - lastSyncAt) / 86400000;
+      if (ageDays >= SYNC_STALE_DAYS) alerts.push({ level: "warn", text: `最終同期が${Math.floor(ageDays)}日前で止まっています` });
+    }
+    try {
+      const latest = latestActualDate();
+      if (latest) {
+        const days = Math.round((startOfDay(new Date()) - latest) / 86400000);
+        if (days >= FRESH_DATA_STALE_DAYS) alerts.push({ level: "warn", text: `データの最終日が ${xFmtDate(latest)}（${days}日前）で止まっています` });
+      }
+    } catch (e) { /* 拾えなければ出さない */ }
+    try {
+      const un = settings.zaimScrapeInfo && settings.zaimScrapeInfo.unmatched;
+      if (un && un.length) alerts.push({ level: "warn", text: `連携で一致しない口座：${un.length}件` });
+    } catch (e) { /* 拾えなければ出さない */ }
+    return alerts;
+  }
+  // ホーム以外のタブ（決算・分析・台帳）では、鮮度の異常がある時だけ先頭に同じ警告の帯を出す（正常時は隠す）。
+  function renderTabFreshnessStrips(alerts) {
+    ["freshStripClosing", "freshStripAnalysis", "freshStripLedger"].forEach((id) => {
+      const s = document.getElementById(id);
+      if (!s) return;
+      s.textContent = "";
+      alerts.forEach((a) => s.appendChild(alertLineEl(a.level, a.text)));
+      s.hidden = !alerts.length;
+    });
+  }
+
+  // データ鮮度ストリップ（ホームの状態バー）：正常時は最終同期・データの最終日を1行で出し、
+  // 異常がある時だけ、その上に警告の定型（alert-line）で段階付きの行を積む。
   function renderFreshnessStrip() {
+    const alerts = freshnessAlerts();
+    renderTabFreshnessStrips(alerts);
     const s = document.getElementById("freshStrip");
     if (!s) return;
     s.textContent = "";
+    alerts.forEach((a) => s.appendChild(alertLineEl(a.level, a.text)));
     const parts = [];
-    if (lastSyncErr) parts.push([`同期失敗：${lastSyncErr}`, true]);
-    parts.push([lastSyncAt ? `最終同期：${relTime(lastSyncAt)}（${new Date(lastSyncAt).toLocaleString("ja-JP")}）` : "未同期", false]);
-    try { const latest = latestActualDate(); if (latest) parts.push([`データの最終日：${xFmtDate(latest)}`, false]); } catch (e) { /* 拾えなければ出さない */ }
-    try {
-      const un = settings.zaimScrapeInfo && settings.zaimScrapeInfo.unmatched;
-      if (un && un.length) parts.push([`連携で一致しない口座：${un.length}件`, true]);
-    } catch (e) { /* 拾えなければ出さない */ }
-    parts.forEach(([t, warn], i) => {
-      if (i) s.appendChild(document.createTextNode("　・　"));
-      s.appendChild(el("span", warn ? { class: "warn" } : null, [t]));
+    parts.push(lastSyncAt ? `最終同期：${relTime(lastSyncAt)}（${new Date(lastSyncAt).toLocaleString("ja-JP")}）` : "未同期");
+    try { const latest = latestActualDate(); if (latest) parts.push(`データの最終日：${xFmtDate(latest)}`); } catch (e) { /* 拾えなければ出さない */ }
+    const info = document.createElement("div");
+    parts.forEach((t, i) => {
+      if (i) info.appendChild(document.createTextNode("　・　"));
+      info.appendChild(document.createTextNode(t));
     });
+    s.appendChild(info);
   }
 
   function renderHomeStageB() {
