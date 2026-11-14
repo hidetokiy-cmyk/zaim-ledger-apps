@@ -2602,9 +2602,11 @@
   // 生存記録が無い（スクリプト未導入・旧版）場合は何も出さない。クリックでこのセッションだけ閉じる。
   const SYNC_STALE_DAYS = 3, TOKEN_WARN_DAYS = 14;
   let syncBannerDismissed = false;
+  let settingsRepairNote = null;   // M11：settings 取り込み時に既定値へ戻した項目があれば、その注記をバナーに出す
   function renderSyncHealthBanner() {
     const hb = settings.syncHeartbeat;
     const items = [];
+    if (settingsRepairNote) items.push({ level: "warn", text: settingsRepairNote });
     if (hb) {
       const ageDays = (Date.now() - new Date(hb.at).getTime()) / 86400000;
       if (ageDays >= SYNC_STALE_DAYS) {
@@ -2634,22 +2636,52 @@
     items.forEach((x) => el2.appendChild(alertLineEl(x.level, x.text)));
   }
 
+  // M11：settings 取り込み時の共通バリデータ。コンテナや要素の型が想定と違うものは
+  // 落として既定値に倒し、落とした項目名を repaired に積む（従来は項目ごとに検証が
+  // ばらつき、文字列を Set に入れて1文字ずつに分解するような無言の劣化が起きていた）。
+  function asPlainObj(v) { return v && typeof v === "object" && !Array.isArray(v) ? v : null; }
+  function asStrArray(v, field, repaired) {
+    if (v === undefined) return [];
+    if (!Array.isArray(v)) { repaired.push(field); return []; }
+    const out = v.filter((x) => typeof x === "string");
+    if (out.length !== v.length) repaired.push(field);
+    return out;
+  }
+  function asMapBy(v, field, repaired, okValue) {
+    if (v === undefined) return new Map();
+    const o = asPlainObj(v);
+    if (!o) { repaired.push(field); return new Map(); }
+    const entries = Object.entries(o);
+    const kept = entries.filter(([, x]) => okValue(x));
+    if (kept.length !== entries.length) repaired.push(field);
+    return new Map(kept);
+  }
+  function asScrapeInfo(v, field, repaired) {
+    if (v === undefined || v === null) return null;
+    if (!asPlainObj(v)) { repaired.push(field); return null; }
+    const d = new Date(v.importedAt);
+    if (isNaN(d.getTime())) { repaired.push(field); return null; }   // 解釈できない日時は保存時に toISOString で例外になるため、ここで落とす
+    return { ...v, importedAt: d };
+  }
+  const isObjValue = (x) => !!x && typeof x === "object" && !Array.isArray(x);
+
   function applyCloudObject(obj) {
     if (!obj || typeof obj !== "object") return;
-    settings.prepaidAccounts = Array.isArray(obj.prepaidAccounts) ? obj.prepaidAccounts : [];
+    const repaired = [];
+    settings.prepaidAccounts = asStrArray(obj.prepaidAccounts, "前払費用の口座", repaired);
     settings.furusatoKeyword = typeof obj.furusatoKeyword === "string" && obj.furusatoKeyword.trim() ? obj.furusatoKeyword.trim() : "ふるさと納税";
-    settings.accountBalanceOverride = new Map(Object.entries(obj.accountBalanceOverride || {}));
-    settings.balanceExcludedAccounts = new Set(obj.balanceExcludedAccounts || []);
+    settings.accountBalanceOverride = asMapBy(obj.accountBalanceOverride, "口座残高の上書き", repaired, (x) => x === null || (typeof x === "number" && isFinite(x)));
+    settings.balanceExcludedAccounts = new Set(asStrArray(obj.balanceExcludedAccounts, "残高の対象外口座", repaired));
     settings.accountBalanceInited = !!obj.accountBalanceInited;
-    settings.accountMeta = new Map(Object.entries(obj.accountMeta || {}));
-    settings.accountGroupList = Array.isArray(obj.accountGroupList) ? obj.accountGroupList.slice() : [];
+    settings.accountMeta = asMapBy(obj.accountMeta, "口座の属性", repaired, isObjValue);
+    settings.accountGroupList = asStrArray(obj.accountGroupList, "口座グループ", repaired);
     settings.accountMetaInited = !!obj.accountMetaInited;
-    settings.securitiesScrapeInfo = obj.securitiesScrapeInfo ? { ...obj.securitiesScrapeInfo, importedAt: new Date(obj.securitiesScrapeInfo.importedAt) } : null;
+    settings.securitiesScrapeInfo = asScrapeInfo(obj.securitiesScrapeInfo, "証券の取込情報", repaired);
     settings.securitiesHistory = normalizeSecuritiesHistory(obj.securitiesHistory);
     settings.monthClose = normalizeMonthClose(obj.monthClose);
     settings.yearClose = normalizeYearClose(obj.yearClose);
     settings.savedViews = normalizeSavedViews(obj.savedViews);
-    settings.zaimScrapeInfo = obj.zaimScrapeInfo ? { ...obj.zaimScrapeInfo, importedAt: new Date(obj.zaimScrapeInfo.importedAt) } : null;
+    settings.zaimScrapeInfo = asScrapeInfo(obj.zaimScrapeInfo, "Zaimの取込情報", repaired);
     settings.accountBalanceAsOfDate = typeof obj.accountBalanceAsOfDate === "string" ? obj.accountBalanceAsOfDate : null;
     settings.pendingZaimImport = obj.pendingZaimImport && Array.isArray(obj.pendingZaimImport.items) ? obj.pendingZaimImport : null;
     settings.pendingZaimCsv = obj.pendingZaimCsv && typeof obj.pendingZaimCsv.downloadedAt === "string" ? obj.pendingZaimCsv : null;
@@ -2658,9 +2690,12 @@
     settings.pendingPointExpiry = obj.pendingPointExpiry && Array.isArray(obj.pendingPointExpiry.programs) ? obj.pendingPointExpiry : null;
     settings.externalPoints = normalizeExternalPoints(obj.externalPoints);
     settings.pendingSecuritiesImport = obj.pendingSecuritiesImport && (Array.isArray(obj.pendingSecuritiesImport.stocks) || Array.isArray(obj.pendingSecuritiesImport.funds)) ? obj.pendingSecuritiesImport : null;
-    settings.manualFixedCosts = new Map(Object.entries(obj.manualFixedCosts || {}));
-    settings.accountRenames = new Map(Object.entries(obj.accountRenames || {}));
-    settings.categoryBudgets = new Map(Object.entries(obj.categoryBudgets || {}).filter(([, v]) => typeof v === "number" && v > 0));
+    settings.manualFixedCosts = asMapBy(obj.manualFixedCosts, "手動の固定費", repaired, isObjValue);
+    settings.accountRenames = asMapBy(obj.accountRenames, "口座名の変更", repaired, (x) => typeof x === "string");
+    settings.categoryBudgets = asMapBy(obj.categoryBudgets, "カテゴリ予算", repaired, (x) => typeof x === "number" && x > 0);
+    // 既定値に戻した項目があれば、無言にせずバナーで知らせる（M11）
+    settingsRepairNote = repaired.length ? `設定の一部（${[...new Set(repaired)].join("・")}）の形式が不正だったため、既定値に戻しました。` : null;
+    if (repaired.length) console.warn("settings: 形式が不正な項目を既定値に戻しました", [...new Set(repaired)]);
     // 他の端末で口座名を変えた場合や、古い設定が旧名のまま残っていた場合に、設定と取引の口座名を新名へそろえる
     const renamedByApply = applyAccountRenames();
     const rowsRenamed = renormalizeLoadedRows();

@@ -64,6 +64,7 @@ python3 tests/local/regress79.py
 | `unit_freshness_alerts.js` | 鮮度・警告表示（S5）の状態注入テスト | 実 settings を土台に状態を注入する方式のためローカル専用 |
 | `boot_home_dedup_m7.js` | 月次チェック結果の重複排除（M7）：ホームでは表紙の残り作業数のみ、結果は決算タブに一本化 | |
 | `boot_point_expiry_m5.js` | ポイント期限（M5）の年表示・失効済み表示・scrapedAt 鮮度監視の状態注入テスト | 同上 |
+| `boot_settings_validation_m11.js` | settings 型検証（M11）の状態注入テスト：壊れた項目が既定値に戻りバナーで通知されること、正常な settings では修復が起きないこと | 同上 |
 | `boot_debit_summary_status.js` | H3（引落要約の確定／見込みタグ）の検証 | H3 はマージ済み。実データ依存のため local に置く |
 | `regress79.py` | 過去79決済の引落再計算（Python 移植モデル） | 59/79 は Python 移植側の既知問題で、H5 の範囲外（別テーマ） |
 
