@@ -5699,17 +5699,25 @@ if (knownCycle) {
 
   function computeForecast() {
     const history = computeForecastMonthlyHistory();
-    const usable = history;
+    // 進行中の会計月（asOf を含む月）は変動費が途中までしか計上されておらず、完了月と
+    // 同じ重みで平均に入れると月前半ほど変動費が過小評価され、予測が楽観側に寄る。
+    // 平均・標準偏差・季節調整の母集団は完了月だけにする。経過日数での按分は、変動費の
+    // 柱であるカード決済の残額が引落日に偏って発生し日割りで均一でないため採らない。
+    // 完了月が2ヶ月に満たない場合は、予測不能になるのを避けて従来どおり進行中月も含める。
+    const asOf = parseAsofDate();
+    const currentKey = getCycleBounds(asOf).key;
+    const completed = history.filter((m) => m.key < currentKey);
+    const usable = completed.length >= 2 ? completed : history;
     const result = { history, usableCount: usable.length, months: [], seasonal: false, sufficientData: usable.length >= 2, windowSize: 0 };
     if (!state.transactions || history.length === 0 || !result.sufficientData) return result;
 
-    const asOf = parseAsofDate();
     const startBalance = sumCashFromMap(getAccountBalancesAsOf(asOf));
     result.startBalance = startBalance;
 
     const windowSize = Math.max(FORECAST_WINDOW_MIN, Math.min(FORECAST_WINDOW_MAX, usable.length));
     const recentUsable = usable.slice(-windowSize);
     result.windowSize = recentUsable.length;
+    result.windowMonths = recentUsable;
     result.seasonal = usable.length >= FORECAST_SEASONAL_MIN_MONTHS;
 
     // 収入（＝給与のみ）・変動費は直近実績の移動平均（＋季節調整）で見込む。投資・財務活動は、生の実績を平均すると
@@ -6208,8 +6216,10 @@ if (knownCycle) {
       monthWrap.appendChild(el("div", { style: "font-size:14.5px;color:var(--ink-soft);" }, ["対象データがありません"]));
     } else {
       // 先頭に「直近N か月平均」の行（予測の移動平均と同じ窓。実績の単純平均）
-      const avgN = Math.max(1, Math.min(forecast.history.length, forecast.windowSize || 3));
-      const avgSrc = forecast.history.slice(-avgN);
+      const avgSrc = (forecast.windowMonths && forecast.windowMonths.length)
+        ? forecast.windowMonths
+        : forecast.history.slice(-Math.max(1, Math.min(forecast.history.length, forecast.windowSize || 3)));
+      const avgN = avgSrc.length;
       const avgOf = (k) => Math.round(avgSrc.reduce((t, m) => t + m[k], 0) / avgN);
       const avgInv = avgOf("investFin");
       const avgRow = el("tr", { class: "current", style: "cursor:default;" }, [
