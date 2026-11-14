@@ -872,6 +872,7 @@
   .wi-chip.on { border-color: var(--accent); color: var(--ink); font-weight: 700; }
   .pt-row, .ml-row { display: flex; justify-content: space-between; gap: 12px; font-size: 14.5px; padding: 5px 2px; border-bottom: 1px solid var(--rule); }
   .pt-row .num, .ml-row .num { white-space: nowrap; }
+  #debitSummaryBody .bal-tag { white-space: nowrap; } /* 引落要約の締め済み／見込みタグは単語の途中で折らない（要約内に限定。共用の .bal-tag 自体は変えない） */
   .pt-total { font-weight: 700; border-bottom: none; }
   .ml-block { margin-bottom: 14px; }
   .ml-sub { font-size: 13.5px; color: var(--ink-soft); font-weight: 600; margin-bottom: 4px; }
