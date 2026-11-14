@@ -5883,7 +5883,6 @@ if (knownCycle) {
     // 不定期なまとまった投資・払い出しに引きずられるため、代わりに下の「定期投資自動検出」の結果だけを使う。
     const recentVariable = recentUsable.map((m) => m.variable);
     const recentIncome = recentUsable.map((m) => m.income);
-    const recentInvestFin = recentUsable.map((m) => m.investFin); // ブレ幅（標準偏差）の算出にのみ使う実績値
     const baseVariableAvg = forecastAvg(recentVariable);
     const baseIncomeAvg = forecastAvg(recentIncome);
     // カード決済の「基礎額」（サブスク外の継続的なカード支出。実績集計では固定費側に
@@ -5895,7 +5894,12 @@ if (knownCycle) {
     // 給与（契約手取り）の前提（手入力）。あれば実績平均ではなく前提額を標準月の給与とする
     const salaryAssumption = loadSalaryNetAssumption();
     const passMap = passReimbursementMap();
-    const netStdev = forecastStdev(recentUsable.map((m, i) => recentIncome[i] - recentVariable[i] + recentInvestFin[i]));
+    // ブレ幅（標準偏差）の母集団は予測本体と同じ基準にする。本体は投資・財務を
+    // 検出した定期投資だけに絞って見込み、生の実績（一括投資・払い出し等の不定期な
+    // フロー）は含まない。実績の投資・財務を混ぜると、大きな一括投資のあった月だけが
+    // 突出してブレ幅が膨らむ（L2）。定期投資分は毎月ほぼ一定で標準偏差への寄与も
+    // 小さいため、母集団は本体の変動要素である給与と変動費の差にする。
+    const netStdev = forecastStdev(recentUsable.map((m, i) => recentIncome[i] - recentVariable[i]));
 
     const activeSubs = detectSubscriptions().filter((s) => !s.likelyCancelled);
     activeSubs.forEach((s) => { s.cashPaid = s.account ? forecastIsCashAccount(s.account) : !!s.manualCashPaidSetting; });

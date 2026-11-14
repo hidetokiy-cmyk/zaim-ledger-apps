@@ -16,6 +16,7 @@ const TESTS = [
   'unit_csv_import_m10.js',
   'unit_contrast_m9.js',
   'unit_holidays_l1.js',
+  'unit_forecast_l2.js',
   'boot_smoke.js',
 ];
 

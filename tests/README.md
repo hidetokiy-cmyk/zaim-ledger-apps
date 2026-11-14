@@ -21,6 +21,7 @@ PR と main への push で GitHub Actions（`.github/workflows/test.yml`）が�
 | `unit_csv_import_m10.js` | M10：CSV 取り込みの部分欠落（金額解釈不能・マイナスの振替）を件数つき警告にすること、正常 CSV では警告なし |
 | `unit_contrast_m9.js` | M9：ダークモードの通常テキスト用トークンが両背景で WCAG 4.5:1 以上（ライトは現行達成トークンの回帰ガード） |
 | `unit_holidays_l1.js` | L1：内蔵の祝日カレンダーが内閣府の公式一覧と完全一致すること（2019 即位特例・2020/2021 五輪特例・2026/2027 の実カレンダー） |
+| `unit_forecast_l2.js` | L2：ブレ幅（標準偏差）の母集団から不定期な投資・財務を除き、予測本体（給与−変動費）に揃えること |
 | `boot_smoke.js` | jsdom 実起動のスモーク：合成データでアプリが起動し、ヒーロー・状態バー・引落要約が描画されること |
 | `fixtures_make.js` | 合成フィクスチャ生成器（上記が共用）。anchor 日を固定すれば決定的 |
 | `run_all.js` | 一括実行ランナー（`npm --prefix tests test`） |
