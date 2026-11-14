@@ -24,6 +24,7 @@ PR と main への push で GitHub Actions（`.github/workflows/test.yml`）が�
 | `unit_holidays_l1.js` | L1：内蔵の祝日カレンダーが内閣府の公式一覧と完全一致すること（2019 即位特例・2020/2021 五輪特例・2026/2027 の実カレンダー） |
 | `unit_forecast_l2.js` | L2：ブレ幅（標準偏差）の母集団から不定期な投資・財務を除き、予測本体（給与−変動費）に揃えること |
 | `unit_pass_filled_l3.js` | L3：定期券の交通費精算の自動補完に passFilled（補完マーカー）が立つこと。検出分の passFilled = false は `unit_salary_model.js` で確認 |
+| `boot_debit_tag_nowrap.js` | 残件：引落要約の締め済み／見込みタグが単語の途中で折れないこと（nowrap は要約内 #debitSummaryBody 限定、共用 .bal-tag は不変） |
 | `boot_smoke.js` | jsdom 実起動のスモーク：合成データでアプリが起動し、ヒーロー・状態バー・引落要約が描画されること |
 | `fixtures_make.js` | 合成フィクスチャ生成器（上記が共用）。anchor 日を固定すれば決定的 |
 | `run_all.js` | 一括実行ランナー（`npm --prefix tests test`） |
