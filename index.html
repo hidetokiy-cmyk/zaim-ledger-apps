@@ -7302,11 +7302,16 @@ function svgEl(tag, attrs) {
 
   // 90日見通しの簡易推計：現在の現金・預金残高から日次でシミュレーションする。
   // 入金＝給与（直近の手取り月額を会計月の開始日＝給与日に計上）、出金＝カード引落予定
-  // （computeCardSchedule）・定期投資（毎月の自動検出分）・日々の支出の平均（直近3会計月の
-  // 実績のうち、カード払いを除いた支出を日割り）。詳細な予測は資金繰り予測（分析タブ）が担う。
+  // （computeCardSchedule）・手動登録の固定費（現金払い分）・定期投資（毎月の自動検出分）・
+  // 日々の支出の平均（直近3会計月の実績のうち、カード払いを除いた支出を日割り）。
+  // 詳細な予測は資金繰り予測（分析タブ）が担う。
   function outlookMonthlySalary() {
     const net = (state.transactions || []).filter((r) => {
       if (r.type !== "income" || r.category !== "給与") return false;
+      // 推定は「実際に支払われたプラスの給与」だけから行う。将来日付で先行登録された行
+      // （定期券の相殺エントリのような手入力の負の収入行）まで対象に含めると、その行が
+      // 「最新の給与」になって月額推定そのものが壊れる（2026-11-14 実データで確認）。
+      if (!(r.amount > 0) || isFutureRow(r)) return false;
       const txt = [r.store, r.item, r.memo].filter(Boolean).join(" ");
       return !PAYROLL_SHAKAI_RE.test(txt) && !/所得税/.test(txt) && !/住民税/.test(txt);
     });
@@ -7336,8 +7341,36 @@ function svgEl(tag, attrs) {
       if (sal > 0) { let b = getCycleBounds(today); for (let i = 0; i < 4; i++) { addEv(b.end, sal, "給与"); b = getCycleBounds(addDays(b.end, 15)); } }
     } catch (e) { console.error("見通し：給与の推計に失敗", e); }
     try {
-      computeCardSchedule().cards.forEach((c) => c.items.forEach((it) => { if (it.amount > 0) addEv(it.settle, -it.amount, `${c.account}の引落`); }));
+      // 90日範囲には最大で4回分の引落が入るため、既定の2件ではなく多めに取る
+      computeCardSchedule(6).cards.forEach((c) => c.items.forEach((it) => { if (it.amount > 0) addEv(it.settle, -it.amount, `${c.account}の引落`); }));
     } catch (e) { console.error("見通し：引落予定の取得に失敗", e); }
+    try {
+      // 手動登録の固定費（現金払い）は、カード予定にも日割り支出（カード口座扱いの支出は
+      // 除外される）にも乗らないため、イベントとして個別に入れる。日付は実績の現金移動日
+      // （同じお店の振替行＝実際の引落）の典型日から決め、土日祝は翌営業日に寄せる
+      // （例：家賃は27日、土日なら翌営業日）。振替の実績が無ければ支出行の典型日を使う。
+      settings.manualFixedCosts.forEach((m) => {
+        if (!m || !m.cashPaid || !(m.amount > 0)) return;
+        let day = 27;
+        if (m.matchType === "store" && m.matchValue) {
+          const past = (state.transactions || []).filter((r) => !isFutureRow(r) && r.store && r.store.includes(m.matchValue));
+          const cashMoves = past.filter((r) => r.type === "transfer");
+          const src = cashMoves.length ? cashMoves : past;
+          if (src.length) {
+            const cnt = new Map();
+            src.forEach((r) => cnt.set(r.date.getDate(), (cnt.get(r.date.getDate()) || 0) + 1));
+            day = Array.from(cnt.entries()).sort((a, b) => (b[1] - a[1]) || (a[0] - b[0]))[0][0];
+          }
+        }
+        for (let k = 0; k < 5; k++) {
+          const y = today.getFullYear(), mo = today.getMonth() + k;
+          const lastDay = new Date(y, mo + 1, 0).getDate();
+          let d = new Date(y, mo, Math.min(day, lastDay));
+          while (!isBusinessDay(d)) d = addDays(d, 1);
+          addEv(d, -m.amount, m.label || "固定費");
+        }
+      });
+    } catch (e) { console.error("見通し：手動固定費の取得に失敗", e); }
     try {
       detectInvestmentSubscriptions().filter((s) => !s.likelyCancelled && s.freq === "month").forEach((s) => {
         let d = startOfDay(s.nextExpected);
@@ -7974,9 +8007,15 @@ function svgEl(tag, attrs) {
 
   // ---------- カード引落の予定 ----------
   // 推定した締め日・支払日（getCardBillingCycle）をもとに、カードごとの次回・次々回の引落額を出す。
+  // 引落額は「サイクル内にそのカード口座から出た全ての流出（支出＋振替）」で数える。未払費用への
+  // leg・各種チャージ・定期券の振替・クレカ積立などは振替行で立つため、支出行だけを数えると
+  // 実際の請求より小さくなる（2026-11-14 実データ照合：全流出モデルは実績引落と一致）。
+  // 未払費用側の支出行は leg（振替）側で1回だけ数え、再帰属はしない（二重計上防止）。
   // 引落元は、過去にそのカードへ決済した口座のうち最も回数の多いもの。残高は口座残高の確認日時点の値で比べる。
+  // maxItems はカードごとに返す引落の件数（既定2件＝次回・次々回）。90日見通しなど長い範囲が
+  // 必要な呼び出し側は大きな値を渡す。
   const CARD_WARN_DAYS = 45;
-  function computeCardSchedule() {
+  function computeCardSchedule(maxItems = 2) {
     const today = startOfDay(new Date());
     const cards = Array.from(accountFlagSet("card")).filter((a) => !settings.balanceExcludedAccounts.has(a) && !getAccountMeta(a).unpaid);
     const out = [], skipped = [];
@@ -7986,7 +8025,7 @@ function svgEl(tag, attrs) {
       const purchases = [], srcCount = new Map();
       let lastSettle = null;
       for (const r of state.transactions) {
-        if (r.type === "expense" && r.fromAccount === acct) purchases.push(r);
+        if ((r.type === "expense" || r.type === "transfer") && r.fromAccount === acct) purchases.push(r);
         else if ((r.type === "transfer" || r.type === "balance") && r.toAccount === acct && r.fromAccount && forecastIsCashAccount(r.fromAccount)) {
           srcCount.set(r.fromAccount, (srcCount.get(r.fromAccount) || 0) + 1);
           if (!isFutureRow(r) && (!lastSettle || r.date > lastSettle)) lastSettle = r.date;
@@ -7995,13 +8034,15 @@ function svgEl(tag, attrs) {
       const srcSorted = Array.from(srcCount.entries()).sort((a, b) => b[1] - a[1]);
       const source = srcSorted.length ? srcSorted[0][0] : null;
       const items = [];
-      for (let k = 0; k < 4 && items.length < 2; k++) {
+      for (let k = 0; k < maxItems + 3 && items.length < maxItems; k++) {
         const y = today.getFullYear() + Math.floor((today.getMonth() + k) / 12), m0 = (today.getMonth() + k) % 12;
         const settle = cardSettleDate(y, m0, cycle);
         if (settle < today) continue;
         if (lastSettle && lastSettle >= addDays(settle, -10)) continue;   // 今月分がもう引き落とされている（推定日より早かった）
         const end = cardCycleClosingDateForSettlement(settle, cycle.closingDay, cycle.lag);
-        const start = new Date(end.getFullYear(), end.getMonth() - 1, end.getDate());
+        // 窓の開始は「前回の締め日」そのもの。前月同日で代用すると、月末締めのときに
+        // 締め月1日の行が落ちたり前月末日の行が二重に入ったりする（2026-11-14 実データで確認）。
+        const start = cardCycleClosingDate(end.getFullYear(), end.getMonth() - 1, cycle.closingDay);
         let amount = 0, n = 0;
         purchases.forEach((p) => { if (p.date > start && p.date <= end) { amount += p.amount; n++; } });
         items.push({ settle, from: addDays(start, 1), end, amount, n, closed: end < today });
