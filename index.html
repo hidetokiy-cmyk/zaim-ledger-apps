@@ -5697,7 +5697,54 @@ if (knownCycle) {
     });
   }
 
+  // ===== H4：資金繰り予測のメモ化 =====
+  // computeForecast は1回の描画で複数回（ヒーロー／予測パネル／時間軸／気づき／台帳に聞く）呼ばれ、
+  // そのたびに全取引の走査を繰り返していた。入力（取引・設定・前提の手入力・日付）が同じなら
+  // 結果も同じなので、入力の指紋が一致する間は前回の結果を返す。指紋が作れない環境では
+  // メモ化せず従来どおり毎回計算する（結果はどちらでも同一）。
+  let forecastCache = null;   // { key, result }
+  function forecastDataKey() {
+    try {
+      let h = 2166136261 >>> 0;
+      const mix = (s) => {
+        s = s == null ? "" : String(s);
+        for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+        h ^= 0x9e37; h = Math.imul(h, 16777619);   // 項目の区切り（連結の境界がずれて衝突しないように）
+      };
+      const mapStr = (m) => {
+        if (!m || typeof m.keys !== "function") return "";
+        return Array.from(m.keys()).sort().map((k) => k + "=" + JSON.stringify(m.get(k))).join(",");
+      };
+      const txs = state.transactions;
+      mix(txs ? txs.length : -1);
+      if (txs) for (const r of txs) {
+        mix(r.dayKey + "|" + r.acctMonthKey + "|" + r.type + "|" + r.amount + "|" + r.category + "|" + r.subCategory + "|" + r.store + "|" + r.item + "|" + r.memo + "|" + r.fromAccount + "|" + r.toAccount + "|" + r.account + "|" + r.aggSetting);
+      }
+      mix(JSON.stringify(settings.prepaidAccounts || []));
+      mix(settings.furusatoKeyword || "");
+      mix(mapStr(settings.accountBalanceOverride));
+      mix(settings.balanceExcludedAccounts ? Array.from(settings.balanceExcludedAccounts).sort().join(",") : "");
+      mix(settings.accountBalanceAsOfDate || "");
+      mix(mapStr(settings.accountMeta));
+      mix(mapStr(settings.manualFixedCosts));
+      mix(mapStr(settings.accountRenames));
+      mix(mapStr(settings.categoryBudgets));
+      mix(state.balancePattern);
+      mix(localStorage.getItem(SALARY_NET_LS_KEY) || "");
+      mix(localStorage.getItem(DIVIDEND_LS_KEY) || "");
+      const t = new Date();
+      mix(t.getFullYear() + "-" + (t.getMonth() + 1) + "-" + t.getDate());
+      return (h >>> 0).toString(36);
+    } catch (e) { return null; }
+  }
   function computeForecast() {
+    const key = forecastDataKey();
+    if (key !== null && forecastCache && forecastCache.key === key) return forecastCache.result;
+    const result = computeForecastUncached();
+    if (key !== null) forecastCache = { key, result };
+    return result;
+  }
+  function computeForecastUncached() {
     const history = computeForecastMonthlyHistory();
     // 進行中の会計月（asOf を含む月）は変動費が途中までしか計上されておらず、完了月と
     // 同じ重みで平均に入れると月前半ほど変動費が過小評価され、予測が楽観側に寄る。
