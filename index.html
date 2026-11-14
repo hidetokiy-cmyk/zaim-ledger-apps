@@ -51,6 +51,21 @@
     /* cat-1（赤）とcat-2（緑）は色相だけでなく明度差でも区別できるよう、cat-2を少し暗くしている（色覚多様性への配慮） */
     --cat-0: #9C7A2E; --cat-1: #A23E32; --cat-2: #1F4A39; --cat-3: #3E5C76;
     --cat-4: #7A4E6D; --cat-5: #4E7A73; --cat-6: #8A5A3B; --cat-7: #6B6F45; --cat-8: #5B5F70;
+
+    /* UX再構築 Stage S1：デザイントークン（タイプスケール／余白／行間／角丸）。
+       値はすべて現行の実値に一致させてあり、S1 では見た目を変えない（参照先の一本化のみ）。
+       新規の font-size・余白はこのスケールから選ぶこと。12px は既存の密な表に限り存続可とし、
+       --fs-cap 未満の新規使用は禁止。スケール外の既存値（26px・18px・14.5px 等）は段階適用のため当面存続する。 */
+    --fs-display: clamp(42px, 9vw, 60px); /* 主役ヒーローの数字のみ（現 .hero-value の実値。設計案 2.2 の目標 clamp(40px, 9vw, 56px) へは S2 のヒーロー統合時に変更する） */
+    --fs-num-lg: 29.5px; /* カードの主数字（現 .summary-value） */
+    --fs-num-md: 20px;   /* 行の金額（.spend-amt 22px を寄せる先。S1 では定義のみで未適用） */
+    --fs-title: 17.5px;  /* カード見出し（現 .section-title） */
+    --fs-body: 15.5px;   /* 本文の標準 */
+    --fs-sub: 13.5px;    /* 補足（現 .cash-note） */
+    --fs-cap: 12.5px;    /* ラベル・バッジの下限 */
+    --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px;
+    --lh-body: 1.6; --lh-note: 1.5; --lh-num: 1.2; /* 行間はこの 3 値に固定 */
+    --radius-card: 8px; --radius-chip: 999px;
   }
 
   /* ダークモード：紙面（セピア調）の代わりに濃紺〜グレー系の配色に切り替える。
@@ -358,7 +373,7 @@
   .verdict-label { font-size: 12.5px; letter-spacing: .14em; color: var(--ink-soft); margin-bottom: 6px; }
   .verdict-value { font-size: 44px; line-height: 1.1; }
   .secondary-title { color: var(--ink-soft); font-size: 15.5px; }
-  .summary-grid-secondary .summary-card { padding: 13px 16px; background: rgba(var(--ink-rgb),0.02); }
+  .summary-grid-secondary .summary-card { padding: 13px var(--sp-4); background: rgba(var(--ink-rgb),0.02); }
   .summary-grid-secondary { grid-template-columns: repeat(3, 1fr); }
   .summary-grid-secondary .summary-value { font-size: 22px; }
   @media (max-width: 640px) { .summary-grid-secondary { grid-template-columns: 1fr; } }
@@ -370,16 +385,16 @@
     font-size: 15.5px; padding: 7px 11px; width: 210px; }
   input[type="text"]:focus, input[type="number"]:focus { outline: none; border-color: var(--ink); }
 
-  .summary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-bottom: 20px; }
+  .summary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-bottom: var(--sp-5); }
   @media (max-width: 640px) { .summary-grid { grid-template-columns: 1fr; } }
   .summary-card { padding: 17px 18px; }
   .summary-label { display: flex; align-items: center; gap: 6px; font-size: 14.5px; color: var(--ink-soft); }
-  .summary-value-row { display: flex; align-items: baseline; gap: 10px; margin-top: 8px; }
-  .summary-value { font-size: 29.5px; }
+  .summary-value-row { display: flex; align-items: baseline; gap: 10px; margin-top: var(--sp-2); }
+  .summary-value { font-size: var(--fs-num-lg); }
   .delta { font-size: 14px; padding: 2px 6px; border-radius: 3px; }
   .delta.up { color: var(--red); }
   .delta.down { color: var(--green); }
-  .cash-note { font-size: 13.5px; color: var(--ink-faint); margin-top: 8px; line-height:1.5; }
+  .cash-note { font-size: var(--fs-sub); color: var(--ink-faint); margin-top: var(--sp-2); line-height: var(--lh-note); }
 
   .spend-panel { margin-top: 4px; }
   .spend-row { display: grid; grid-template-columns: 52px minmax(120px, 1fr) minmax(90px, 1.4fr); align-items: center; gap: 12px; padding: 10px 0; }
@@ -393,9 +408,9 @@
   .spend-fill { height: 100%; border-radius: 6px; background: var(--green); }
   .spend-fill.warn { background: var(--gold); }
   .spend-fill.over { background: var(--red); }
-  .panel { padding: 24px 26px; margin-bottom: 20px; }
-  .panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; gap:12px; flex-wrap:wrap; }
-  .section-title { font-size: 17.5px; }
+  .panel { padding: var(--sp-6) 26px; margin-bottom: var(--sp-5); }
+  .panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--sp-5); gap: var(--sp-3); flex-wrap:wrap; }
+  .section-title { font-size: var(--fs-title); }
   .two-col { display: grid; grid-template-columns: 1.1fr 1fr; gap: 20px; align-items: stretch; }
   @media (max-width: 860px) { .two-col { grid-template-columns: 1fr; } }
 
@@ -714,7 +729,7 @@
     .main-inner { min-width: 0; }
   }
   @media (max-width: 640px) {
-    .panel { padding: 20px 18px; }
+    .panel { padding: var(--sp-5) 18px; }
     .donut-wrap { flex-wrap: wrap; justify-content: center; gap: 14px; }
     .donut-legend { flex: 1 1 100%; max-height: none; }
   }
@@ -763,7 +778,7 @@
     .bs-columns { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
     .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .summary-grid-secondary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .panel { padding: 20px 20px; }
+    .panel { padding: var(--sp-5) var(--sp-5); }
     .tx-row { padding: 10px 14px; align-items: flex-start; }
     .tx-account { display: none; }
     .tx-account-mobile { display: block; }
@@ -942,7 +957,7 @@
   }
 
   /* ---- UI刷新 第2段階：面の質感・スマホの最初の1画面 ---- */
-  .card { border-radius: 8px; box-shadow: none; }
+  .card { border-radius: var(--radius-card); box-shadow: none; }
   .btn, .pr-opts, .adv-search-panel { border-radius: 8px; }
   input[type="text"], input[type="number"], input[type="date"], select { border-radius: 8px; }
   .verdict-card, .acct-rename-suggest { border-radius: 8px; box-shadow: none; }
@@ -958,20 +973,20 @@
     .print-row .pr-opts { flex: 1 1 auto; min-width: 0; margin: 0; }
     .print-row > div { margin: 0 !important; flex-shrink: 0; }
   }
-  .hero-card { padding: 22px 24px; margin-bottom: 16px; }
-  .hero-label { font-size: 12.5px; letter-spacing: .14em; color: var(--ink-soft); }
-  .hero-value { font-size: clamp(42px, 9vw, 60px); letter-spacing: -0.01em; line-height: 1.15; margin-top: 4px; }
+  .hero-card { padding: 22px var(--sp-6); margin-bottom: var(--sp-4); }
+  .hero-label { font-size: var(--fs-cap); letter-spacing: .14em; color: var(--ink-soft); }
+  .hero-value { font-size: var(--fs-display); letter-spacing: -0.01em; line-height: 1.15; margin-top: var(--sp-1); }
   .hero-value.over { color: var(--red); }
-  .hero-sub { font-size: 14px; color: var(--ink-soft); margin-top: 4px; }
-  .hero-track { height: 8px; border-radius: 999px; background: rgba(var(--ink-rgb), .1); margin-top: 16px; overflow: hidden; }
-  .hero-track .spend-fill { height: 100%; border-radius: 999px; transition: width .4s ease; }
-  .hero-foot { display: flex; justify-content: space-between; gap: 12px; font-size: 12.5px; color: var(--ink-soft); margin-top: 6px; }
+  .hero-sub { font-size: 14px; color: var(--ink-soft); margin-top: var(--sp-1); }
+  .hero-track { height: 8px; border-radius: var(--radius-chip); background: rgba(var(--ink-rgb), .1); margin-top: var(--sp-4); overflow: hidden; }
+  .hero-track .spend-fill { height: 100%; border-radius: var(--radius-chip); transition: width .4s ease; }
+  .hero-foot { display: flex; justify-content: space-between; gap: var(--sp-3); font-size: var(--fs-cap); color: var(--ink-soft); margin-top: 6px; }
   @media (prefers-reduced-motion: reduce) { .hero-track .spend-fill { transition: none; } }
-  .hero-mini { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
-  .hero-mini-card { padding: 16px 18px; margin: 0; min-width: 0; }
+  .hero-mini { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); margin-bottom: var(--sp-4); }
+  .hero-mini-card { padding: var(--sp-4) 18px; margin: 0; min-width: 0; }
   .hero-mini-value { font-size: clamp(20px, 5.4vw, 30px); line-height: 1.25; margin-top: 6px; white-space: nowrap; }
-  .hero-mini-sub { font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; }
-  .hero-spark { margin-top: 8px; }
+  .hero-mini-sub { font-size: var(--fs-cap); color: var(--ink-soft); margin-top: 2px; }
+  .hero-spark { margin-top: var(--sp-2); }
   .hero-mini-link { cursor: pointer; }
   .hero-mini-link:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
   .cal-range { font-size: 13px; color: var(--ink-soft); }
@@ -1053,7 +1068,7 @@
   .qgroup-body > .card.panel { background: transparent; border: none; border-radius: 0; box-shadow: none;
     padding: 22px 2px 24px; margin-bottom: 0; }
   .qgroup-body > .card.panel + .card.panel { border-top: 1px solid var(--rule); }
-  @media (max-width: 640px) { .qgroup-body > .card.panel { padding: 18px 0 20px; } }
+  @media (max-width: 640px) { .qgroup-body > .card.panel { padding: 18px 0 var(--sp-5); } }
 
   /* ---- 期間スティッキーバー（サイドバーが上へ流れる860px以下で、期間操作をメイン上部に固定表示する） ---- */
   #periodStickyBar { display: none; }
