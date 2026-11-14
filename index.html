@@ -3106,12 +3106,20 @@
     push(new Date(year, 0, 1));
     push(nthWeekday(year, 0, 1, 2));
     push(new Date(year, 1, 11));
-    push(new Date(year, 1, 23));
+    // 天皇誕生日：2020年以降は2/23。2019年は即位の年のため設けられなかった。
+    // それ以前（平成）は12/23（データ範囲は2019年以降だが、置き場所だけ実態に合わせる）。
+    if (year >= 2020) push(new Date(year, 1, 23));
+    else if (year <= 2018) push(new Date(year, 11, 23));
     push(shunbunDay(year));
     push(new Date(year, 3, 29));
     push(new Date(year, 4, 3));
     push(new Date(year, 4, 4));
     push(new Date(year, 4, 5));
+    if (year === 2019) {
+      // 即位に伴う特例（2019年のみ）：天皇の即位の日（5/1）と即位礼正殿の儀（10/22）が祝日扱い。
+      // 4/30 と 5/2 は、祝日に挟まれた平日として下の国民の休日の規則で自動的に休日になる。
+      push(new Date(2019, 4, 1)); push(new Date(2019, 9, 22));
+    }
     if (year === 2020) {
       push(new Date(2020, 6, 23)); push(new Date(2020, 6, 24)); push(new Date(2020, 7, 10));
     } else if (year === 2021) {
@@ -5711,6 +5719,14 @@ if (knownCycle) {
     const mm = Number(String(key || "").split("-")[1]);
     return mm === 5 || mm === 11 ? PASS_PRICE_DEFAULT : 0;
   }
+  // その会計月の精算額が、データから検出できず購入サイクル（5月・11月）の補完で
+  // 入ったものかどうか。補完分は検出分と区別して画面に「補完」と出すための判定（L3）。
+  function passReimbursementFilled(key, map) {
+    const m = map || passReimbursementMap();
+    if (m.has(key)) return false;
+    const mm = Number(String(key || "").split("-")[1]);
+    return mm === 5 || mm === 11;
+  }
   async function copyTextToClipboard(text) {
     try { await navigator.clipboard.writeText(text); return true; } catch (e) { /* 下の方法で再試行 */ }
     try {
@@ -5736,7 +5752,7 @@ if (knownCycle) {
     lines.push("");
     lines.push(`■ 今後${f.months.length}か月の残高見込み`);
     f.months.forEach((m) => {
-      lines.push(`- ${m.label}：収支 ${sgn(m.net)}${m.dividend ? `（うち配当・分配金 ${YEN(m.dividend)}）` : ""}${m.pass ? `（うち定期券・交通費精算 ${YEN(m.pass)}）` : ""} → 残高 ${YEN(m.balance)}（目安 ${YEN(m.lower)}〜${YEN(m.upper)}）`);
+      lines.push(`- ${m.label}：収支 ${sgn(m.net)}${m.dividend ? `（うち配当・分配金 ${YEN(m.dividend)}）` : ""}${m.pass ? `（うち定期券・交通費精算${m.passFilled ? "（補完）" : ""} ${YEN(m.pass)}）` : ""} → 残高 ${YEN(m.balance)}（目安 ${YEN(m.lower)}〜${YEN(m.upper)}）`);
     });
     lines.push("");
     lines.push("■ 予測の前提");
@@ -5875,7 +5891,6 @@ if (knownCycle) {
     // 不定期なまとまった投資・払い出しに引きずられるため、代わりに下の「定期投資自動検出」の結果だけを使う。
     const recentVariable = recentUsable.map((m) => m.variable);
     const recentIncome = recentUsable.map((m) => m.income);
-    const recentInvestFin = recentUsable.map((m) => m.investFin); // ブレ幅（標準偏差）の算出にのみ使う実績値
     const baseVariableAvg = forecastAvg(recentVariable);
     const baseIncomeAvg = forecastAvg(recentIncome);
     // カード決済の「基礎額」（サブスク外の継続的なカード支出。実績集計では固定費側に
@@ -5887,7 +5902,12 @@ if (knownCycle) {
     // 給与（契約手取り）の前提（手入力）。あれば実績平均ではなく前提額を標準月の給与とする
     const salaryAssumption = loadSalaryNetAssumption();
     const passMap = passReimbursementMap();
-    const netStdev = forecastStdev(recentUsable.map((m, i) => recentIncome[i] - recentVariable[i] + recentInvestFin[i]));
+    // ブレ幅（標準偏差）の母集団は予測本体と同じ基準にする。本体は投資・財務を
+    // 検出した定期投資だけに絞って見込み、生の実績（一括投資・払い出し等の不定期な
+    // フロー）は含まない。実績の投資・財務を混ぜると、大きな一括投資のあった月だけが
+    // 突出してブレ幅が膨らむ（L2）。定期投資分は毎月ほぼ一定で標準偏差への寄与も
+    // 小さいため、母集団は本体の変動要素である給与と変動費の差にする。
+    const netStdev = forecastStdev(recentUsable.map((m, i) => recentIncome[i] - recentVariable[i]));
 
     const activeSubs = detectSubscriptions().filter((s) => !s.likelyCancelled);
     activeSubs.forEach((s) => { s.cashPaid = s.account ? forecastIsCashAccount(s.account) : !!s.manualCashPaidSetting; });
@@ -5975,7 +5995,7 @@ if (knownCycle) {
       const band = netStdev * Math.sqrt(i);
       result.months.push({
         key, label: cycleLabel(key), i,
-        income: incomeForecast, dividend: dividendForecast, pass: passReimb, fixed: fixedForecast, variable: variableForecast, investFin: investFinForecast,
+        income: incomeForecast, dividend: dividendForecast, pass: passReimb, passFilled: passReimb > 0 && passReimbursementFilled(key, passMap), fixed: fixedForecast, variable: variableForecast, investFin: investFinForecast,
         net: netForecast, balance, upper: balance + band, lower: balance - band,
       });
     }
@@ -6300,7 +6320,7 @@ if (knownCycle) {
         ...(forecast.months.some((m) => m.pass > 0) ? [el("div", { class: "bal-row" }, [
           el("span", { class: "name" }, ["定期券（交通費精算）"]),
           el("span", { class: "amt num amt-wrap" }, [
-            forecast.months.filter((m) => m.pass > 0).map((m) => `${cycleLabel(m.key)}の給料日に +${YEN(m.pass)}`).join("、"),
+            forecast.months.filter((m) => m.pass > 0).map((m) => `${cycleLabel(m.key)}の給料日に +${YEN(m.pass)}${m.passFilled ? "（補完）" : ""}`).join("、"),
           ]),
         ])] : []),
         el("div", { class: "bal-row" }, [
@@ -7705,8 +7725,9 @@ function svgEl(tag, attrs) {
       // 定期券（交通費精算）：購入月の給料日に、購入額が給与と一緒に振り込まれる
       const passMap = passReimbursementMap();
       salaryDates.forEach((d) => {
-        const amt = passReimbursementForKey(getCycleBounds(d).key, passMap);
-        if (amt > 0) addEv(d, amt, "定期券（交通費精算）");
+        const key = getCycleBounds(d).key;
+        const amt = passReimbursementForKey(key, passMap);
+        if (amt > 0) addEv(d, amt, passReimbursementFilled(key, passMap) ? "定期券（交通費精算・補完）" : "定期券（交通費精算）");
       });
     } catch (e) { console.error("見通し：定期券精算の取得に失敗", e); }
     try {
