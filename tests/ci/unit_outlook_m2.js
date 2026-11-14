@@ -66,7 +66,7 @@ const WANTED = [
   'subsCache', 'subsCacheOn', 'latestActualDate', 'isPrepaidAccount', 'isExcludedRow', 'breakdownKeyForRow',
   'DIVIDEND_LS_KEY', 'loadDividends', 'SALARY_NET_LS_KEY', 'SALARY_NET_DEFAULT', 'PASS_PRICE_DEFAULT',
   'loadSalaryNetAssumption', 'salaryNetStoredValue', 'saveSalaryNetAssumption',
-  'passReimbursementMap', 'passReimbursementForKey', 'PAYROLL_SHAKAI_RE', 'outlookMonthlySalary',
+  'passReimbursementMap', 'passReimbursementForKey', 'passReimbursementFilled', 'PAYROLL_SHAKAI_RE', 'outlookMonthlySalary',
   'computeOutlook90', 'askCurStart', 'askCycleAt', 'rowsInRange', 'txSorted', 'rebuildTxIndex', 'lowerBound',
 ];
 const extracted = new Map();

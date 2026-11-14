@@ -5719,6 +5719,14 @@ if (knownCycle) {
     const mm = Number(String(key || "").split("-")[1]);
     return mm === 5 || mm === 11 ? PASS_PRICE_DEFAULT : 0;
   }
+  // その会計月の精算額が、データから検出できず購入サイクル（5月・11月）の補完で
+  // 入ったものかどうか。補完分は検出分と区別して画面に「補完」と出すための判定（L3）。
+  function passReimbursementFilled(key, map) {
+    const m = map || passReimbursementMap();
+    if (m.has(key)) return false;
+    const mm = Number(String(key || "").split("-")[1]);
+    return mm === 5 || mm === 11;
+  }
   async function copyTextToClipboard(text) {
     try { await navigator.clipboard.writeText(text); return true; } catch (e) { /* 下の方法で再試行 */ }
     try {
@@ -5744,7 +5752,7 @@ if (knownCycle) {
     lines.push("");
     lines.push(`■ 今後${f.months.length}か月の残高見込み`);
     f.months.forEach((m) => {
-      lines.push(`- ${m.label}：収支 ${sgn(m.net)}${m.dividend ? `（うち配当・分配金 ${YEN(m.dividend)}）` : ""}${m.pass ? `（うち定期券・交通費精算 ${YEN(m.pass)}）` : ""} → 残高 ${YEN(m.balance)}（目安 ${YEN(m.lower)}〜${YEN(m.upper)}）`);
+      lines.push(`- ${m.label}：収支 ${sgn(m.net)}${m.dividend ? `（うち配当・分配金 ${YEN(m.dividend)}）` : ""}${m.pass ? `（うち定期券・交通費精算${m.passFilled ? "（補完）" : ""} ${YEN(m.pass)}）` : ""} → 残高 ${YEN(m.balance)}（目安 ${YEN(m.lower)}〜${YEN(m.upper)}）`);
     });
     lines.push("");
     lines.push("■ 予測の前提");
@@ -5987,7 +5995,7 @@ if (knownCycle) {
       const band = netStdev * Math.sqrt(i);
       result.months.push({
         key, label: cycleLabel(key), i,
-        income: incomeForecast, dividend: dividendForecast, pass: passReimb, fixed: fixedForecast, variable: variableForecast, investFin: investFinForecast,
+        income: incomeForecast, dividend: dividendForecast, pass: passReimb, passFilled: passReimb > 0 && passReimbursementFilled(key, passMap), fixed: fixedForecast, variable: variableForecast, investFin: investFinForecast,
         net: netForecast, balance, upper: balance + band, lower: balance - band,
       });
     }
@@ -6312,7 +6320,7 @@ if (knownCycle) {
         ...(forecast.months.some((m) => m.pass > 0) ? [el("div", { class: "bal-row" }, [
           el("span", { class: "name" }, ["定期券（交通費精算）"]),
           el("span", { class: "amt num amt-wrap" }, [
-            forecast.months.filter((m) => m.pass > 0).map((m) => `${cycleLabel(m.key)}の給料日に +${YEN(m.pass)}`).join("、"),
+            forecast.months.filter((m) => m.pass > 0).map((m) => `${cycleLabel(m.key)}の給料日に +${YEN(m.pass)}${m.passFilled ? "（補完）" : ""}`).join("、"),
           ]),
         ])] : []),
         el("div", { class: "bal-row" }, [
@@ -7717,8 +7725,9 @@ function svgEl(tag, attrs) {
       // 定期券（交通費精算）：購入月の給料日に、購入額が給与と一緒に振り込まれる
       const passMap = passReimbursementMap();
       salaryDates.forEach((d) => {
-        const amt = passReimbursementForKey(getCycleBounds(d).key, passMap);
-        if (amt > 0) addEv(d, amt, "定期券（交通費精算）");
+        const key = getCycleBounds(d).key;
+        const amt = passReimbursementForKey(key, passMap);
+        if (amt > 0) addEv(d, amt, passReimbursementFilled(key, passMap) ? "定期券（交通費精算・補完）" : "定期券（交通費精算）");
       });
     } catch (e) { console.error("見通し：定期券精算の取得に失敗", e); }
     try {

@@ -72,7 +72,7 @@ const WANTED = [
   // 今回の追加：給与前提・定期券精算
   'SALARY_NET_LS_KEY', 'SALARY_NET_DEFAULT', 'PASS_PRICE_DEFAULT',
   'loadSalaryNetAssumption', 'salaryNetStoredValue', 'saveSalaryNetAssumption',
-  'passReimbursementMap', 'passReimbursementForKey',
+  'passReimbursementMap', 'passReimbursementForKey', 'passReimbursementFilled',
   // 資金繰り予測
   'DIVIDEND_LS_KEY', 'loadDividends',
   'FORECAST_MONTHS_AHEAD', 'FORECAST_WINDOW_MIN', 'FORECAST_WINDOW_MAX', 'FORECAST_SEASONAL_MIN_MONTHS',
@@ -179,6 +179,12 @@ check('補完：2027-05（購入サイクル） = 66,970', passReimbursementForK
 check('補完：2027-11（購入サイクル） = 66,970', passReimbursementForKey('2027-11', pm) === 66970);
 check('対象外：2027-06 = 0', passReimbursementForKey('2027-06', pm) === 0);
 check('対象外：2026-12 = 0', passReimbursementForKey('2026-12', pm) === 0);
+// L3：補完かどうかの判定（検出できた月は補完ではない、購入サイクル月で未検出なら補完）
+check('L3：検出ありの月は補完ではない（2026-11）', passReimbursementFilled('2026-11', pm) === false);
+check('L3：検出ありの月は補完ではない（2026-05）', passReimbursementFilled('2026-05', pm) === false);
+check('L3：未検出の購入サイクル月は補完（2027-05）', passReimbursementFilled('2027-05', pm) === true);
+check('L3：未検出の購入サイクル月は補完（2027-11）', passReimbursementFilled('2027-11', pm) === true);
+check('L3：対象外月は補完ではない（2027-06）', passReimbursementFilled('2027-06', pm) === false);
 
 console.log('== 資金繰り予測（前提あり：初期値 202,129） ==');
 const f1 = computeForecast();
@@ -189,6 +195,7 @@ const nov = f1.months.find((m) => m.key === '2026-11');
 const dec = f1.months.find((m) => m.key === '2026-12');
 check('11月度が予測に含まれる', !!nov);
 check('11月度 pass = 66,970', nov && nov.pass === 66970, nov && String(nov.pass));
+check('L3：11月度は検出分なので passFilled = false（補完マークなし）', nov && nov.passFilled === false, nov && String(nov.passFilled));
 check('11月度 給与見込み = 202,129 + 66,970 = 269,099', nov && nov.income === 269099, nov && String(nov.income));
 check('12月度 給与見込み = 202,129（標準月＝前提のみ）', dec && dec.income === 202129, dec && String(dec.income));
 check('12月度 pass = 0', dec && dec.pass === 0, dec && String(dec.pass));
