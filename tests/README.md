@@ -13,7 +13,7 @@ PR と main への push で GitHub Actions（`.github/workflows/test.yml`）が�
 | `unit_design_tokens.js` | デザイントークン（CSS変数）の定義値と基幹クラスの参照、タップ領域・文字サイズの底上げ（UX再構築 S1/S6） |
 | `unit_forecast_h1.js` | H1：資金繰り予測の平均母集団から進行中の会計月を外すこと、完了月不足時のフォールバック |
 | `unit_forecast_h2.js` | H2：カード決済の「基礎額」が予測の固定費に計上され、実績集計と一致すること |
-| `unit_salary_model.js` | 給与前提（契約手取り）の初期値・フォールバック、定期券（交通費精算）の検出と補完、予測への反映 |
+| `unit_salary_model.js` | 給与前提（契約手取り）の初期値・フォールバック、未設定フラグ（M1）、定期券（交通費精算）の検出と補完、予測への反映 |
 | `unit_subscriptions_m3.js` | M3：サブスクの代表額（直近3件の中央値）と隔月判定（periodMonths）、予測の固定費への反映 |
 | `unit_card_cycle_m4.js` | M4：カード締め日推定の全出金モデル化と、既知ルールの口座名の空白ゆれ吸収 |
 | `unit_outlook_m2.js` | M2：90日見通しの前提統一（前払費用の按分を日割り支出から除く、配当を受取月の収入に数える） |
