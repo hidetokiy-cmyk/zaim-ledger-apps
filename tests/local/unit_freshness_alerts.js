@@ -1,4 +1,5 @@
 // S5 状態注入テスト：鮮度・警告の定型化（freshnessAlerts / 状態バー / 他タブ帯 / 同期ヘルスバナー）。
+// M6 で、未一致口座の内訳（口座名）がホームの状態バーにだけ .fresh-detail で出る assert を追加。
 // 同期失敗状態は jsdom で自然には再現しにくいため、settings と localStorage に状態を注入して起動し、
 // 異常時と正常時で表示の段階付け（lv-error / lv-warn）と出し分けが切り替わることを assert する。
 // 使い方: node unit_freshness_alerts.js
@@ -72,12 +73,14 @@ const lines = (root, sel) => [...root.querySelectorAll(sel)].map((e) => e.textCo
     ok(!!strip, 'A5: ホームの状態バーが存在する');
     if (strip) {
       ok(lines(strip, '.alert-line.lv-warn').some((t) => t.includes('連携で一致しない口座：2件')), 'A6: 未一致口座が状態バーに lv-warn 行で出る');
+      ok(lines(strip, '.fresh-detail').some((t) => t.includes('テスト口座A') && t.includes('テスト口座B')), 'A6b: 状態バーに未一致口座の内訳（口座名）が .fresh-detail で出る');
       ok(lines(strip, '.alert-line.lv-warn').some((t) => t.includes('最終同期が5日前で止まっています')), 'A7: 最終同期の停止が状態バーに lv-warn 行で出る');
       ok(strip.textContent.includes('最終同期：') && strip.textContent.includes('データの最終日：'), 'A8: 正常系の1行（最終同期・データ最終日）も併記される');
     }
     ['freshStripClosing', 'freshStripAnalysis', 'freshStripLedger'].forEach((id) => {
       const s = doc.getElementById(id);
       ok(!!s && !s.hidden && lines(s, '.alert-line.lv-warn').some((t) => t.includes('連携で一致しない口座：2件')), `A9: 他タブの帯（${id}）が異常時に表示される`);
+      ok(!!s && !s.querySelector('.fresh-detail'), `A9b: 他タブの帯（${id}）には内訳行を出さない（ホームのみ）`);
     });
     server.close();
   }

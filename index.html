@@ -878,6 +878,7 @@
   .ml-line { font-size: 14.5px; line-height: 1.55; padding: 2px 2px; }
   .fresh-strip { font-size: 13px; color: var(--ink-faint); padding: 0 4px 12px; line-height: 1.7; }
   .fresh-strip-tab { padding-top: 4px; }
+  .fresh-detail { font-size: 12.5px; color: var(--ink-faint); padding-left: 24px; line-height: 1.6; }
   /* ---- S5：警告の定型（3段階×アイコン＋1行文＋任意リンク）。段階色は設計案 2.2 の意味色マッピング：error=--red / warn=--gold / info=--ink-soft ---- */
   .alert-line { display: flex; gap: 6px; align-items: baseline; }
   .alert-line .alert-ico { flex-shrink: 0; }
@@ -8172,7 +8173,9 @@ function svgEl(tag, attrs) {
     } catch (e) { /* 拾えなければ出さない */ }
     try {
       const un = settings.zaimScrapeInfo && settings.zaimScrapeInfo.unmatched;
-      if (un && un.length) alerts.push({ level: "warn", text: `連携で一致しない口座：${un.length}件` });
+      // 内訳（口座名）も同じデータ源から運ぶ。締めパネル（ステップ1）と同じ並び・同じ区切りで、
+      // ホームの状態バーだけが内訳行を添えて出す（二重管理にしないため、名前の出所はここ一箇所）。
+      if (un && un.length) alerts.push({ level: "warn", text: `連携で一致しない口座：${un.length}件`, detail: un.join("、") });
     } catch (e) { /* 拾えなければ出さない */ }
     return alerts;
   }
@@ -8195,7 +8198,11 @@ function svgEl(tag, attrs) {
     const s = document.getElementById("freshStrip");
     if (!s) return;
     s.textContent = "";
-    alerts.forEach((a) => s.appendChild(alertLineEl(a.level, a.text)));
+    alerts.forEach((a) => {
+      s.appendChild(alertLineEl(a.level, a.text));
+      // 内訳を持つ警告は、ホームの状態バーでのみ内訳行を添える（他タブの帯は件数だけの従来どおり）
+      if (a.detail) { const d = document.createElement("div"); d.className = "fresh-detail"; d.textContent = a.detail; s.appendChild(d); }
+    });
     const parts = [];
     parts.push(lastSyncAt ? `最終同期：${relTime(lastSyncAt)}（${new Date(lastSyncAt).toLocaleString("ja-JP")}）` : "未同期");
     try { const latest = latestActualDate(); if (latest) parts.push(`データの最終日：${xFmtDate(latest)}`); } catch (e) { /* 拾えなければ出さない */ }
