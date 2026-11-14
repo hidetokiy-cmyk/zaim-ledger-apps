@@ -3173,6 +3173,7 @@
     const n = parseFloat(String(v).replace(/[,¥\s]/g, ""));
     return isNaN(n) ? 0 : n;
   }
+
   // 金額入力欄（data-yen を付けた欄）は、入力中に3桁区切りを付ける。読む側は parseAmount() でカンマを外す
   function formatYenInput(v) {
     const s = String(v == null ? "" : v).replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)).replace(/[^\d-]/g, "");
@@ -3267,8 +3268,20 @@
     // 冗長かつ読みにくい。取引明細には出さず、その他列からも除外する。
     const extraCols = headers.filter((h) => !knownCols.has(h) && h !== methodCol);
 
+    // 金額セルの解釈（M10）：空欄と「-」は 0 で正常。値があるのに数値として解釈できない
+    // 場合は bad=true とし、件数を数えて取り込み警告に出す（従来は無言で 0 になっていた）。
+    // parseAmount 自体は入力欄用に無言で 0 に倒す従来仕様のまま変えない。
+    const parseAmountCell = (v) => {
+      if (v === undefined || v === null) return { n: 0, bad: false };
+      const s = String(v).replace(/[,¥\s]/g, "");
+      if (s === "" || s === "-") return { n: 0, bad: false };
+      const n = parseFloat(s);
+      return isNaN(n) ? { n: 0, bad: true } : { n, bad: false };
+    };
+
     const rows = [];
     let skippedNoDate = 0, skippedBadDate = 0, skippedNoAmount = 0, skippedVoid = 0;
+    let badAmountRows = 0, skippedNegTransfer = 0;
       voidRowsForReconcile = [];
     for (const r of result.data) {
       const dateStr = r[dateCol];
@@ -3276,10 +3289,12 @@
       const date = parseCsvDate(dateStr);
       if (!date) { skippedBadDate++; continue; }
 
-      const income = parseAmount(incomeCol ? r[incomeCol] : 0);
-      const expense = parseAmount(expenseCol ? r[expenseCol] : 0);
-      const transfer = parseAmount(transferCol ? r[transferCol] : 0);
-      const balanceAdj = parseAmount(balanceCol ? r[balanceCol] : 0);
+      const incC = parseAmountCell(incomeCol ? r[incomeCol] : 0);
+      const expC = parseAmountCell(expenseCol ? r[expenseCol] : 0);
+      const trnC = parseAmountCell(transferCol ? r[transferCol] : 0);
+      const balC = parseAmountCell(balanceCol ? r[balanceCol] : 0);
+      const income = incC.n, expense = expC.n, transfer = trnC.n, balanceAdj = balC.n;
+      if (incC.bad || expC.bad || trnC.bad || balC.bad) badAmountRows++;
 
       let type, amount;
       // 収入・支出がマイナスの値（割引・返金の打ち消し行など）でも、単純に無視せず
@@ -3292,6 +3307,8 @@
       // −3,000/+3,000 の組が +6,000 と計算され、突合で差異になっていた。2026-11-14 実データで確認）。
       // 収入・支出のマイナス行と同じく、符号のまま保持する（後段の計算は from:-amount / to:+amount で統一）。
       else if (balanceAdj !== 0) { type = "balance"; amount = balanceAdj; }
+      // マイナスの振替は取り込まない（従来どおり）が、無言で落とさず件数を数えて警告に出す（M10）
+      else if (transfer < 0) { skippedNegTransfer++; continue; }
       else { skippedNoAmount++; continue; }
 
       const fromAccount = clean(fromCol ? r[fromCol] : "");
@@ -3333,9 +3350,14 @@
       if (skippedNoAmount === result.data.length) {
         throw new Error(`収入・支出・振替・残高調整のいずれの列にも金額が入っている行が見つかりませんでした（${result.data.length}行中${skippedNoAmount}行が対象外）。`);
       }
-      throw new Error(`${result.data.length}行を読み込みましたが、有効な取引データが1件も見つかりませんでした（日付不明: ${skippedNoDate}件／日付認識失敗: ${skippedBadDate}件／金額なし: ${skippedNoAmount}件／不存在取消: ${skippedVoid}件）。`);
+      throw new Error(`${result.data.length}行を読み込みましたが、有効な取引データが1件も見つかりませんでした（日付不明: ${skippedNoDate}件／日付認識失敗: ${skippedBadDate}件／金額なし: ${skippedNoAmount}件／マイナスの振替: ${skippedNegTransfer}件／金額解釈不能: ${badAmountRows}件／不存在取消: ${skippedVoid}件）。`);
     }
-    rows.parseWarnings = (skippedBadDate > 0 && rows.length > 0) ? `一部の行（${skippedBadDate}件）の日付を認識できず、取り込みから除外しました。` : null;
+    // 部分欠落の警告（M10）：除外・読み替えがあれば件数つきで知らせる。表示先は csvParseWarning 経由でファイル情報欄。
+    const warnings = [];
+    if (skippedBadDate > 0) warnings.push(`一部の行（${skippedBadDate}件）の日付を認識できず、取り込みから除外しました。`);
+    if (badAmountRows > 0) warnings.push(`金額を解釈できない行（${badAmountRows}件）の金額を0として扱いました。`);
+    if (skippedNegTransfer > 0) warnings.push(`マイナスの振替（${skippedNegTransfer}件）を取り込みから除外しました。`);
+    rows.parseWarnings = warnings.length ? warnings.join("") : null;
     return rows;
   }
 
