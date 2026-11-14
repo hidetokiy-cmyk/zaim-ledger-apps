@@ -7877,6 +7877,8 @@ function svgEl(tag, attrs) {
   }
   // 期限エントリ配列 [{ date, points }] → 期限行の文言。表示すべきものが無ければ null。
   // 期限付き分がある場合は最直近の1件だけを示し、無期限分は併記しない（失効の警告が目的）。
+  // 年を必ず付ける（年なしでは過去の期限と未来の期限を取り違える）。期限日を過ぎた分は
+  // 「失効済み」とし、未来の期限と誤読させない。
   // pendingPointExpiry（Zaim側）と externalPoints（Zaim外）で同じ基準を使うため共通化してある。
   function expiryLineFromEntries(expiry) {
     if (!Array.isArray(expiry) || !expiry.length) return null;
@@ -7886,7 +7888,9 @@ function svgEl(tag, attrs) {
       const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dated[0].date);
       if (!m) return null;
       const pts = typeof dated[0].points === "number" ? dated[0].points : 0;
-      return `${Number(m[2])}/${Number(m[3])} までに ${Math.round(pts).toLocaleString("ja-JP")} pt 失効`;
+      const label = `${m[1]}年${Number(m[2])}/${Number(m[3])}`;
+      if (dated[0].date < dkey(startOfDay(new Date()))) return `${label}に ${Math.round(pts).toLocaleString("ja-JP")} pt 失効済み`;
+      return `${label} までに ${Math.round(pts).toLocaleString("ja-JP")} pt 失効`;
     }
     return "有効期限なし";
   }
@@ -7914,10 +7918,10 @@ function svgEl(tag, attrs) {
     if (!m) return null;
     return Math.round((new Date(+m[1], +m[2] - 1, +m[3]) - startOfDay(new Date())) / 86400000);
   }
-  // 失効まで60日以内（当日含む）なら、期限行に警告の定型（warn段階）の追加クラスを返す。
+  // 失効まで60日以内（当日含む）と失効済みなら、期限行に警告の定型（warn段階）の追加クラスを返す。
   // 期限行そのものの表示条件・文言は変えず、様式だけを揃えるためのもの。
   const POINT_EXPIRY_WARN_DAYS = 60;
-  function expirySoonClass(days) { return days != null && days >= 0 && days <= POINT_EXPIRY_WARN_DAYS ? " soon" : ""; }
+  function expirySoonClass(days) { return days != null && days <= POINT_EXPIRY_WARN_DAYS ? " soon" : ""; }
 
   // ===== Zaim外ポイント（JRE POINT等）：settings.externalPoints の正規化と表示補助 =====
   // externalPoints はラムが定期確認して settings.json に書く読み取り専用データ。アプリは表示のみ。
@@ -8202,6 +8206,9 @@ function svgEl(tag, attrs) {
   // データ最終日の古さの警告しきい値（日）。カード明細の取り込みは数日遅れるのが通常なので、
   // 同期停止の判定（SYNC_STALE_DAYS=3日）より長く取り、遅延を異常と誤認しないようにする。
   const FRESH_DATA_STALE_DAYS = 7;
+  // ポイント期限スクレイプの古さの警告しきい値（日）。ルーティーンが1日4回取得するため、
+  // 同期停止と同じ3日で監視する。
+  const POINT_SCRAPE_STALE_DAYS = 3;
   // 鮮度まわりの異常を、警告の定型（段階＋文言）の一覧で返す。ホームの状態バーと他タブの帯で共用する。
   // 段階の付け方：同期失敗=error／最終同期の停止・データ最終日の古さ・未一致口座=warn。
   function freshnessAlerts() {
@@ -8221,6 +8228,13 @@ function svgEl(tag, attrs) {
     try {
       const un = settings.zaimScrapeInfo && settings.zaimScrapeInfo.unmatched;
       if (un && un.length) alerts.push({ level: "warn", text: `連携で一致しない口座：${un.length}件` });
+    } catch (e) { /* 拾えなければ出さない */ }
+    try {
+      const pd = pointExpiryData();
+      if (pd) {
+        const ageDays = (Date.now() - Date.parse(pd.scrapedAt)) / 86400000;
+        if (ageDays >= POINT_SCRAPE_STALE_DAYS) alerts.push({ level: "warn", text: `ポイント期限の取得が${Math.floor(ageDays)}日前で止まっています` });
+      }
     } catch (e) { /* 拾えなければ出さない */ }
     return alerts;
   }
