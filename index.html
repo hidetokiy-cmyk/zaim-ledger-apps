@@ -7639,6 +7639,17 @@ function svgEl(tag, attrs) {
       });
     } catch (e) { console.error("見通し：定期券精算の取得に失敗", e); }
     try {
+      // 配当・分配金（手入力の前提）も収入として数える（M2）。資金繰り予測が受取月の
+      // 収入に足すのと同じ前提に揃える。受取日は月内では分からないため月初に置く。
+      // 当月分は月初が過ぎていれば addEv が落とす（基準日時点の残高に受取済みとして
+      // 含まれる前提で、二重に数えない）。
+      const divs = loadDividends();
+      for (let k = 0; k < 4; k++) {
+        const mm = new Date(today.getFullYear(), today.getMonth() + k, 1);
+        divs.forEach((d) => { if (d.months.includes(mm.getMonth() + 1)) addEv(mm, d.amount, d.name); });
+      }
+    } catch (e) { console.error("見通し：配当の取得に失敗", e); }
+    try {
       // 90日範囲には最大で4回分の引落が入るため、既定の2件ではなく多めに取る
       computeCardSchedule(6).cards.forEach((c) => c.items.forEach((it) => { if (it.amount > 0) addEv(it.settle, -it.amount, `${c.account}の引落`); }));
     } catch (e) { console.error("見通し：引落予定の取得に失敗", e); }
@@ -7682,7 +7693,10 @@ function svgEl(tag, attrs) {
       for (let k = 1; k <= 3; k++) {
         const b = askCycleAt(-k);
         days += Math.round((b.end - b.start) / 86400000);
-        rowsInRange(b).forEach((r) => { if (r.type === "expense" && !isExcludedRow(r, false) && !cardSet.has(r.fromAccount)) sum += r.amount; });
+        // 前払費用の按分は現金の支出ではない（支払いは一括払いの時点で済んでいる）ため
+        // 日割り支出から除く（M2）。資金繰り予測の変動費（現金口座の実支出だけを数える）
+        // と同じ前提に揃える。
+        rowsInRange(b).forEach((r) => { if (r.type === "expense" && !isExcludedRow(r, false) && !cardSet.has(r.fromAccount) && !isPrepaidAccount(r.fromAccount)) sum += r.amount; });
       }
       if (days > 0) drip = sum / days;
     } catch (e) { drip = 0; }
