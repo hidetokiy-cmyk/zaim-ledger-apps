@@ -10,6 +10,7 @@ const TESTS = [
   'unit_forecast_h2.js',
   'unit_salary_model.js',
   'unit_subscriptions_m3.js',
+  'unit_card_cycle_m4.js',
   'boot_smoke.js',
 ];
 

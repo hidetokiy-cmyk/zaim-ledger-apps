@@ -5248,6 +5248,13 @@ const CARD_KNOWN_CYCLES = {
   "イオンカードセレクト": { closingDay: 10, lag: 1, settlementDay: 2 },
   "リクルートカード": { closingDay: 15, lag: 1, settlementDay: 10 }
 };
+// 表記ゆれへの緩和（M4）：完全一致で見つからない場合だけ、空白（半角・全角）を除いた
+// 名前でも引く。空白を除いても別口座と一致しない範囲に限られる
+// （例：「楽天カード 楽天銀行カード(JCB) …」は空白を除いても「楽天カード」にはならない）。
+function normalizeCardAccountName(name) {
+  return String(name || "").replace(/\s+/g, "");
+}
+const CARD_KNOWN_CYCLES_BY_NORM = Object.fromEntries(Object.entries(CARD_KNOWN_CYCLES).map(([k, v]) => [normalizeCardAccountName(k), v]));
   const CARD_CYCLE_LAGS = [0, 1, 2];
   const CARD_CYCLE_FIT_THRESHOLD = 0.12; // 決済額に対する誤差率がこれを超えたら不採用
 
@@ -5289,7 +5296,11 @@ function cardPanelBaseNote(cycles, legacyText) {
     const purchases = [], settlements = [];
     for (const r of state.transactions) {
       if (isFutureRow(r)) continue;
-      if (r.type === "expense" && r.fromAccount === account) purchases.push({ date: r.date, amount: r.amount });
+      // 照合する利用額は、請求額の確定モデル（computeCardSchedule と同じ「全出金合計」）に
+      // 合わせる（M4）。支出行だけだと、未払費用への振替レッグ・チャージ・定期券・
+      // クレカ積立のような振替の利用分が抜け、締め日の推定が外れる
+      // （実データではイオン・ビューが支出行ゼロ／不照合で推定不能だった）。
+      if ((r.type === "expense" || r.type === "transfer") && r.fromAccount === account) purchases.push({ date: r.date, amount: r.amount });
       else if ((r.type === "transfer" || r.type === "balance") && r.toAccount === account && r.fromAccount && forecastIsCashAccount(r.fromAccount)) {
         settlements.push({ date: r.date, amount: r.amount });
       }
@@ -5324,7 +5335,8 @@ function cardPanelBaseNote(cycles, legacyText) {
   function getCardBillingCycle(account) {
 // Stage H: 確認済みルールがあれば推定を回さずそれを正とする。
 // 未知口座はここを通らず従来どおり推定（known は付けない = undefined）。
-const knownCycle = CARD_KNOWN_CYCLES[account];
+// 完全一致で無い場合は空白を除いた名前でも引く（M4。それ以外の表記ゆれには広げない）。
+const knownCycle = CARD_KNOWN_CYCLES[account] || CARD_KNOWN_CYCLES_BY_NORM[normalizeCardAccountName(account)];
 if (knownCycle) {
   return {
     closingDay: knownCycle.closingDay,
