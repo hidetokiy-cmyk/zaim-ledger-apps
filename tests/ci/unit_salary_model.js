@@ -62,7 +62,7 @@ const WANTED = [
   'blankAccountMeta', 'getAccountMeta', 'accountMetaCache', 'accountMetaRev', 'accountFlagSet', 'liveAccountSet',
   'CF_CASH_ACCOUNTS', 'CF_INVESTMENT_ACCOUNTS', 'CF_FINANCING_ACCOUNTS', 'forecastIsCashAccount', 'sumCashFromMap',
   // カードサイクル・予定表
-  'CARD_KNOWN_CYCLES', 'CARD_CYCLE_CLOSING_DAYS', 'CARD_CYCLE_LAGS', 'CARD_CYCLE_FIT_THRESHOLD',
+  'CARD_KNOWN_CYCLES', 'normalizeCardAccountName', 'CARD_KNOWN_CYCLES_BY_NORM', 'CARD_CYCLE_CLOSING_DAYS', 'CARD_CYCLE_LAGS', 'CARD_CYCLE_FIT_THRESHOLD',
   'cardCycleClosingDate', 'cardCycleClosingDateForSettlement', 'cardSettleDate',
   'collectCardRawData', 'inferCardBillingCycle', 'cardCycleCacheTx', 'cardCycleCache', 'getCardBillingCycle',
   'CARD_WARN_DAYS', 'computeCardSchedule', 'projectCardSettlementMonthKey',
@@ -76,7 +76,7 @@ const WANTED = [
   'DIVIDEND_LS_KEY', 'loadDividends',
   'FORECAST_MONTHS_AHEAD', 'FORECAST_WINDOW_MIN', 'FORECAST_WINDOW_MAX', 'FORECAST_SEASONAL_MIN_MONTHS',
   'forecastAvg', 'forecastStdev', 'breakdownKeyForRow', 'subscriptionGroupKey',
-  'detectSubscriptions', 'detectSubscriptionsUncached', 'detectInvestmentSubscriptions',
+  'detectSubscriptions', 'detectSubscriptionsUncached', 'subscriptionTypicalAmount', 'detectInvestmentSubscriptions',
   'subsCacheOn', 'subsCache', 'latestActualDate', 'isPrepaidAccount', 'isExcludedRow',
   'SUBSCRIPTION_EXCLUDED_CATEGORIES', 'SUB_GRACE_DAYS', 'detectPrepaidSubscriptions', 'detectRecurrenceFreq', 'manualFixedCostKey',
   'SUB_MONTHLY_MIN', 'SUB_MONTHLY_MAX', 'SUB_MONTHLY_SKIP_MIN', 'SUB_MONTHLY_SKIP_MAX', 'SUB_YEARLY_MIN', 'SUB_YEARLY_MAX',
