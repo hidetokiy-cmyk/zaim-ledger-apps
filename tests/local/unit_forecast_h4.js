@@ -63,7 +63,7 @@ const WANTED = [
   'collectCardRawData', 'inferCardBillingCycle', 'cardCycleCacheTx', 'cardCycleCache', 'getCardBillingCycle',
   'latestActualDate', 'isPrepaidAccount', 'isExcludedRow', 'breakdownKeyForRow',
   'SUB_MONTHLY_MIN', 'SUB_MONTHLY_SKIP_MIN', 'SUB_YEARLY_MIN', 'SUBSCRIPTION_EXCLUDED_CATEGORIES', 'SUB_GRACE_DAYS',
-  'subscriptionGroupKey', 'detectRecurrenceFreq', 'detectSubscriptions', 'detectSubscriptionsUncached', 'detectInvestmentSubscriptions', 'manualFixedCostKey',
+  'subscriptionGroupKey', 'detectRecurrenceFreq', 'detectSubscriptions', 'detectSubscriptionsUncached', 'subscriptionTypicalAmount', 'detectInvestmentSubscriptions', 'manualFixedCostKey',
   'subsCache', 'subsCacheOn',
   'FORECAST_MONTHS_AHEAD', 'FORECAST_WINDOW_MIN', 'FORECAST_SEASONAL_MIN_MONTHS',
   'computeForecastMonthlyHistory', 'forecastAvg', 'forecastStdev', 'computeForecast', 'computeForecastUncached', 'forecastDataKey', 'forecastCache',

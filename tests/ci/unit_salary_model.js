@@ -76,7 +76,7 @@ const WANTED = [
   'DIVIDEND_LS_KEY', 'loadDividends',
   'FORECAST_MONTHS_AHEAD', 'FORECAST_WINDOW_MIN', 'FORECAST_WINDOW_MAX', 'FORECAST_SEASONAL_MIN_MONTHS',
   'forecastAvg', 'forecastStdev', 'breakdownKeyForRow', 'subscriptionGroupKey',
-  'detectSubscriptions', 'detectSubscriptionsUncached', 'detectInvestmentSubscriptions',
+  'detectSubscriptions', 'detectSubscriptionsUncached', 'subscriptionTypicalAmount', 'detectInvestmentSubscriptions',
   'subsCacheOn', 'subsCache', 'latestActualDate', 'isPrepaidAccount', 'isExcludedRow',
   'SUBSCRIPTION_EXCLUDED_CATEGORIES', 'SUB_GRACE_DAYS', 'detectPrepaidSubscriptions', 'detectRecurrenceFreq', 'manualFixedCostKey',
   'SUB_MONTHLY_MIN', 'SUB_MONTHLY_MAX', 'SUB_MONTHLY_SKIP_MIN', 'SUB_MONTHLY_SKIP_MAX', 'SUB_YEARLY_MIN', 'SUB_YEARLY_MAX',
