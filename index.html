@@ -8679,10 +8679,12 @@ function svgEl(tag, attrs) {
     const th = [q(0.25), q(0.5), q(0.75), q(0.92)];
     const level = (v) => (v <= 0 ? 0 : v <= th[0] ? 1 : v <= th[1] ? 2 : v <= th[2] ? 3 : v <= th[3] ? 4 : 5);
     const alpha = [0, 0.18, 0.34, 0.52, 0.72, 0.95];
-    const cell = 12, gap = 2, padL = 22, padT = 16, weeks = 53;
+    const cell = 12, gap = 2, padL = 26, padT = 20, weeks = 53;
     const w = padL + weeks * (cell + gap), h = padT + 7 * (cell + gap);
     const svg = svgEl("svg", { viewBox: `0 0 ${w} ${h}`, width: w, height: h, role: "img", "aria-label": "支出カレンダー", style: "display:block;font-family:inherit;" });
-    ["月", "水", "金"].forEach((t, i) => { const tx = svgEl("text", { x: 0, y: padT + (i * 2) * (cell + gap) + cell - 2, "font-size": 9, fill: "var(--ink-soft)" }); tx.textContent = t; svg.appendChild(tx); });
+    // 軸ラベル（曜日・月）もアプリの文字サイズ下限（--fs-cap = 12.5px）に揃える（L5）。
+    // カレンダー金額のような密なグリッド内数値ではなく、読むためのラベルなので例外にしない。
+    ["月", "水", "金"].forEach((t, i) => { const tx = svgEl("text", { x: 0, y: padT + (i * 2) * (cell + gap) + cell - 2, "font-size": 12.5, fill: "var(--ink-soft)" }); tx.textContent = t; svg.appendChild(tx); });
     let prevMonth = -1, total = 0, activeDays = 0;
     for (let wk = 0; wk < weeks; wk++) {
       for (let d = 0; d < 7; d++) {
@@ -8690,7 +8692,7 @@ function svgEl(tag, attrs) {
         if (day > last) continue;
         if (d === 0 && day.getMonth() !== prevMonth) {
           prevMonth = day.getMonth();
-          const tx = svgEl("text", { x: padL + wk * (cell + gap), y: 10, "font-size": 9, fill: "var(--ink-soft)" });
+          const tx = svgEl("text", { x: padL + wk * (cell + gap), y: 14, "font-size": 12.5, fill: "var(--ink-soft)" });
           tx.textContent = `${day.getMonth() + 1}月`;
           svg.appendChild(tx);
         }
