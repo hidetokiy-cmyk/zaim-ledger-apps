@@ -2265,6 +2265,7 @@
     zaimCsvSyncedAt: null, // pendingZaimCsvのうち、この端末（および同期先）で既に取込済みのdownloadedAt値
     pendingSecuritiesImport: null, // 証券スクレイピングスクリプトがクラウド経由で置いていく未取込データ { stocks, funds, cash, other, totalCostBasis, totalMarketValue, scrapedAt }
     pendingPointExpiry: null, // ポイント有効期限のスクレイプ結果 { programs: [{ name, totalPoints, expiry: [{ date: 'YYYY-MM-DD'|null, points }] }], scrapedAt }。ルーティーンのみが書く読み取り専用データ。アプリ側は書き換えない
+    externalPoints: null, // Zaim外ポイント（JRE POINT等）[{ name, balance, expiring: [{ points, date: 'YYYY-MM-DD'|null }], updatedAt: 'YYYY-MM-DD'|null }]。ラムが定期確認して settings.json に書く読み取り専用データ。アプリ側は表示のみで書き換えない
     manualFixedCosts: new Map(), // 手動登録した固定費。id -> { matchType:'store'|'sub'|'none', matchValue, category, label, amount, cashPaid }
     accountRenames: new Map(), // 口座名の変更記録。旧口座名 -> 新口座名（Zaim側で名前を変えた口座の設定・取引を引き継ぐ）
     categoryBudgets: new Map(), // カテゴリ別の月予算。カテゴリ名 -> 月額（円）。会計月（25日始まり）単位で使う
@@ -2485,6 +2486,7 @@
       syncHeartbeat: settings.syncHeartbeat,
       pendingSecuritiesImport: settings.pendingSecuritiesImport,
       pendingPointExpiry: settings.pendingPointExpiry,
+      externalPoints: settings.externalPoints,
       manualFixedCosts: Object.fromEntries(settings.manualFixedCosts),
       accountRenames: Object.fromEntries(settings.accountRenames),
       categoryBudgets: Object.fromEntries(settings.categoryBudgets),
@@ -2549,6 +2551,7 @@
     settings.zaimCsvSyncedAt = typeof obj.zaimCsvSyncedAt === "string" ? obj.zaimCsvSyncedAt : null;
     settings.syncHeartbeat = obj.syncHeartbeat && typeof obj.syncHeartbeat.at === "string" ? obj.syncHeartbeat : null;
     settings.pendingPointExpiry = obj.pendingPointExpiry && Array.isArray(obj.pendingPointExpiry.programs) ? obj.pendingPointExpiry : null;
+    settings.externalPoints = normalizeExternalPoints(obj.externalPoints);
     settings.pendingSecuritiesImport = obj.pendingSecuritiesImport && (Array.isArray(obj.pendingSecuritiesImport.stocks) || Array.isArray(obj.pendingSecuritiesImport.funds)) ? obj.pendingSecuritiesImport : null;
     settings.manualFixedCosts = new Map(Object.entries(obj.manualFixedCosts || {}));
     settings.accountRenames = new Map(Object.entries(obj.accountRenames || {}));
@@ -2869,7 +2872,7 @@
     merged.yearClose = mergeMapField(base, local, remote, "yearClose", conflicts);
     merged.savedViews = mergeSavedViewsField(base, local, remote, conflicts);
     ["accountBalanceInited", "accountBalanceAsOfDate", "balancePattern", "furusatoKeyword", "securitiesScrapeInfo", "zaimScrapeInfo",
-      "pendingZaimImport", "pendingZaimCsv", "zaimCsvSyncedAt", "pendingSecuritiesImport", "accountMetaInited", "syncHeartbeat", "pendingPointExpiry"]
+      "pendingZaimImport", "pendingZaimCsv", "zaimCsvSyncedAt", "pendingSecuritiesImport", "accountMetaInited", "syncHeartbeat", "pendingPointExpiry", "externalPoints"]
       .forEach((key) => { merged[key] = mergeScalarField(base, local, remote, key, conflicts); });
     merged.securitiesHistory = mergeSecuritiesHistoryField(local, remote);
     merged.v = remote.v || local.v || 1;
@@ -7562,10 +7565,25 @@ function svgEl(tag, attrs) {
         scrape.sort((a, b) => (b.v - a.v) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
       }
     } catch (e) { scrape = []; }
-    if (!list.length && !scrape.length) { card.classList.add("hidden"); return; }
+    // ===== Zaim外ポイント行（settings.externalPoints） =====
+    // ラムが定期確認した JRE POINT 等を、Zaim 側の行と並べて追加する。
+    // 口座残高行・スクレイプ行と同名のものは Zaim 側を優先して重複表示しない（完全一致・先勝ち、Stage R と同じ考え方）。
+    let ext = [];
+    try {
+      if (Array.isArray(settings.externalPoints)) {
+        const seen = new Set(list.concat(scrape).map((x) => x.name));
+        settings.externalPoints.forEach((p) => {
+          if (!p || typeof p.name !== "string" || !p.name || seen.has(p.name)) return;
+          seen.add(p.name);
+          ext.push({ name: p.name, v: typeof p.balance === "number" && isFinite(p.balance) ? p.balance : 0, ext: p });
+        });
+        ext.sort((a, b) => (b.v - a.v) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+      }
+    } catch (e) { ext = []; }
+    if (!list.length && !scrape.length && !ext.length) { card.classList.add("hidden"); return; }
     card.classList.remove("hidden");
     list.sort((a, b) => b.v - a.v);
-    const rows = list.concat(scrape);
+    const rows = list.concat(scrape, ext);
     const PT = (n) => Math.round(n).toLocaleString("ja-JP") + " pt";
     const body = document.getElementById("pointsBody");
     const note = document.getElementById("pointsNote");
@@ -7575,6 +7593,15 @@ function svgEl(tag, attrs) {
     if (body) {
       body.textContent = "";
       rows.forEach((x) => {
+        if (x.ext) {
+          // Zaim外行：期限は自前の expiring から同じ基準で作り、出所（ラム確認＋最終確認日）を併記する
+          const parts = [el("div", null, [x.name])];
+          const exp = expiryLineFromEntries(x.ext.expiring);
+          if (exp) parts.push(el("div", { class: "pt-exp" }, [exp]));
+          parts.push(el("div", { class: "pt-exp" }, [externalPointSourceLabel(x.ext)]));
+          body.appendChild(el("div", { class: "pt-row" }, [el("div", null, parts), el("span", { class: "num" }, [PT(x.v)])]));
+          return;
+        }
         const exp = pointExpiryLine(x.name);
         const left = exp ? el("div", null, [el("div", null, [x.name]), el("div", { class: "pt-exp" }, [exp])]) : el("span", null, [x.name]);
         body.appendChild(el("div", { class: "pt-row" }, [left, el("span", { class: "num" }, [PT(x.v)])]));
@@ -7589,6 +7616,7 @@ function svgEl(tag, attrs) {
       } else {
         note.textContent = `残高は Zaim 同期時点（${accountBalanceAsOfLabel()}）のものです。失効日の情報は同期データに含まれないため、期限は表示していません。`;
       }
+      if (ext.length) note.textContent += "Zaim 外のポイントは、各行の「ラム確認」の日付時点の残高・期限です。";
     }
   }
 
@@ -7601,14 +7629,12 @@ function svgEl(tag, attrs) {
     if (typeof p.scrapedAt !== "string" || isNaN(Date.parse(p.scrapedAt))) return null;
     return p;
   }
-  // プログラム名（完全一致）→ 期限行の文言。表示すべきものが無ければ null。
+  // 期限エントリ配列 [{ date, points }] → 期限行の文言。表示すべきものが無ければ null。
   // 期限付き分がある場合は最直近の1件だけを示し、無期限分は併記しない（失効の警告が目的）。
-  function pointExpiryLine(name) {
-    const data = pointExpiryData();
-    if (!data) return null;
-    const prog = data.programs.find((x) => x && x.name === name);
-    if (!prog || !Array.isArray(prog.expiry) || !prog.expiry.length) return null;
-    const dated = prog.expiry.filter((e) => e && typeof e.date === "string")
+  // pendingPointExpiry（Zaim側）と externalPoints（Zaim外）で同じ基準を使うため共通化してある。
+  function expiryLineFromEntries(expiry) {
+    if (!Array.isArray(expiry) || !expiry.length) return null;
+    const dated = expiry.filter((e) => e && typeof e.date === "string")
       .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
     if (dated.length) {
       const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dated[0].date);
@@ -7617,6 +7643,43 @@ function svgEl(tag, attrs) {
       return `${Number(m[2])}/${Number(m[3])} までに ${Math.round(pts).toLocaleString("ja-JP")} pt 失効`;
     }
     return "有効期限なし";
+  }
+  // プログラム名（完全一致）→ 期限行の文言。表示すべきものが無ければ null。
+  function pointExpiryLine(name) {
+    const data = pointExpiryData();
+    if (!data) return null;
+    const prog = data.programs.find((x) => x && x.name === name);
+    if (!prog) return null;
+    return expiryLineFromEntries(prog.expiry);
+  }
+
+  // ===== Zaim外ポイント（JRE POINT等）：settings.externalPoints の正規化と表示補助 =====
+  // externalPoints はラムが定期確認して settings.json に書く読み取り専用データ。アプリは表示のみ。
+  // 形が崩れた要素は静かに捨て、使える要素だけを残す（壊れた要素があってもカード全体は落とさない）。
+  function normalizeExternalPoints(v) {
+    if (!Array.isArray(v)) return null;
+    const out = [];
+    v.forEach((p) => {
+      if (!p || typeof p !== "object" || typeof p.name !== "string" || !p.name) return;
+      const expiring = Array.isArray(p.expiring) ? p.expiring
+        .filter((e) => e && typeof e === "object")
+        .map((e) => ({
+          points: typeof e.points === "number" && isFinite(e.points) ? e.points : 0,
+          date: typeof e.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(e.date) ? e.date : null,
+        })) : [];
+      out.push({
+        name: p.name,
+        balance: typeof p.balance === "number" && isFinite(p.balance) ? p.balance : 0,
+        expiring,
+        updatedAt: typeof p.updatedAt === "string" && /^\d{4}-\d{2}-\d{2}/.test(p.updatedAt) ? p.updatedAt : null,
+      });
+    });
+    return out;
+  }
+  // Zaim外行の出所表示：「ラム確認」＋最終確認日（M/D）。日付が無ければ「ラム確認」のみ。
+  function externalPointSourceLabel(p) {
+    const m = p && typeof p.updatedAt === "string" ? /^(\d{4})-(\d{2})-(\d{2})/.exec(p.updatedAt) : null;
+    return m ? `ラム確認 ${Number(m[2])}/${Number(m[3])}` : "ラム確認";
   }
 
   // ===== Stage Q-2：ポータル集約（オルカン最新値・次回引落・給与導線） =====
