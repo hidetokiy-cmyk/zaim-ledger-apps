@@ -2,6 +2,7 @@
 // 対象 index.html のメインスクリプトから実物の宣言を抽出して Node 上で実行する（unit_outlook_fix と同方式）。
 // 合成フィクスチャ（fixtures_make）を実パーサで読み、
 //   - loadSalaryNetAssumption() の初期値（未設定→202129）・0保存時のフォールバック（null）
+//   - salaryNetIsSet()（M1）が未設定／明示保存（0・初期値ちょうども含む）を区別すること
 //   - passReimbursementMap() が実データから購入月（2026-05 / 2026-11）を検出すること
 //   - passReimbursementForKey() の購入サイクル補完（5月・11月）と対象外月（0）
 //   - computeForecast() で 11月度＝前提 202,129＋定期券 66,970、12月度＝前提のみ、
@@ -67,7 +68,7 @@ const WANTED = [
   'collectCardRawData', 'inferCardBillingCycle', 'cardCycleCacheTx', 'cardCycleCache', 'getCardBillingCycle',
   'CARD_WARN_DAYS', 'computeCardSchedule', 'projectCardSettlementMonthKey',
   // 給与推定（フォールバック先）
-  'PAYROLL_SHAKAI_RE', 'outlookMonthlySalary',
+  'PAYROLL_SHAKAI_RE', 'outlookMonthlySalary', 'salaryNetIsSet',
   // 今回の追加：給与前提・定期券精算
   'SALARY_NET_LS_KEY', 'SALARY_NET_DEFAULT', 'PASS_PRICE_DEFAULT',
   'loadSalaryNetAssumption', 'salaryNetStoredValue', 'saveSalaryNetAssumption',
@@ -94,7 +95,8 @@ const { buildFixture } = require('./fixtures_make');
 const fixture = buildFixture(new Date(2026, 10, 14));
 // メモ化（H4）関連の宣言は、H4 が main に入る前は存在しない。computeForecast が
 // それらを参照する版でのみ必要になるため、存在すれば取り込む（任意抽出）。
-for (const name of ['computeForecastUncached', 'forecastDataKey', 'forecastCache']) {
+// M3・M4（別PR）の新宣言も同趣旨で、マージ順序に依存せず動き続けるよう任意抽出にする。
+for (const name of ['computeForecastUncached', 'forecastDataKey', 'forecastCache', 'subscriptionTypicalAmount', 'normalizeCardAccountName', 'CARD_KNOWN_CYCLES_BY_NORM']) {
   if (!extracted.has(name)) {
     const code = extractDecl(name);
     if (code) extracted.set(name, code);
@@ -153,12 +155,18 @@ console.log('== 給与前提の読み書き（初期値・フォールバック�
 localStorage.removeItem(SALARY_NET_LS_KEY);
 check('未設定 → loadSalaryNetAssumption() = 202129（契約手取りの初期値）', loadSalaryNetAssumption() === 202129, String(loadSalaryNetAssumption()));
 check('未設定 → salaryNetStoredValue() = 202129（入力欄の初期表示）', salaryNetStoredValue() === 202129, String(salaryNetStoredValue()));
+check('未設定 → salaryNetIsSet() = false（M1：初期値と未設定を区別）', salaryNetIsSet() === false, String(salaryNetIsSet()));
 saveSalaryNetAssumption(0);
 check('0を保存 → loadSalaryNetAssumption() = null（実績ベースへフォールバック）', loadSalaryNetAssumption() === null, String(loadSalaryNetAssumption()));
 check('0を保存 → salaryNetStoredValue() = 0（入力欄は0のまま）', salaryNetStoredValue() === 0, String(salaryNetStoredValue()));
+check('0を保存 → salaryNetIsSet() = true（明示設定として扱う・M1）', salaryNetIsSet() === true, String(salaryNetIsSet()));
+saveSalaryNetAssumption(202129);
+check('初期値ちょうどを保存 → salaryNetIsSet() = true（値が同じでも設定済み・M1）', salaryNetIsSet() === true, String(salaryNetIsSet()));
 saveSalaryNetAssumption(180000);
 check('180000を保存 → loadSalaryNetAssumption() = 180000', loadSalaryNetAssumption() === 180000, String(loadSalaryNetAssumption()));
+check('180000を保存 → salaryNetIsSet() = true', salaryNetIsSet() === true, String(salaryNetIsSet()));
 localStorage.removeItem(SALARY_NET_LS_KEY);
+check('キーを消すと未設定に戻る → salaryNetIsSet() = false', salaryNetIsSet() === false, String(salaryNetIsSet()));
 
 console.log('== 定期券（交通費精算）の検出 ==');
 const pm = passReimbursementMap();
