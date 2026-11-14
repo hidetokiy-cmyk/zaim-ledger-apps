@@ -1830,6 +1830,14 @@
         <div class="modal-section-title" style="margin-top:24px;">予測の前提</div>
         <div id="forecastBasisBox" style="margin-top:8px;"></div>
 
+        <div class="modal-section-title" style="margin-top:24px;">給与（契約手取り）</div>
+<div class="cash-note" style="margin:6px 0 10px;">標準月の手取り額を入れると、資金繰り予測と90日見通しの給与見込みをこの額で計算します（0にすると従来の実績ベース推計に戻ります）。定期券の交通費精算（購入月の給料日に購入額が一緒に振り込まれる分）は、データから自動で見込みに加えます。この端末のブラウザにだけ保存されます。</div>
+<div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+<input id="salaryNetInput" class="pw-input" type="number" inputmode="numeric" min="0" step="1" placeholder="標準月の手取り（円）" style="width:170px;">
+<button id="salaryNetSaveBtn" class="btn" type="button" style="cursor:pointer; white-space:nowrap;">保存</button>
+<span id="salaryNetMsg" class="cash-note"></span>
+</div>
+
         <div class="modal-section-title" style="margin-top:24px;">配当・分配金（手入力）</div>
 <div class="cash-note" style="margin:6px 0 10px;">税引後の受取額と受取月を入れると、その月の収入として予測に足します。この端末のブラウザにだけ保存されます。</div>
 <div id="forecastDivList"></div>
@@ -5438,6 +5446,63 @@ if (knownCycle) {
     group.appendChild(el("div", { class: "bal-row" }, [el("span", { class: "name" }, ["年間合計（税引後）"]), el("span", { class: "amt num" }, [YEN(yearly)])]));
     wrap.appendChild(group);
   }
+  // ---------- 給与（契約手取り）の前提・定期券（交通費精算） ----------
+  // 標準月の手取りを手入力の前提として持ち、資金繰り予測と90日見通しの両方が参照する
+  // （配当・分配金と同じく、この端末のブラウザにだけ保存する）。未設定の初期値は契約ベースの
+  // 手取り（基本給＋皆勤手当−社会保険・所得税。HiDe の給与明細シミュレータの契約値で、
+  // 2026-10 の実績明細と全行一致を確認済み）。0 を保存すると前提なしになり、従来の
+  // 実績ベース推定にフォールバックする。
+  const SALARY_NET_LS_KEY = "zaimLedgerSalaryNet";
+  const SALARY_NET_DEFAULT = 202129;
+  const PASS_PRICE_DEFAULT = 66970; // 定期券（モバイルSuica 6か月）の現行価格。精算額の補完用
+  function loadSalaryNetAssumption() {
+    try {
+      const raw = localStorage.getItem(SALARY_NET_LS_KEY);
+      if (raw == null) return SALARY_NET_DEFAULT;
+      const n = Math.round(Number(raw));
+      return Number.isFinite(n) && n > 0 ? n : null;
+    } catch (e) { return SALARY_NET_DEFAULT; }
+  }
+  function salaryNetStoredValue() {
+    try {
+      const raw = localStorage.getItem(SALARY_NET_LS_KEY);
+      if (raw == null) return SALARY_NET_DEFAULT;
+      const n = Math.round(Number(raw));
+      return Number.isFinite(n) && n >= 0 ? n : SALARY_NET_DEFAULT;
+    } catch (e) { return SALARY_NET_DEFAULT; }
+  }
+  function saveSalaryNetAssumption(v) {
+    try { localStorage.setItem(SALARY_NET_LS_KEY, String(v)); return true; } catch (e) { return false; }
+  }
+  // 定期券の交通費精算：購入した月の給料日に、購入額と同額が給与と一緒に振り込まれる
+  // （2026-11-08 購入分からの方式）。データからの検出：
+  //   ① 給与カテゴリの負の収入行（メモに「定期券」、入金先は預け金）＝精算との相殺として
+  //      先行登録された行。その日付（＝給料日）の暦月をキーに、金額の絶対値を記録する。
+  //   ② ビューカード→預け金の振替（定期券の購入そのもの。品目・メモに「定期券」の場合も含む）。
+  //      購入と同じ暦月の給料日に精算されるため、購入日の暦月をキーにする。
+  // キーは「給料日の属する会計月」のキー（例：2026-11-25 の給料日 → "2026-11"）で統一する。
+  function passReimbursementMap() {
+    const map = new Map();
+    const keyOf = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+    (state.transactions || []).forEach((r) => {
+      if (r.type === "income" && r.amount < 0 && /定期券/.test(r.memo || "")) map.set(keyOf(r.date), -r.amount);
+    });
+    (state.transactions || []).forEach((r) => {
+      if (r.type !== "transfer" || !(r.amount > 0)) return;
+      const txt = [r.memo, r.item].filter(Boolean).join(" ");
+      const isPass = (/ビュー/.test(r.fromAccount || "") || /定期券/.test(txt)) && /預け金/.test(r.toAccount || "");
+      if (isPass) { const k = keyOf(r.date); if (!map.has(k)) map.set(k, r.amount); }
+    });
+    return map;
+  }
+  // 会計月キーに対する精算額。データで検出できればその額、無ければ購入サイクル
+  // （5月・11月）で現行価格により補完し、それ以外は 0。
+  function passReimbursementForKey(key, map) {
+    const m = map || passReimbursementMap();
+    if (m.has(key)) return m.get(key);
+    const mm = Number(String(key || "").split("-")[1]);
+    return mm === 5 || mm === 11 ? PASS_PRICE_DEFAULT : 0;
+  }
   async function copyTextToClipboard(text) {
     try { await navigator.clipboard.writeText(text); return true; } catch (e) { /* 下の方法で再試行 */ }
     try {
@@ -5463,12 +5528,16 @@ if (knownCycle) {
     lines.push("");
     lines.push(`■ 今後${f.months.length}か月の残高見込み`);
     f.months.forEach((m) => {
-      lines.push(`- ${m.label}：収支 ${sgn(m.net)}${m.dividend ? `（うち配当・分配金 ${YEN(m.dividend)}）` : ""} → 残高 ${YEN(m.balance)}（目安 ${YEN(m.lower)}〜${YEN(m.upper)}）`);
+      lines.push(`- ${m.label}：収支 ${sgn(m.net)}${m.dividend ? `（うち配当・分配金 ${YEN(m.dividend)}）` : ""}${m.pass ? `（うち定期券・交通費精算 ${YEN(m.pass)}）` : ""} → 残高 ${YEN(m.balance)}（目安 ${YEN(m.lower)}〜${YEN(m.upper)}）`);
     });
     lines.push("");
     lines.push("■ 予測の前提");
     if (f.basis) {
-      lines.push(`- 給与・変動費は直近${f.windowSize}か月の移動平均${f.seasonal ? "と前年同月の平均" : ""}、固定費は検出した定期支払い（月額 ${YEN(f.basis.fixedMonthlyTotal)}${f.basis.fixedYearlyTotal ? `、年払い合計 ${YEN(f.basis.fixedYearlyTotal)}` : ""}）`);
+      const avgPart = `直近${f.windowSize}か月の移動平均${f.seasonal ? "と前年同月の平均" : ""}`;
+      const fixedPart = `固定費は検出した定期支払い（月額 ${YEN(f.basis.fixedMonthlyTotal)}${f.basis.fixedYearlyTotal ? `、年払い合計 ${YEN(f.basis.fixedYearlyTotal)}` : ""}）`;
+      lines.push(f.basis.salaryAssumption != null
+        ? `- 給与は契約手取りの前提（月 ${YEN(f.basis.salaryAssumption)}・手入力）、変動費は${avgPart}、${fixedPart}`
+        : `- 給与・変動費は${avgPart}、${fixedPart}`);
     }
     const divs = loadDividends();
     if (divs.length) lines.push(`- 配当・分配金（手入力・税引後）：${divs.map((d) => `${d.name} ${YEN(d.amount)}×${d.months.map((x) => x + "月").join("・")}`).join("、")}`);
@@ -5491,6 +5560,16 @@ if (knownCycle) {
       if (!saveDividends(list)) { msg.textContent = "保存できませんでした（このブラウザでは保存が使えない状態です）。"; return; }
       ["divName", "divAmount", "divMonths"].forEach((id) => { document.getElementById(id).value = ""; });
       msg.textContent = "";
+      renderForecastPanel();
+    });
+    const salSaveBtn = document.getElementById("salaryNetSaveBtn");
+    if (salSaveBtn) salSaveBtn.addEventListener("click", () => {
+      const msg = document.getElementById("salaryNetMsg");
+      const input = document.getElementById("salaryNetInput");
+      const v = Math.round(Number(input.value));
+      if (!Number.isFinite(v) || v < 0) { msg.textContent = "0以上の金額を入れてください（0で実績ベース推計に戻ります）。"; return; }
+      if (!saveSalaryNetAssumption(v)) { msg.textContent = "保存できませんでした（このブラウザでは保存が使えない状態です）。"; return; }
+      msg.textContent = v > 0 ? `保存しました。給与見込みを月 ${YEN(v)} で計算します。` : "保存しました。給与見込みは実績ベース推計に戻ります。";
       renderForecastPanel();
     });
     document.getElementById("forecastCopyBtn").addEventListener("click", async () => {
@@ -5524,6 +5603,9 @@ if (knownCycle) {
     const recentInvestFin = recentUsable.map((m) => m.investFin); // ブレ幅（標準偏差）の算出にのみ使う実績値
     const baseVariableAvg = forecastAvg(recentVariable);
     const baseIncomeAvg = forecastAvg(recentIncome);
+    // 給与（契約手取り）の前提（手入力）。あれば実績平均ではなく前提額を標準月の給与とする
+    const salaryAssumption = loadSalaryNetAssumption();
+    const passMap = passReimbursementMap();
     const netStdev = forecastStdev(recentUsable.map((m, i) => recentIncome[i] - recentVariable[i] + recentInvestFin[i]));
 
     const activeSubs = detectSubscriptions().filter((s) => !s.likelyCancelled);
@@ -5540,6 +5622,7 @@ if (knownCycle) {
       windowStartKey: recentUsable.length ? recentUsable[0].key : null,
       windowEndKey: recentUsable.length ? recentUsable[recentUsable.length - 1].key : null,
       incomeAvg: baseIncomeAvg,
+      salaryAssumption,
       variableAvg: baseVariableAvg,
       investFinAvg: investFinMonthlyBase,
       netStdev,
@@ -5572,9 +5655,16 @@ if (knownCycle) {
         }
       }
 
+      // 給与（契約手取り）の前提があれば、実績平均・季節ブレンドではなく前提額を標準月の給与とする
+      if (salaryAssumption != null) incomeForecast = salaryAssumption;
+
       // 配当・分配金（手入力）：受取月にその金額を収入へ足す
       const dividendForecast = dividendList.reduce((t, d) => t + (d.months.includes(mm) ? d.amount : 0), 0);
       incomeForecast += dividendForecast;
+
+      // 定期券（交通費精算）：購入月の給料日に購入額が給与と一緒に振り込まれる分を収入へ足す
+      const passReimb = passReimbursementForKey(key, passMap);
+      if (passReimb > 0) incomeForecast += passReimb;
 
       // 固定費：月次サブスクは毎月計上する。年次サブスクは、現金払いなら次回目安日と同じ年月に、
       // カード等払いで締め日・支払いサイクルを推定できた場合はその決済が乗る見込みの会計月に計上する
@@ -5600,7 +5690,7 @@ if (knownCycle) {
       const band = netStdev * Math.sqrt(i);
       result.months.push({
         key, label: cycleLabel(key), i,
-        income: incomeForecast, dividend: dividendForecast, fixed: fixedForecast, variable: variableForecast, investFin: investFinForecast,
+        income: incomeForecast, dividend: dividendForecast, pass: passReimb, fixed: fixedForecast, variable: variableForecast, investFin: investFinForecast,
         net: netForecast, balance, upper: balance + band, lower: balance - band,
       });
     }
@@ -5866,6 +5956,8 @@ if (knownCycle) {
     if (!chartEl) return; // タブがまだDOMに無い等の防御
   wireForecastUi();
   renderDividendList();
+  const salInput = document.getElementById("salaryNetInput");
+  if (salInput && document.activeElement !== salInput) salInput.value = String(salaryNetStoredValue());
 
     document.getElementById("forecastAsOf").textContent = `${accountBalanceAsOfLabel()}時点の現金・預金残高を起点に予測`;
 
@@ -5915,9 +6007,17 @@ if (knownCycle) {
         el("div", { class: "bal-row" }, [
           el("span", { class: "name" }, ["給与見込み（月平均）"]),
           el("span", { class: "amt num amt-wrap" }, [
-            forecastDrillLabel(`${YEN(basis.incomeAvg)}（${basis.incomeRows.length}件の実績から算出）`, basis.incomeRows, "給与の実績（予測の根拠）"),
+            basis.salaryAssumption != null
+              ? `${YEN(basis.salaryAssumption)}（契約手取りの前提・手入力）`
+              : forecastDrillLabel(`${YEN(basis.incomeAvg)}（${basis.incomeRows.length}件の実績から算出）`, basis.incomeRows, "給与の実績（予測の根拠）"),
           ]),
         ]),
+        ...(forecast.months.some((m) => m.pass > 0) ? [el("div", { class: "bal-row" }, [
+          el("span", { class: "name" }, ["定期券（交通費精算）"]),
+          el("span", { class: "amt num amt-wrap" }, [
+            forecast.months.filter((m) => m.pass > 0).map((m) => `${cycleLabel(m.key)}の給料日に +${YEN(m.pass)}`).join("、"),
+          ]),
+        ])] : []),
         el("div", { class: "bal-row" }, [
           el("span", { class: "name" }, ["変動費見込み（月平均）"]),
           el("span", { class: "amt num amt-wrap" }, [
@@ -7301,7 +7401,8 @@ function svgEl(tag, attrs) {
   }
 
   // 90日見通しの簡易推計：現在の現金・預金残高から日次でシミュレーションする。
-  // 入金＝給与（直近の手取り月額を会計月の開始日＝給与日に計上）、出金＝カード引落予定
+  // 入金＝給与（契約手取りの前提があればその額、無ければ直近の手取り月額を、会計月の
+  // 開始日＝給与日に計上。定期券の交通費精算は購入月の給料日に加算）、出金＝カード引落予定
   // （computeCardSchedule）・手動登録の固定費（現金払い分）・定期投資（毎月の自動検出分）・
   // 日々の支出の平均（直近3会計月の実績のうち、カード払いを除いた支出を日割り）。
   // 詳細な予測は資金繰り予測（分析タブ）が担う。
@@ -7336,10 +7437,20 @@ function svgEl(tag, attrs) {
       evMap.set(k, (evMap.get(k) || 0) + amount);
       events.push({ date: d, amount, label });
     };
+    const salaryDates = [];
     try {
-      const sal = outlookMonthlySalary();
-      if (sal > 0) { let b = getCycleBounds(today); for (let i = 0; i < 4; i++) { addEv(b.end, sal, "給与"); b = getCycleBounds(addDays(b.end, 15)); } }
+      const assumed = loadSalaryNetAssumption();
+      const sal = assumed != null ? assumed : outlookMonthlySalary();
+      if (sal > 0) { let b = getCycleBounds(today); for (let i = 0; i < 4; i++) { salaryDates.push(b.end); addEv(b.end, sal, "給与"); b = getCycleBounds(addDays(b.end, 15)); } }
     } catch (e) { console.error("見通し：給与の推計に失敗", e); }
+    try {
+      // 定期券（交通費精算）：購入月の給料日に、購入額が給与と一緒に振り込まれる
+      const passMap = passReimbursementMap();
+      salaryDates.forEach((d) => {
+        const amt = passReimbursementForKey(getCycleBounds(d).key, passMap);
+        if (amt > 0) addEv(d, amt, "定期券（交通費精算）");
+      });
+    } catch (e) { console.error("見通し：定期券精算の取得に失敗", e); }
     try {
       // 90日範囲には最大で4回分の引落が入るため、既定の2件ではなく多めに取る
       computeCardSchedule(6).cards.forEach((c) => c.items.forEach((it) => { if (it.amount > 0) addEv(it.settle, -it.amount, `${c.account}の引落`); }));
@@ -7724,7 +7835,7 @@ function svgEl(tag, attrs) {
         ]));
       });
     }
-    if (note) note.textContent = "簡易推計です：給与は直近の手取り月額、引落はカード引落予定と定期投資、日々の支出はカード払いを除く直近3会計月の平均から計算しています。詳しくは資金繰り予測（分析タブ）へ。"
+    if (note) note.textContent = "簡易推計です：給与は" + (loadSalaryNetAssumption() != null ? "契約手取りの前提額（定期券の交通費精算は購入月の給料日に加算）" : "直近の手取り月額") + "、引落はカード引落予定と定期投資、日々の支出はカード払いを除く直近3会計月の平均から計算しています。詳しくは資金繰り予測（分析タブ）へ。"
       + (wif > 0 ? ` 仮の支出 ${YEN(wif)} を今日置いた場合の試算です（単純な差し引き）。` : "");
   }
 
