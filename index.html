@@ -3106,12 +3106,20 @@
     push(new Date(year, 0, 1));
     push(nthWeekday(year, 0, 1, 2));
     push(new Date(year, 1, 11));
-    push(new Date(year, 1, 23));
+    // 天皇誕生日：2020年以降は2/23。2019年は即位の年のため設けられなかった。
+    // それ以前（平成）は12/23（データ範囲は2019年以降だが、置き場所だけ実態に合わせる）。
+    if (year >= 2020) push(new Date(year, 1, 23));
+    else if (year <= 2018) push(new Date(year, 11, 23));
     push(shunbunDay(year));
     push(new Date(year, 3, 29));
     push(new Date(year, 4, 3));
     push(new Date(year, 4, 4));
     push(new Date(year, 4, 5));
+    if (year === 2019) {
+      // 即位に伴う特例（2019年のみ）：天皇の即位の日（5/1）と即位礼正殿の儀（10/22）が祝日扱い。
+      // 4/30 と 5/2 は、祝日に挟まれた平日として下の国民の休日の規則で自動的に休日になる。
+      push(new Date(2019, 4, 1)); push(new Date(2019, 9, 22));
+    }
     if (year === 2020) {
       push(new Date(2020, 6, 23)); push(new Date(2020, 6, 24)); push(new Date(2020, 7, 10));
     } else if (year === 2021) {
