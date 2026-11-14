@@ -4214,6 +4214,7 @@
     const intervals = [];
     for (let i = 1; i < sorted.length; i++) intervals.push((sorted[i].date - sorted[i - 1].date) / 86400000);
     const monthlyHits = intervals.filter((d) => (d >= SUB_MONTHLY_MIN && d <= SUB_MONTHLY_MAX) || (d >= SUB_MONTHLY_SKIP_MIN && d <= SUB_MONTHLY_SKIP_MAX)).length;
+    const skipHits = intervals.filter((d) => d >= SUB_MONTHLY_SKIP_MIN && d <= SUB_MONTHLY_SKIP_MAX).length;
     const yearlyHits = intervals.filter((d) => d >= SUB_YEARLY_MIN && d <= SUB_YEARLY_MAX).length;
     let freq = null;
     if (monthlyHits >= Math.ceil(intervals.length * 0.6) && monthlyHits >= 2) freq = "month";
@@ -4225,7 +4226,19 @@
     if (freq === "month") nextExpected.setMonth(nextExpected.getMonth() + 1);
     else nextExpected.setFullYear(nextExpected.getFullYear() + 1);
     const likelyCancelled = lastDataDate > addDays(nextExpected, SUB_GRACE_DAYS[freq]);
-    return { freq, last, prev, nextExpected, likelyCancelled };
+    // 月次ヒットの過半が「1か月欠け」（50〜70日）なら実態は隔月払い（M3）。検出自体は
+    // 従来どおり月次として拾い、予測の月次換算で割り戻せるよう周期（月数）を併せて返す。
+    const periodMonths = freq === "month" && skipHits * 2 > monthlyHits ? 2 : 1;
+    return { freq, last, prev, nextExpected, likelyCancelled, periodMonths };
+  }
+  // 定期支払いの「代表額」：直近3件の中央値（M3）。最新行だけを見ると、初回の日割りや
+  // 一度きりの買い増しのような非定型な1件に予測が引っ張られるため、直近の定型額を使う。
+  // 代償として、実際の料金改定が代表額に反映されるのは最大で2周期遅れる。
+  function subscriptionTypicalAmount(sortedRows) {
+    const tail = sortedRows.slice(-3).map((r) => r.amount).sort((a, b) => a - b);
+    if (!tail.length) return 0;
+    const mid = Math.floor(tail.length / 2);
+    return tail.length % 2 === 1 ? tail[mid] : (tail[mid - 1] + tail[mid]) / 2;
   }
   function detectSubscriptions() {
     if (subsCacheOn) {
@@ -4271,14 +4284,15 @@
       const sorted = rows.slice().sort((a, b) => a.date - b.date);
       const rec = detectRecurrenceFreq(sorted, lastDataDate);
       if (!rec) return;
-      const { freq, last, prev, nextExpected, likelyCancelled } = rec;
+      const { freq, last, prev, nextExpected, likelyCancelled, periodMonths } = rec;
       const amountChanged = prev && last.amount !== prev.amount;
+      const typicalAmount = subscriptionTypicalAmount(sorted);
       const label = last.store ? last.store : `${last.category} ・ ${last.subCategory}`;
       results.push({
-        key, label, category: last.category, amount: last.amount, freq,
+        key, label, category: last.category, amount: last.amount, typicalAmount, periodMonths, freq,
         count: sorted.length, lastDate: last.date, nextExpected, likelyCancelled,
         amountChanged, prevAmount: prev ? prev.amount : null,
-        monthlyEquivalent: freq === "month" ? last.amount : last.amount / 12,
+        monthlyEquivalent: freq === "month" ? typicalAmount / periodMonths : typicalAmount / 12,
         rows: sorted, // 資金繰り予測の根拠パネルから、この定期支払いの実際の取引明細へドリルダウンするために保持
         cardLegs: cardLegsByKey.get(key) || [], // 未払費用ブリッジ用（金額計算専用。表示には使わない）
         account: last.fromAccount, // 直近の支払元口座（現金/預金以外＝カード等かどうかの判定に使う）
@@ -4298,7 +4312,7 @@
       nextExpected.setMonth(nextExpected.getMonth() + 1);
       results.push({
         key: key || ("手動:" + id), label: m.label, category: m.category || (lastRow ? lastRow.category : ""),
-        amount: m.amount, freq: "month", count: matchedRows.length,
+        amount: m.amount, typicalAmount: m.amount, periodMonths: 1, freq: "month", count: matchedRows.length,
         lastDate: lastRow ? lastRow.date : null, nextExpected, likelyCancelled: false,
         amountChanged: false, prevAmount: null, monthlyEquivalent: m.amount,
         rows: matchedRows, account: lastRow ? lastRow.fromAccount : null,
@@ -5234,6 +5248,13 @@ const CARD_KNOWN_CYCLES = {
   "イオンカードセレクト": { closingDay: 10, lag: 1, settlementDay: 2 },
   "リクルートカード": { closingDay: 15, lag: 1, settlementDay: 10 }
 };
+// 表記ゆれへの緩和（M4）：完全一致で見つからない場合だけ、空白（半角・全角）を除いた
+// 名前でも引く。空白を除いても別口座と一致しない範囲に限られる
+// （例：「楽天カード 楽天銀行カード(JCB) …」は空白を除いても「楽天カード」にはならない）。
+function normalizeCardAccountName(name) {
+  return String(name || "").replace(/\s+/g, "");
+}
+const CARD_KNOWN_CYCLES_BY_NORM = Object.fromEntries(Object.entries(CARD_KNOWN_CYCLES).map(([k, v]) => [normalizeCardAccountName(k), v]));
   const CARD_CYCLE_LAGS = [0, 1, 2];
   const CARD_CYCLE_FIT_THRESHOLD = 0.12; // 決済額に対する誤差率がこれを超えたら不採用
 
@@ -5275,7 +5296,11 @@ function cardPanelBaseNote(cycles, legacyText) {
     const purchases = [], settlements = [];
     for (const r of state.transactions) {
       if (isFutureRow(r)) continue;
-      if (r.type === "expense" && r.fromAccount === account) purchases.push({ date: r.date, amount: r.amount });
+      // 照合する利用額は、請求額の確定モデル（computeCardSchedule と同じ「全出金合計」）に
+      // 合わせる（M4）。支出行だけだと、未払費用への振替レッグ・チャージ・定期券・
+      // クレカ積立のような振替の利用分が抜け、締め日の推定が外れる
+      // （実データではイオン・ビューが支出行ゼロ／不照合で推定不能だった）。
+      if ((r.type === "expense" || r.type === "transfer") && r.fromAccount === account) purchases.push({ date: r.date, amount: r.amount });
       else if ((r.type === "transfer" || r.type === "balance") && r.toAccount === account && r.fromAccount && forecastIsCashAccount(r.fromAccount)) {
         settlements.push({ date: r.date, amount: r.amount });
       }
@@ -5310,7 +5335,8 @@ function cardPanelBaseNote(cycles, legacyText) {
   function getCardBillingCycle(account) {
 // Stage H: 確認済みルールがあれば推定を回さずそれを正とする。
 // 未知口座はここを通らず従来どおり推定（known は付けない = undefined）。
-const knownCycle = CARD_KNOWN_CYCLES[account];
+// 完全一致で無い場合は空白を除いた名前でも引く（M4。それ以外の表記ゆれには広げない）。
+const knownCycle = CARD_KNOWN_CYCLES[account] || CARD_KNOWN_CYCLES_BY_NORM[normalizeCardAccountName(account)];
 if (knownCycle) {
   return {
     closingDay: knownCycle.closingDay,
@@ -5808,8 +5834,8 @@ if (knownCycle) {
       investFinRows: activeInvestSubs.flatMap((s) => s.rows),
       activeSubs,
       activeInvestSubs,
-      fixedMonthlyTotal: activeSubs.filter((s) => s.freq === "month").reduce((s, x) => s + x.amount, 0),
-      fixedYearlyTotal: activeSubs.filter((s) => s.freq === "year").reduce((s, x) => s + x.amount, 0),
+      fixedMonthlyTotal: activeSubs.filter((s) => s.freq === "month").reduce((s, x) => s + x.monthlyEquivalent, 0),
+      fixedYearlyTotal: activeSubs.filter((s) => s.freq === "year").reduce((s, x) => s + x.typicalAmount, 0),
       fixedCardBaseAvg: cardBaseAvg,
       fixedCardBaseRows: cardBaseRows,
     };
@@ -5850,15 +5876,17 @@ if (knownCycle) {
       // （推定できなかった口座は、次回目安日と同じ年月という従来の近似にとどめる）。
       // カード等払いのサブスクも、実績側（変動費）ではすでにその決済額から同額を差し引いてあるので、
       // ここでは支払方法を問わず一律に含めてよい。
+      // 金額は代表額（直近3件の中央値）を使う（M3）。月次は月次換算額（隔月払いは2で割る）を
+      // 毎月に均し、年次は到来月に代表額を計上する。
       let fixedForecast = cardBaseAvg;   // カード決済の基礎額（同じ窓の月平均）を毎月見込む
       activeSubs.forEach((s) => {
-        if (s.freq === "month") { fixedForecast += s.amount; return; }
+        if (s.freq === "month") { fixedForecast += s.monthlyEquivalent; return; }
         if (!s.cashPaid && s.account) {
           const projectedKey = projectCardSettlementMonthKey(s.account, s.nextExpected);
-          if (projectedKey) { if (projectedKey === key) fixedForecast += s.amount; return; }
+          if (projectedKey) { if (projectedKey === key) fixedForecast += s.typicalAmount; return; }
         }
         const ne = s.nextExpected;
-        if (ne.getFullYear() === yy && (ne.getMonth() + 1) === mm) fixedForecast += s.amount;
+        if (ne.getFullYear() === yy && (ne.getMonth() + 1) === mm) fixedForecast += s.typicalAmount;
       });
 
       // 投資・財務活動：検出された「毎月の」定期投資のみを見込む（それ以外は上でactiveInvestSubsから除外済み）
