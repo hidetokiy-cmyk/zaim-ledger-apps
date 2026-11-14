@@ -7815,7 +7815,7 @@ function svgEl(tag, attrs) {
     try {
       if (state.transactions && state.transactions.length) {
         getAccountBalancesAsOf(parseAsofDate()).forEach((v, name) => {
-          if (/ポイント|POINT/i.test(name) && typeof v === "number" && isFinite(v) && v > 0) list.push({ name, v });
+          if (/ポイント|POINT/i.test(name) && typeof v === "number" && isFinite(v) && v >= 0) list.push({ name, v });
         });
       }
     } catch (e) { list = []; }
@@ -7850,14 +7850,22 @@ function svgEl(tag, attrs) {
         ext.sort((a, b) => (b.v - a.v) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
       }
     } catch (e) { ext = []; }
-    if (!list.length && !scrape.length && !ext.length) { card.classList.add("hidden"); return; }
+    const body = document.getElementById("pointsBody");
+    const note = document.getElementById("pointsNote");
+    const meta = document.getElementById("pointsMeta");
+    if (!list.length && !scrape.length && !ext.length) {
+      // ポイントのデータ自体が無い（未同期・対象口座なし）場合は、残高ゼロの
+      // プログラムがある場合と区別できるよう、カードを隠さず「データなし」を出す（L6）。
+      card.classList.remove("hidden");
+      if (meta) meta.textContent = "";
+      if (body) { body.textContent = ""; body.appendChild(el("div", { class: "pt-row" }, [el("span", null, ["ポイントのデータがありません"])])); }
+      if (note) note.textContent = "";
+      return;
+    }
     card.classList.remove("hidden");
     list.sort((a, b) => b.v - a.v);
     const rows = list.concat(scrape, ext);
     const PT = (n) => Math.round(n).toLocaleString("ja-JP") + " pt";
-    const body = document.getElementById("pointsBody");
-    const note = document.getElementById("pointsNote");
-    const meta = document.getElementById("pointsMeta");
     const total = rows.reduce((s, x) => s + x.v, 0);
     if (meta) meta.textContent = `合計 ${PT(total)}`;
     if (body) {

@@ -15,6 +15,7 @@ const TESTS = [
   'unit_outlook_m2.js',
   'unit_csv_import_m10.js',
   'unit_contrast_m9.js',
+  'boot_points_l6.js',
   'boot_smoke.js',
 ];
 
