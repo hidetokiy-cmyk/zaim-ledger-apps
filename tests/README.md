@@ -61,6 +61,7 @@ python3 tests/local/regress79.py
 | `boot_assumptions_pane.js` | 設定モーダル「予測の前提」ペイン（S4）の保存反映 | |
 | `boot_external_points.js` | Zaim外ポイント（externalPoints）の表示統合 | |
 | `unit_freshness_alerts.js` | 鮮度・警告表示（S5）の状態注入テスト | 実 settings を土台に状態を注入する方式のためローカル専用 |
+| `boot_home_dedup_m7.js` | 月次チェック結果の重複排除（M7）：ホームでは表紙の残り作業数のみ、結果は決算タブに一本化 | |
 | `unit_forecast_h4.js` | H4（予測メモ化）の検証 | **H4 未マージ（ブランチ fix-h4-forecast-memoize）前提**。main では宣言抽出に失敗して終了するのが正常。H4 マージ後は tests/ci/ へ移す |
 | `boot_debit_summary_status.js` | H3（引落要約の確定／見込みタグ）の検証 | **H3 未マージ（ブランチ fix-h3-debit-summary-status）前提**。main では要約タグの assert が落ちるのが正常 |
 | `regress79.py` | 過去79決済の引落再計算（Python 移植モデル） | 59/79 は Python 移植側の既知問題で、H5 の範囲外（別テーマ） |

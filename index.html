@@ -918,7 +918,7 @@
   #cmdList .x-cmd { display: flex; justify-content: space-between; gap: 10px; padding: 9px 12px; cursor: pointer; border-radius: 4px; }
   #cmdList .x-cmd.sel { background: rgba(var(--ink-rgb), 0.09); }
   #cmdList .x-cmd small { color: var(--ink-faint); white-space: nowrap; }
-  /* ---- 気づきフィード（健康診断・気になる動き・月次チェック・気づきを1本に集約） ---- */
+  /* ---- 気づきフィード（健康診断・気になる動き・気づきを1本に集約） ---- */
   .feed-row.read { opacity: 0.45; }
   .feed-src { font-size: var(--fs-cap); color: var(--ink-soft); border: 1px solid var(--rule); border-radius: 3px; padding: 0 5px; margin-right: 7px; white-space: nowrap; vertical-align: 2px; }
   .feed-read-btn { flex-shrink: 0; align-self: center; border: 1px solid var(--rule); background: var(--paper-raised); color: var(--ink-soft); font: inherit; font-size: var(--fs-cap); border-radius: 999px; padding: 3px 10px; cursor: pointer; }
@@ -1460,22 +1460,6 @@
         </div>
       </div>
 
-      <div class="card panel hidden" id="pointsCard">
-        <div class="panel-head">
-          <div class="section-title serif">ポイント残高</div>
-          <div class="sub-meta" id="pointsMeta"></div>
-        </div>
-        <div id="pointsBody"></div>
-        <div class="cash-note" id="pointsNote"></div>
-      </div>
-      <div class="card panel" id="portalCard">
-        <div class="panel-head">
-          <div class="section-title serif">ポータル</div>
-          <div class="sub-meta" id="portalMeta"></div>
-        </div>
-        <div id="portalBody"></div>
-      </div>
-
       <div class="card panel outlook-card" id="outlookCard" role="button" tabindex="0" aria-label="90日の見通し：資金繰り予測を開く">
         <div class="panel-head">
           <div class="section-title serif">90日の見通し</div>
@@ -1524,8 +1508,24 @@
           <div class="autocheck-count num" id="autoCheckCount">—</div>
           <div id="autoCheckTop" style="font-size:14px;color:var(--ink-soft);"></div>
         </div>
-        <div class="cash-note">健康診断・異常値・月次チェックの結果</div>
+        <div class="cash-note">健康診断・異常値の結果</div>
       </div>
+      </div>
+
+      <div class="card panel hidden" id="pointsCard">
+        <div class="panel-head">
+          <div class="section-title serif">ポイント残高</div>
+          <div class="sub-meta" id="pointsMeta"></div>
+        </div>
+        <div id="pointsBody"></div>
+        <div class="cash-note" id="pointsNote"></div>
+      </div>
+      <div class="card panel" id="portalCard">
+        <div class="panel-head">
+          <div class="section-title serif">ポータル</div>
+          <div class="sub-meta" id="portalMeta"></div>
+        </div>
+        <div id="portalBody"></div>
       </div>
 
       <div class="card panel qgroup" id="overviewGroupSchedule">
@@ -7340,8 +7340,10 @@ function svgEl(tag, attrs) {
     return head.concat(rest);
   }
 
-  // 診断系4機能（家計の健康診断／気づき／今月の気になる動き／月次チェック）の計算結果を
+  // 診断系3機能（家計の健康診断／気づき／今月の気になる動き）の計算結果を
   // フィード項目の配列に集約する。計算は各機能の既存の計算関数をそのまま使う（描画はしない）。
+  // 月次チェックは混ぜない（M7：結果のホームは決算タブに一本化。ホームで月次チェック由来の
+  // 表示は、表紙カードの「決算までの残り作業」件数だけ）。
   function buildInsightFeedItems() {
     const out = [];
     // 家計の健康診断：先頭サマリ＋個別項目
@@ -7375,17 +7377,11 @@ function svgEl(tag, attrs) {
           detail: `${when}：これまでの取引に出てこないお店での高額支出`, value: YEN(x.amount), drill: { store: x.store } }));
       }
     } catch (e) { console.error("気になる動きの計算に失敗", e); }
-    // 月次チェック（各項目のアクションもそのまま運ぶ）
-    let monthCheck = null;
-    try {
-      monthCheck = xMonthChecks();
-      monthCheck.checks.forEach((c) => out.push({ id: "month:" + c.title, readKey: `month:${c.title}@${monthCheck.range.key}`, source: "月次チェック", level: c.status, title: c.title, detail: c.detail, act: c.act }));
-    } catch (e) { console.error("月次チェックの計算に失敗", e); }
-    return { items: sortInsightFeedItems(out), monthCheck };
+    return { items: sortInsightFeedItems(out) };
   }
 
   // ===== 気づきフィードの既読の永続化 =====
-  // 既読キーは項目の id を基本とし、今月の動き・月次チェックは対象の会計月（range.key）を
+  // 既読キーは項目の id を基本とし、今月の動きは対象の会計月（range.key）を
   // 付けた readKey を使う（月が替われば新しい気づきとして未読に戻る）。
   const INSIGHT_FEED_READ_KEY = "zaimLedgerInsightFeedRead";
   const INSIGHT_FEED_INITIAL = 5;   // フィードの初期表示件数（サマリを除く）
@@ -7416,18 +7412,14 @@ function svgEl(tag, attrs) {
     loadInsightFeedRead();
     host.innerHTML = "";
     const metaEl = document.getElementById("insightFeedMeta");
-    const { items, monthCheck } = buildInsightFeedItems();
+    const { items } = buildInsightFeedItems();
     const marks = { ok: "✓", good: "✓", warn: "!", info: "i" };
     const keyOf = insightFeedKeyOf;
     const validKeys = new Set(items.filter((x) => !x.summary).map(keyOf));
     const unread = items.filter((x) => !x.summary && !state.insightFeedRead.has(keyOf(x))).length;
     const meta = [];
-    if (monthCheck && monthCheck.warnN) meta.push(`月次チェック：要確認 ${monthCheck.warnN}件`);
     if (unread) meta.push(`未読 ${unread}件`);
-    if (metaEl) {
-      metaEl.textContent = meta.join("　");
-      metaEl.style.color = monthCheck && monthCheck.warnN ? "var(--red)" : "";
-    }
+    if (metaEl) metaEl.textContent = meta.join("　");
     if (items.length === 0) { host.appendChild(emptyState("いまは目立った気づきはありません")); return; }
     const summaries = items.filter((x) => x.summary);
     const rest = items.filter((x) => !x.summary);
@@ -7551,8 +7543,9 @@ function svgEl(tag, attrs) {
       : "状態と残り作業は月次チェック（決算タブ）の集計です。タップすると決算タブへ移動します。";
   }
 
-  // フェーズ帯：会計月の進捗と、その月の未完了チェック（未分類などの要対応項目）を最大3件。
-  // 項目の並びとアクションは月次チェックのものをそのまま使う（warn→info の順）。
+  // フェーズ帯：会計月の進捗とフェーズだけを示す。未完了チェックの項目は出さない
+  // （M7：月次チェック結果のホームは決算タブに一本化。ホームで月次チェック由来の表示は
+  // 表紙カードの残り作業数だけ）。
   function renderPhaseBand() {
     const meta = document.getElementById("phaseMeta");
     const fill = document.getElementById("phaseFill");
@@ -7562,35 +7555,7 @@ function svgEl(tag, attrs) {
     if (meta) meta.textContent = `${cycleLabel(info.bounds.key)} ${info.dayN}日目／給与日まであと${info.daysToPayday}日`;
     if (fill) fill.style.width = Math.round(info.ratio * 100) + "%";
     host.textContent = "";
-    host.appendChild(el("div", { class: "cash-note", style: "margin:0 0 4px;" }, [`フェーズ：${info.phase.label}`]));
-    let mc = null;
-    try { mc = xMonthChecks(); } catch (e) { mc = null; }
-    const marks = { ok: "✓", warn: "!", info: "i" };
-    const pend = mc ? mc.checks.filter((c) => c.status !== "ok")
-      .sort((a, b) => (a.status === "warn" ? 0 : 1) - (b.status === "warn" ? 0 : 1)).slice(0, 3) : [];
-    if (!pend.length) {
-      host.appendChild(el("div", { class: "x-check" }, [
-        el("div", { class: "x-mark ok" }, ["✓"]),
-        el("div", { class: "x-body" }, [el("div", { class: "x-title" }, ["いま確認が必要な項目はありません"])]),
-      ]));
-      return;
-    }
-    pend.forEach((c) => {
-      const row = el("div", { class: "x-check" }, [
-        el("div", { class: "x-mark " + c.status }, [marks[c.status] || "i"]),
-        el("div", { class: "x-body" }, [
-          el("div", { class: "x-title" }, [c.title]),
-          c.detail ? el("div", { class: "x-detail" }, [c.detail]) : null,
-        ]),
-      ]);
-      if (c.act) {
-        row.appendChild(el("button", { class: "btn", type: "button", style: "cursor:pointer;flex-shrink:0;", onclick: c.act[1] }, [c.act[0]]));
-      } else {
-        row.style.cursor = "pointer";
-        row.addEventListener("click", goClosingChecks);
-      }
-      host.appendChild(row);
-    });
+    host.appendChild(el("div", { class: "cash-note", style: "margin:0;" }, [`フェーズ：${info.phase.label}`]));
   }
 
   // 自動点検カード：気づきフィードと同じ集約（buildInsightFeedItems）から、点検の状態だけを要約する。
@@ -8795,7 +8760,7 @@ function svgEl(tag, attrs) {
     dlEl.textContent = parts.join("／");
   }
 
-  // 決算タブの「月次チェック」単独表示。計算は気づきフィードと同じ xMonthChecks() を使い、
+  // 決算タブの「月次チェック」単独表示。計算は xMonthChecks() を使い、
   // 項目のアクション（明細を見る／重複を確認する）もそのままボタンとして出す
   function renderMonthCheckPanel() {
     const host = document.getElementById("monthCheckList");
@@ -12247,7 +12212,7 @@ function svgEl(tag, attrs) {
     return { range, insufficient: false, cats, stores };
   }
   // ---------- 月次チェック ----------
-  // 月次チェックの計算だけを行う（描画はしない。気づきフィードが使う）。
+  // 月次チェックの計算だけを行う（描画はしない。決算タブと表紙カードが使う）。
   // 戻り値の checks は元パネルの1項目分（status / title / detail / act=[ラベル, 関数]）をそのまま保持する。
   function xMonthChecks() {
     const range = periodRangeForMode("month", state.periodAnchor, 0);
