@@ -56,7 +56,7 @@
        値はすべて現行の実値に一致させてあり、S1 では見た目を変えない（参照先の一本化のみ）。
        新規の font-size・余白はこのスケールから選ぶこと。12px は既存の密な表に限り存続可とし、
        --fs-cap 未満の新規使用は禁止。スケール外の既存値（26px・18px・14.5px 等）は段階適用のため当面存続する。 */
-    --fs-display: clamp(42px, 9vw, 60px); /* 主役ヒーローの数字のみ（現 .hero-value の実値。設計案 2.2 の目標 clamp(40px, 9vw, 56px) へは S2 のヒーロー統合時に変更する） */
+    --fs-display: clamp(40px, 9vw, 56px); /* 主役ヒーローの数字のみ（設計案 2.2 の目標値。S2 のヒーロー統合で適用） */
     --fs-num-lg: 29.5px; /* カードの主数字（現 .summary-value） */
     --fs-num-md: 20px;   /* 行の金額（.spend-amt 22px を寄せる先。S1 では定義のみで未適用） */
     --fs-title: 17.5px;  /* カード見出し（現 .section-title） */
@@ -989,6 +989,18 @@
   .hero-spark { margin-top: var(--sp-2); }
   .hero-mini-link { cursor: pointer; }
   .hero-mini-link:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  /* ---- UX再構築 Stage S2：ホーム帯再編（統合ヒーロー／今日の確認／次回の引落） ---- */
+  /* 統合ヒーロー：総資産・今日使える額・現金預金/予測残高を1枚にまとめ、内側は区切り線で分ける */
+  .hero-unified > .hero-card { background: transparent; border: none; border-radius: 0; box-shadow: none; padding: 0; margin-bottom: 0; }
+  .hero-unified > #heroCard { border-top: 1px solid var(--rule); margin-top: var(--sp-5); padding-top: var(--sp-5); }
+  .hero-unified > #heroCard .hero-value { font-size: var(--fs-num-lg); }
+  .hero-unified > .hero-mini { margin-top: var(--sp-5); margin-bottom: 0; }
+  .hero-def { font-size: var(--fs-cap); color: var(--ink-faint); line-height: var(--lh-note); margin-top: 2px; }
+  /* 今日の確認：内包する旧カード群を1枚の中の節として平らにし、節間は区切り線で分ける */
+  .today-check-card > .card.panel { background: transparent; border: none; border-radius: 0; box-shadow: none; padding: 0; margin-bottom: 0; }
+  .today-check-card > .today-sec + .today-sec { border-top: 1px solid var(--rule); margin-top: var(--sp-4); padding-top: var(--sp-4); }
+  /* 次回の引落：詳細（全件）の展開トグル */
+  .debit-toggle { margin-top: var(--sp-3); }
   .cal-range { font-size: 13px; color: var(--ink-soft); }
   .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
   .cal-dow { font-size: 12px; color: var(--ink-soft); text-align: center; padding-bottom: 2px; }
@@ -1320,65 +1332,18 @@
 
       <div class="tab-page" id="tabOverview">
 
-      <div class="card panel cover-card" id="docCoverCard" role="button" tabindex="0" aria-label="今月のドキュメント：決算タブを開く">
-        <div class="cover-top">
-          <div class="section-title serif">今月のドキュメント</div>
-          <div class="sub-meta" id="docCoverMeta"></div>
-        </div>
-        <div class="cover-life" id="docCoverLife"></div>
-        <div class="cash-note" id="docCoverNote" style="margin-top:6px;"></div>
-      </div>
+      <div class="fresh-strip" id="freshStrip"></div>
 
-      <div class="card panel" id="phaseBandCard">
-        <div class="panel-head">
-          <div class="section-title serif">今日の確認</div>
-          <div class="sub-meta" id="phaseMeta"></div>
-        </div>
-        <div class="phase-track"><div class="phase-fill" id="phaseFill" style="width:0%"></div></div>
-        <div id="phaseChecks"></div>
-      </div>
-
+      <div class="card panel hero-unified" id="heroUnified">
       <div class="card panel hero-card" id="assetsHeroCard" role="group" aria-label="総資産">
         <div class="hero-label">総資産</div>
         <div class="hero-value serif num" id="assetsHeroValue">—</div>
         <div class="hero-sub num" id="assetsHeroSub"></div>
+        <div class="hero-def">資産から負債を差し引いた純資産</div>
         <div id="assetsHeroMvRow" style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <label style="cursor:pointer; font-size:14px;"><input type="checkbox" id="assetsHeroMV" checked> 証券を時価で表示</label>
           <span id="assetsHeroGain" style="font-size:13px;color:var(--ink-soft);"></span>
         </div>
-      </div>
-
-      <div class="card panel" id="insightFeedPanel">
-        <div class="panel-head">
-          <div class="section-title serif">気づきフィード</div>
-          <div class="sub-meta" id="insightFeedMeta"></div>
-        </div>
-        <div id="insightFeedList"></div>
-      </div>
-
-      <div class="card panel autocheck-card" id="autoCheckCard" role="button" tabindex="0" aria-label="自動点検：気づきフィードへ移動">
-        <div class="panel-head">
-          <div class="section-title serif">自動点検</div>
-          <div class="sub-meta" id="autoCheckMeta"></div>
-        </div>
-        <div class="autocheck-main">
-          <div class="autocheck-count num" id="autoCheckCount">—</div>
-          <div id="autoCheckTop" style="font-size:14px;color:var(--ink-soft);"></div>
-        </div>
-      </div>
-
-      <div class="ask-wrap no-print" id="askWrap">
-        <form class="ask-form" id="askForm" autocomplete="off">
-          <input id="askInput" type="text" enterkeyhint="send" placeholder="台帳に聞く　例：来月末の残高　先月の食費" aria-label="台帳への問いかけ">
-          <button type="submit" class="ask-go">聞く</button>
-        </form>
-        <div class="ask-chips">
-          <button type="button" class="ask-chip" data-ask="来月末の残高">来月末の残高</button>
-          <button type="button" class="ask-chip" data-ask="先月の支出">先月の支出</button>
-          <button type="button" class="ask-chip" data-ask="来月に10万円の買い物">来月に10万円の買い物</button>
-          <button type="button" class="ask-chip" data-ask="今日使える額">今日使える額</button>
-        </div>
-        <div id="askStack" aria-live="polite"></div>
       </div>
 
       <div class="card panel hero-card" id="heroCard" role="group" aria-label="今日使える額">
@@ -1387,6 +1352,7 @@
         <div class="hero-sub num" id="heroSub"></div>
         <div class="hero-track"><div class="spend-fill" id="heroFill" style="width:0%"></div></div>
         <div class="hero-foot num"><span id="heroUsed"></span><span id="heroLimit"></span></div>
+        <div class="hero-def">今月の残りを残り日数で割った1日分から、今日使った分を引いた額</div>
       </div>
 
       <div class="hero-mini" id="heroMini">
@@ -1394,40 +1360,29 @@
           <div class="hero-label">現金・預金</div>
           <div class="hero-mini-value serif num" id="heroBalVal">—</div>
           <div class="hero-mini-sub num" id="heroBalSub"></div>
+          <div class="hero-def">現金と預金口座の残高の合計</div>
         </div>
         <div class="card panel hero-mini-card hero-mini-link" id="heroFcCard" role="button" tabindex="0" aria-label="資金繰り予測を開く">
           <div class="hero-label" id="heroFcLabel">予測残高</div>
           <div class="hero-mini-value serif num" id="heroFcVal">—</div>
           <div class="hero-mini-sub num" id="heroFcSub"></div>
+          <div class="hero-def">給与・引落などを見込んだ月末残高の予測</div>
           <div class="hero-spark" id="heroFcSpark"></div>
         </div>
       </div>
+      </div>
 
-      <div class="card panel outlook-card" id="outlookCard" role="button" tabindex="0" aria-label="90日の見通し：資金繰り予測を開く">
+      <div class="card panel" id="debitSummaryCard">
         <div class="panel-head">
-          <div class="section-title serif">90日の見通し</div>
-          <div class="sub-meta" id="outlookMeta"></div>
+          <div class="section-title serif">次回の引落</div>
+          <div class="sub-meta" id="debitSummaryMeta"></div>
         </div>
-        <div id="outlookSpark"></div>
-        <div class="outlook-nums" id="outlookNums"></div>
-        <div id="outlookWhatIfRow"></div>
-        <div class="outlook-events" id="outlookEvents"></div>
-        <div class="cash-note" id="outlookNote"></div>
-      </div>
-      <div class="card panel hidden" id="pointsCard">
-        <div class="panel-head">
-          <div class="section-title serif">ポイント残高</div>
-          <div class="sub-meta" id="pointsMeta"></div>
+        <div id="debitSummaryBody"></div>
+        <button type="button" class="btn debit-toggle" id="debitDetailToggle" aria-expanded="false">引落の予定をすべて見る</button>
+        <div id="debitDetail" class="hidden">
+          <div class="sub-meta" id="cardScheduleMeta" style="margin:10px 0 4px;"></div>
+          <div id="cardScheduleBody"></div>
         </div>
-        <div id="pointsBody"></div>
-        <div class="cash-note" id="pointsNote"></div>
-      </div>
-      <div class="card panel" id="portalCard">
-        <div class="panel-head">
-          <div class="section-title serif">ポータル</div>
-          <div class="sub-meta" id="portalMeta"></div>
-        </div>
-        <div id="portalBody"></div>
       </div>
 
       <div class="card panel qgroup" id="overviewGroupFlow">
@@ -1441,15 +1396,6 @@
         </div>
         <div id="spendRows"></div>
         <div class="cash-note" id="spendNote"></div>
-      </div>
-
-      <div class="card panel cal-card" id="calPanel">
-        <div class="panel-head" style="margin-bottom:10px;">
-          <div class="section-title serif">日別の支出</div>
-          <div class="cal-range num" id="calRange"></div>
-        </div>
-        <div class="cal-grid" id="calGrid" role="group" aria-label="日別の支出カレンダー"></div>
-        <div class="cal-legend" aria-hidden="true"><span>少</span><i style="--t:0.08"></i><i style="--t:0.2"></i><i style="--t:0.32"></i><i style="--t:0.45"></i><span>多</span></div>
       </div>
 
       <div class="card panel" id="budgetPanel">
@@ -1485,12 +1431,74 @@
         </div>
       </div>
       <div class="cash-note" id="reconcileNote" style="margin:8px 2px 0;"></div>
-
-      <div class="card panel" id="periodComparePanel">
-        <div class="panel-head"><div class="section-title serif" id="periodCompareTitle">期間比較</div></div>
-        <div id="periodCompareTable"></div>
-      </div>
         </div>
+      </div>
+
+      <div class="card panel hidden" id="pointsCard">
+        <div class="panel-head">
+          <div class="section-title serif">ポイント残高</div>
+          <div class="sub-meta" id="pointsMeta"></div>
+        </div>
+        <div id="pointsBody"></div>
+        <div class="cash-note" id="pointsNote"></div>
+      </div>
+      <div class="card panel" id="portalCard">
+        <div class="panel-head">
+          <div class="section-title serif">ポータル</div>
+          <div class="sub-meta" id="portalMeta"></div>
+        </div>
+        <div id="portalBody"></div>
+      </div>
+
+      <div class="card panel outlook-card" id="outlookCard" role="button" tabindex="0" aria-label="90日の見通し：資金繰り予測を開く">
+        <div class="panel-head">
+          <div class="section-title serif">90日の見通し</div>
+          <div class="sub-meta" id="outlookMeta"></div>
+        </div>
+        <div id="outlookSpark"></div>
+        <div class="outlook-nums" id="outlookNums"></div>
+        <div id="outlookWhatIfRow"></div>
+        <div class="outlook-events" id="outlookEvents"></div>
+        <div class="cash-note" id="outlookNote"></div>
+      </div>
+
+      <div class="card panel today-check-card" id="todayCheckCard">
+        <div class="panel-head">
+          <div class="section-title serif">今日の確認</div>
+          <div class="sub-meta" id="phaseMeta"></div>
+        </div>
+      <div class="card panel cover-card today-sec" id="docCoverCard" role="button" tabindex="0" aria-label="今月のドキュメント：決算タブを開く">
+        <div class="cover-top">
+          <div class="section-title serif">今月のドキュメント</div>
+          <div class="sub-meta" id="docCoverMeta"></div>
+        </div>
+        <div class="cover-life" id="docCoverLife"></div>
+        <div class="cash-note" id="docCoverNote" style="margin-top:6px;"></div>
+      </div>
+
+      <div class="today-sec" id="phaseBandCard">
+        <div class="phase-track"><div class="phase-fill" id="phaseFill" style="width:0%"></div></div>
+        <div id="phaseChecks"></div>
+      </div>
+
+      <div class="card panel today-sec" id="insightFeedPanel">
+        <div class="panel-head">
+          <div class="section-title serif">気づきフィード</div>
+          <div class="sub-meta" id="insightFeedMeta"></div>
+        </div>
+        <div id="insightFeedList"></div>
+      </div>
+
+      <div class="card panel autocheck-card today-sec" id="autoCheckCard" role="button" tabindex="0" aria-label="自動点検：気づきフィードへ移動">
+        <div class="panel-head">
+          <div class="section-title serif">自動点検</div>
+          <div class="sub-meta" id="autoCheckMeta"></div>
+        </div>
+        <div class="autocheck-main">
+          <div class="autocheck-count num" id="autoCheckCount">—</div>
+          <div id="autoCheckTop" style="font-size:14px;color:var(--ink-soft);"></div>
+        </div>
+      </div>
       </div>
 
       <div class="card panel qgroup" id="overviewGroupSchedule">
@@ -1498,14 +1506,6 @@
           <div class="section-title serif">予定と契約</div>
         </div>
         <div class="qgroup-body">
-      <div class="card panel" id="cardSchedulePanel">
-        <div class="panel-head">
-          <div class="section-title serif">カード引落の予定</div>
-          <div class="sub-meta" id="cardScheduleMeta"></div>
-        </div>
-        <div id="cardScheduleBody"></div>
-      </div>
-
       <div class="card panel" id="subscriptionPanel">
         <div class="panel-head">
           <div class="section-title serif">定期支払い（サブスク）検出</div>
@@ -1515,7 +1515,34 @@
       </div>
         </div>
       </div>
-      <div class="fresh-strip" id="freshStrip"></div>
+
+      <div class="card panel cal-card" id="calPanel">
+        <div class="panel-head" style="margin-bottom:10px;">
+          <div class="section-title serif">日別の支出</div>
+          <div class="cal-range num" id="calRange"></div>
+        </div>
+        <div class="cal-grid" id="calGrid" role="group" aria-label="日別の支出カレンダー"></div>
+        <div class="cal-legend" aria-hidden="true"><span>少</span><i style="--t:0.08"></i><i style="--t:0.2"></i><i style="--t:0.32"></i><i style="--t:0.45"></i><span>多</span></div>
+      </div>
+
+      <div class="card panel" id="periodComparePanel">
+        <div class="panel-head"><div class="section-title serif" id="periodCompareTitle">期間比較</div></div>
+        <div id="periodCompareTable"></div>
+      </div>
+
+      <div class="ask-wrap no-print" id="askWrap">
+        <form class="ask-form" id="askForm" autocomplete="off">
+          <input id="askInput" type="text" enterkeyhint="send" placeholder="台帳に聞く　例：来月末の残高　先月の食費" aria-label="台帳への問いかけ">
+          <button type="submit" class="ask-go">聞く</button>
+        </form>
+        <div class="ask-chips">
+          <button type="button" class="ask-chip" data-ask="来月末の残高">来月末の残高</button>
+          <button type="button" class="ask-chip" data-ask="先月の支出">先月の支出</button>
+          <button type="button" class="ask-chip" data-ask="来月に10万円の買い物">来月に10万円の買い物</button>
+          <button type="button" class="ask-chip" data-ask="今日使える額">今日使える額</button>
+        </div>
+        <div id="askStack" aria-live="polite"></div>
+      </div>
       </div>
 
       <div class="tab-page hidden" id="tabClosing">
@@ -7697,7 +7724,7 @@ function svgEl(tag, attrs) {
     return m ? `ラム確認 ${Number(m[2])}/${Number(m[3])}` : "ラム確認";
   }
 
-  // ===== Stage Q-2：ポータル集約（オルカン最新値・次回引落・給与導線） =====
+  // ===== Stage Q-2：ポータル集約（オルカン最新値・給与導線。次回引落は S2 で要約カードへ分離） =====
   // 既存データの読み取り専用ダイジェスト。新しい計算は作らず、欠けたブロックは静かに省く。
   // payslip 行だけは静的リンクなので、他のブロックが無くてもカードは常設する。
   function orukanLatestDigest() {
@@ -7729,7 +7756,6 @@ function svgEl(tag, attrs) {
     const body = document.getElementById("portalBody");
     if (!body) return;
     body.textContent = "";
-    const MD = (d) => `${d.getMonth() + 1}/${d.getDate()}`;
     // ① オルカン（全世界株式）の最新値
     let orukan = null;
     try { orukan = orukanLatestDigest(); } catch (e) { orukan = null; }
@@ -7737,21 +7763,51 @@ function svgEl(tag, attrs) {
       const gainText = (orukan.gain < 0 ? "−" : "+") + YEN(Math.abs(orukan.gain));
       body.appendChild(el("div", { class: "po-line" }, [`オルカン（全世界株式）　評価額 ${YEN(orukan.marketValue)}（評価損益 ${gainText}）・${orukan.md} 時点`]));
     }
-    // ② 次回の引落（最大3件＋合計は全件分）
-    let pay = null;
-    try { pay = nextCardPaymentsDigest(); } catch (e) { pay = null; }
-    if (pay) {
-      body.appendChild(el("div", { class: "po-head" }, ["次回の引落"]));
-      pay.rows.slice(0, 3).forEach((x) => body.appendChild(el("div", { class: "pt-row" }, [
-        el("span", null, [`${MD(x.it.settle)} ${x.account}`]),
-        el("span", { class: "num" }, [YEN(x.it.amount)]),
-      ])));
-      if (pay.rows.length > 3) body.appendChild(el("div", { class: "pt-row" }, [el("span", null, [`他 ${pay.rows.length - 3} 件`])]));
-      body.appendChild(el("div", { class: "pt-row pt-total" }, [el("span", null, ["合計"]), el("span", { class: "num" }, [YEN(pay.total)])]));
-      body.appendChild(el("div", { class: "cash-note" }, ["詳細は下の『カード引落の予定』に"]));
-    }
+    // ② 次回の引落は S2 で帯1の要約カード（debitSummaryCard / renderDebitSummary）へ分離した。
+    //    ポータルはオルカン＋給与導線のダイジェストに専念する。
     // ③ 給与明細シミュレータへの導線（サイドバーと同じ文言・同一タブ遷移）
     body.appendChild(el("div", { class: "po-link-row" }, [el("a", { href: "payslip.html", class: "po-link" }, ["給与明細シミュレータ ↗"])]));
+  }
+
+  // ===== UX再構築 Stage S2：次回の引落（帯1の要約カード） =====
+  // データは nextCardPaymentsDigest（各カードの次回引落・金額>0 の選択、ポータル時代と同じ）を使う。
+  // 詳細（全件）はこのカード内の展開領域に renderCardSchedulePanel が描く（旧ホーム詳細版
+  // 「カード引落の予定」の置き換え＝1情報1ホーム：要約はホーム先頭、詳細は要約カード内）。
+  function renderDebitSummary() {
+    const card = document.getElementById("debitSummaryCard");
+    if (!card) return;
+    const toggle = document.getElementById("debitDetailToggle");
+    const detail = document.getElementById("debitDetail");
+    if (toggle && detail && !toggle.dataset.bound) {
+      toggle.dataset.bound = "1";
+      toggle.addEventListener("click", () => {
+        const open = detail.classList.contains("hidden");
+        detail.classList.toggle("hidden", !open);
+        toggle.setAttribute("aria-expanded", open ? "true" : "false");
+        toggle.textContent = open ? "引落の予定を閉じる" : "引落の予定をすべて見る";
+      });
+    }
+    const meta = document.getElementById("debitSummaryMeta");
+    const body = document.getElementById("debitSummaryBody");
+    if (!body) return;
+    body.textContent = "";
+    let pay = null;
+    try { pay = nextCardPaymentsDigest(); } catch (e) { pay = null; }
+    if (!pay) {
+      if (meta) meta.textContent = "";
+      body.appendChild(el("div", { class: "cash-note" }, ["直近の引落予定はありません"]));
+      return;
+    }
+    const MDW = (d) => `${d.getMonth() + 1}/${d.getDate()}(${"日月火水木金土"[d.getDay()]})`;
+    const first = pay.rows[0];
+    const days = Math.round((startOfDay(first.it.settle) - startOfDay(new Date())) / 86400000);
+    if (meta) meta.textContent = days <= 0 ? `今日（${MDW(first.it.settle)}）` : `あと${days}日（${MDW(first.it.settle)}）`;
+    pay.rows.slice(0, 3).forEach((x) => body.appendChild(el("div", { class: "pt-row" }, [
+      el("span", null, [`${MDW(x.it.settle)} ${x.account}`]),
+      el("span", { class: "num" }, [YEN(x.it.amount)]),
+    ])));
+    if (pay.rows.length > 3) body.appendChild(el("div", { class: "pt-row" }, [el("span", null, [`他 ${pay.rows.length - 3} 件`])]));
+    body.appendChild(el("div", { class: "pt-row pt-total" }, [el("span", null, ["合計"]), el("span", { class: "num" }, [YEN(pay.total)])]));
   }
 
   // ===== Stage G-3：記憶層（分析タブ）＝同期スナップショットと証券の時価履歴を読むだけ =====
@@ -7943,6 +7999,7 @@ function svgEl(tag, attrs) {
     try { renderOutlookBand(); } catch (e) { console.error("90日見通しの表示に失敗", e); }
     try { renderPointsCard(); } catch (e) { console.error("ポイントカードの表示に失敗", e); }
     try { renderPortalCard(); } catch (e) { console.error("ポータルカードの表示に失敗", e); }
+    try { renderDebitSummary(); } catch (e) { console.error("次回引落の表示に失敗", e); }
     try { renderFreshnessStrip(); } catch (e) { console.error("データ鮮度ストリップの表示に失敗", e); }
   }
 
