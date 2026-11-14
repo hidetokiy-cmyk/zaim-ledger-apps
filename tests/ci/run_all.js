@@ -9,6 +9,7 @@ const TESTS = [
   'unit_forecast_h1.js',
   'unit_forecast_h2.js',
   'unit_salary_model.js',
+  'unit_outlook_m2.js',
   'boot_smoke.js',
 ];
 
