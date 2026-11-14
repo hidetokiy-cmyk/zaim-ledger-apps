@@ -2093,6 +2093,7 @@
           <button id="salaryNetSaveBtn" class="btn" type="button" style="cursor:pointer; white-space:nowrap;">保存</button>
           <span id="salaryNetMsg" class="cash-note"></span>
         </div>
+        <div id="salaryNetState" class="cash-note" style="margin-top:6px;"></div>
 
         <div class="modal-section-title" style="margin-top:20px;">配当・分配金（手入力）</div>
         <div class="field-hint" style="margin-top:8px;">税引後の受取額と受取月を入れると、その月の収入として予測に足します。</div>
@@ -5603,6 +5604,23 @@ if (knownCycle) {
       return Number.isFinite(n) && n >= 0 ? n : SALARY_NET_DEFAULT;
     } catch (e) { return SALARY_NET_DEFAULT; }
   }
+  // 給与前提が「明示的に保存された値」かどうか（M1）。未保存でも実効値は初期値
+  // SALARY_NET_DEFAULT になるため、値だけでは未設定と初期値ちょうどの設定を区別できない。
+  // 保存済みの端末では保存値がそのまま「設定済み」になり、未保存の端末だけが未設定になる。
+  function salaryNetIsSet() {
+    try {
+      const raw = localStorage.getItem(SALARY_NET_LS_KEY);
+      if (raw == null) return false;
+      const n = Math.round(Number(raw));
+      return Number.isFinite(n) && n >= 0;
+    } catch (e) { return false; }
+  }
+  // 前提ペインの給与欄に、未設定（初期値で計算している）ときだけその旨を表示する。
+  function renderSalaryNetState() {
+    const st = document.getElementById("salaryNetState");
+    if (!st) return;
+    st.textContent = salaryNetIsSet() ? "" : `未設定（初期値 ${YEN(SALARY_NET_DEFAULT)} で計算中）`;
+  }
   function saveSalaryNetAssumption(v) {
     try { localStorage.setItem(SALARY_NET_LS_KEY, String(v)); return true; } catch (e) { return false; }
   }
@@ -5683,6 +5701,7 @@ if (knownCycle) {
   function refreshAssumptionInputs() {
     wireForecastUi();
     renderDividendList();
+    renderSalaryNetState();
     const salInput = document.getElementById("salaryNetInput");
     if (salInput && document.activeElement !== salInput) salInput.value = String(salaryNetStoredValue());
   }
@@ -5712,6 +5731,7 @@ if (knownCycle) {
       if (!Number.isFinite(v) || v < 0) { msg.textContent = "0以上の金額を入れてください（0で実績ベース推計に戻ります）。"; return; }
       if (!saveSalaryNetAssumption(v)) { msg.textContent = "保存できませんでした（このブラウザでは保存が使えない状態です）。"; return; }
       msg.textContent = v > 0 ? `保存しました。給与見込みを月 ${YEN(v)} で計算します。` : "保存しました。給与見込みは実績ベース推計に戻ります。";
+      renderSalaryNetState();
       renderForecastPanel();
     });
     document.getElementById("forecastCopyBtn").addEventListener("click", async () => {
