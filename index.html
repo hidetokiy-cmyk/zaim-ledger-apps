@@ -130,6 +130,8 @@
 
   .sidebar-section { padding: 16px 22px 4px; }
   .sidebar-section-label { font-size: 12.5px; letter-spacing: .14em; color: var(--side-mute); margin-bottom: 9px; display:flex; align-items:center; justify-content:space-between; }
+  /* S7：勘定科目／小勘定の用語併記キャプション */
+  .side-cap { font-size: var(--fs-cap); color: var(--side-mute); line-height: var(--lh-note); margin: -4px 0 7px; }
   .level-toggle { display:flex; gap:2px; background:rgba(var(--side-tint-rgb),0.06); border-radius:4px; padding:2px; }
   .level-toggle { flex-shrink:0; }
   .level-toggle button { flex:1 1 auto; background:none; border:none; color:var(--side-mute); font-size:13.5px; padding:4px 8px; cursor:pointer; border-radius:3px; white-space:nowrap; }
@@ -399,6 +401,8 @@
   @media (max-width: 640px) { .summary-grid { grid-template-columns: 1fr; } }
   .summary-card { padding: 17px 18px; }
   .summary-label { display: flex; align-items: center; gap: 6px; font-size: var(--fs-sub); color: var(--ink-soft); }
+  /* S7：指標カードの定義1行（.hero-def と同じ体裁） */
+  .summary-def { font-size: var(--fs-cap); color: var(--ink-faint); line-height: var(--lh-note); margin-top: var(--sp-1); }
   .summary-value-row { display: flex; align-items: baseline; gap: 10px; margin-top: var(--sp-2); }
   .summary-value { font-size: var(--fs-num-lg); }
   .delta { font-size: 14px; padding: 2px 6px; border-radius: 3px; }
@@ -1230,6 +1234,7 @@
           <button data-level="sub">小勘定</button>
         </span>
       </div>
+      <div class="side-cap">勘定科目＝大分類、小勘定＝小分類</div>
       <div class="cat-nav" id="catNav"></div>
     </div>
 
@@ -1520,6 +1525,7 @@
           <div class="autocheck-count num" id="autoCheckCount">—</div>
           <div id="autoCheckTop" style="font-size:14px;color:var(--ink-soft);"></div>
         </div>
+        <div class="cash-note">健康診断・今月の異常値・月次チェックなどを自動で点検した結果です</div>
       </div>
       </div>
 
@@ -1703,6 +1709,7 @@
             <span><span class="swatch" style="background:var(--red)"></span>赤字</span>
           </div>
           <div class="line-chart" id="monthChart"></div>
+          <div class="cash-note">損益ベース＝現金の出入りではなく、発生した時点で数えた収益・費用（前払いの按分分などを含む）</div>
         </div>
 
       <div class="card panel">
@@ -1726,7 +1733,7 @@
         <div style="font-size:13px;color:var(--ink-soft);margin-top:6px;">証券スクレイピングを取り込むたびに、その日の時価・取得原価を履歴に残します。</div>
       </div>
       <div class="card panel" id="memoryLayerPanel">
-        <div class="panel-head"><div class="section-title serif">残高の履歴（アプリの記憶層）</div></div>
+        <div class="panel-head"><div class="section-title serif">残高の履歴（アプリの記憶層）</div><div class="sub-meta">同期のたびに保存していく残高の記録</div></div>
         <div id="memoryLayerBody"></div>
       </div>
         </div>
@@ -1838,14 +1845,17 @@
           <div class="card summary-card">
             <div class="summary-label">貯蓄率</div>
             <div class="summary-value-row"><div class="summary-value num serif" id="ratioSavingsVal">—</div></div>
+            <div class="summary-def">収益のうち、貯蓄（当期純利益）に回った割合</div>
           </div>
           <div class="card summary-card">
             <div class="summary-label">固定費比率</div>
             <div class="summary-value-row"><div class="summary-value num serif" id="ratioFixedVal">—</div></div>
+            <div class="summary-def">直近12か月の平均月収のうち、定期支払い（固定費）が占める割合</div>
           </div>
           <div class="card summary-card">
             <div class="summary-label">流動比率</div>
             <div class="summary-value-row"><div class="summary-value num serif" id="ratioCurrentVal">—</div></div>
+            <div class="summary-def">現金・預金 ÷ 負債（カード未払・未払費用・借入金）の合計。100%以上が目安</div>
           </div>
         </div>
       </div>
@@ -9528,6 +9538,8 @@ function svgEl(tag, attrs) {
       }
       pActive.forEach((s) => listEl.appendChild(buildPrepaidRow(s, false)));
       pEnded.forEach((s) => listEl.appendChild(buildPrepaidRow(s, true)));
+      // S7：用語併記（按分・カバーの意味を脚注で補う）
+      listEl.appendChild(el("div", { class: "cash-note" }, ["按分：一括払いの金額を、使える期間に分けて少しずつ費用にすること。カバー：その一括払いでまかなえる期間のこと。"]));
     }
   }
 
