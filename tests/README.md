@@ -13,6 +13,7 @@ PR と main への push で GitHub Actions（`.github/workflows/test.yml`）が�
 | `unit_design_tokens.js` | デザイントークン（CSS変数）の定義値と基幹クラスの参照、タップ領域・文字サイズの底上げ（UX再構築 S1/S6） |
 | `unit_forecast_h1.js` | H1：資金繰り予測の平均母集団から進行中の会計月を外すこと、完了月不足時のフォールバック |
 | `unit_forecast_h2.js` | H2：カード決済の「基礎額」が予測の固定費に計上され、実績集計と一致すること |
+| `unit_forecast_h4.js` | H4：資金繰り予測のメモ化（同一入力で実計算が再実行されないこと、入力変更で再計算されること） |
 | `unit_salary_model.js` | 給与前提（契約手取り）の初期値・フォールバック、定期券（交通費精算）の検出と補完、予測への反映 |
 | `boot_smoke.js` | jsdom 実起動のスモーク：合成データでアプリが起動し、ヒーロー・状態バー・引落要約が描画されること |
 | `fixtures_make.js` | 合成フィクスチャ生成器（上記が共用）。anchor 日を固定すれば決定的 |
@@ -58,8 +59,7 @@ python3 tests/local/regress79.py
 | `boot_assumptions_pane.js` | 設定モーダル「予測の前提」ペイン（S4）の保存反映 | |
 | `boot_external_points.js` | Zaim外ポイント（externalPoints）の表示統合 | |
 | `unit_freshness_alerts.js` | 鮮度・警告表示（S5）の状態注入テスト | 実 settings を土台に状態を注入する方式のためローカル専用 |
-| `unit_forecast_h4.js` | H4（予測メモ化）の検証 | **H4 未マージ（ブランチ fix-h4-forecast-memoize）前提**。main では宣言抽出に失敗して終了するのが正常。H4 マージ後は tests/ci/ へ移す |
-| `boot_debit_summary_status.js` | H3（引落要約の確定／見込みタグ）の検証 | **H3 未マージ（ブランチ fix-h3-debit-summary-status）前提**。main では要約タグの assert が落ちるのが正常 |
+| `boot_debit_summary_status.js` | H3（引落要約の確定／見込みタグ）の検証 | H3 は PR #37 でマージ済み。要約タグの描画確認は jsdom 実起動＋実データで行うためローカル専用のまま |
 | `regress79.py` | 過去79決済の引落再計算（Python 移植モデル） | 59/79 は Python 移植側の既知問題で、H5 の範囲外（別テーマ） |
 
 ### repo に入れていない検証（実額スナップショット）

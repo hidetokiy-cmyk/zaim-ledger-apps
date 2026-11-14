@@ -8,6 +8,7 @@ const TESTS = [
   'unit_design_tokens.js',
   'unit_forecast_h1.js',
   'unit_forecast_h2.js',
+  'unit_forecast_h4.js',
   'unit_salary_model.js',
   'boot_smoke.js',
 ];
