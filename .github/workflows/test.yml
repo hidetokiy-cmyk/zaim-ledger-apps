@@ -1,0 +1,25 @@
+# H5：テストを CI の関門にする。PR と main への push で、合成フィクスチャだけで
+# 完結するテスト群（tests/ci/）を実行する。実データ依存の検証は CI では回さない
+# （個人データを public repo に置けないため。tests/local/ + tests/README.md 参照）。
+# 既存の bump-sw-version ワークフロー（アプリファイル変更時のみ発火）とは独立。
+name: tests
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: tests/package-lock.json
+      - name: Install test deps
+        run: npm --prefix tests ci
+      - name: Run CI tests (synthetic fixtures only)
+        run: npm --prefix tests test
