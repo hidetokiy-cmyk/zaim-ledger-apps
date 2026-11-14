@@ -7917,8 +7917,10 @@ function svgEl(tag, attrs) {
     const first = pay.rows[0];
     const days = Math.round((startOfDay(first.it.settle) - startOfDay(new Date())) / 86400000);
     if (meta) meta.textContent = days <= 0 ? `今日（${MDW(first.it.settle)}）` : `あと${days}日（${MDW(first.it.settle)}）`;
+    // 締め済み／見込みの区別は詳細パネルと同じ判定（computeCardSchedule の closed＝利用期間の締め日を過ぎたか）。
+    // 要約でも同じタグを付け、締まった金額と途中経過の金額を取り違えないようにする。
     pay.rows.slice(0, 3).forEach((x) => body.appendChild(el("div", { class: "pt-row" }, [
-      el("span", null, [`${MDW(x.it.settle)} ${x.account}`]),
+      el("span", null, [`${MDW(x.it.settle)} ${x.account} `, x.it.closed ? el("span", { class: "bal-tag" }, ["締め済み"]) : el("span", { class: "bal-tag bal-tag-warn" }, ["見込み"])]),
       el("span", { class: "num" }, [YEN(x.it.amount)]),
     ])));
     if (pay.rows.length > 3) body.appendChild(el("div", { class: "pt-row" }, [el("span", null, [`他 ${pay.rows.length - 3} 件`])]));
