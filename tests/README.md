@@ -16,6 +16,7 @@ PR と main への push で GitHub Actions（`.github/workflows/test.yml`）が�
 | `unit_salary_model.js` | 給与前提（契約手取り）の初期値・フォールバック、定期券（交通費精算）の検出と補完、予測への反映 |
 | `unit_subscriptions_m3.js` | M3：サブスクの代表額（直近3件の中央値）と隔月判定（periodMonths）、予測の固定費への反映 |
 | `unit_card_cycle_m4.js` | M4：カード締め日推定の全出金モデル化と、既知ルールの口座名の空白ゆれ吸収 |
+| `unit_outlook_m2.js` | M2：90日見通しの前提統一（前払費用の按分を日割り支出から除く、配当を受取月の収入に数える） |
 | `boot_smoke.js` | jsdom 実起動のスモーク：合成データでアプリが起動し、ヒーロー・状態バー・引落要約が描画されること |
 | `fixtures_make.js` | 合成フィクスチャ生成器（上記が共用）。anchor 日を固定すれば決定的 |
 | `run_all.js` | 一括実行ランナー（`npm --prefix tests test`） |
