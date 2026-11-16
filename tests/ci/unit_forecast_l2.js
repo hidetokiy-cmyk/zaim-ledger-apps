@@ -65,7 +65,7 @@ const WANTED = [
   'subscriptionGroupKey', 'detectRecurrenceFreq', 'detectSubscriptions', 'detectSubscriptionsUncached', 'subscriptionTypicalAmount', 'detectInvestmentSubscriptions', 'manualFixedCostKey',
   'subsCache', 'subsCacheOn',
   'FORECAST_MONTHS_AHEAD', 'FORECAST_WINDOW_MIN', 'FORECAST_WINDOW_MAX', 'FORECAST_SEASONAL_MIN_MONTHS',
-  'computeForecastMonthlyHistory', 'forecastAvg', 'forecastStdev', 'computeForecast', 'computeForecastUncached', 'forecastDataKey', 'forecastCache',
+  'computeForecastMonthlyHistory', 'median', 'forecastAvg', 'forecastStdev', 'computeForecast', 'computeForecastUncached', 'forecastDataKey', 'forecastCache',
   'DIVIDEND_LS_KEY', 'loadDividends', 'SALARY_NET_LS_KEY', 'SALARY_NET_DEFAULT', 'PASS_PRICE_DEFAULT', 'loadSalaryNetAssumption',
   'passReimbursementMap', 'passReimbursementForKey', 'passReimbursementFilled', 'projectCardSettlementMonthKey',
   'sumCashFromMap', 'accountBalanceAsOfLabel', 'parseAsofDate',
