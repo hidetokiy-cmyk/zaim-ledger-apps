@@ -24,6 +24,7 @@ const TESTS = [
   'boot_payslip_const_history.js',
   'boot_unmatched_alert.js',
   'boot_outlook_collapse.js',
+  'boot_forecast_hybrid.js',
 ];
 
 let failed = 0;
