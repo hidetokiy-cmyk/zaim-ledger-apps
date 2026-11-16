@@ -5257,7 +5257,7 @@
   // 定期投資は移動平均ではなく検出結果をそのまま使うため、季節調整の対象は収入・変動費のみ）。
   const FORECAST_MONTHS_AHEAD = 6;
   const FORECAST_WINDOW_MIN = 3, FORECAST_WINDOW_MAX = 6;
-  const FORECAST_SEASONAL_MIN_MONTHS = 12;
+  const FORECAST_SEASONAL_MIN_MONTHS = 12;   // 季節ブレンド廃止により未使用（テストの抽出対象に残っているため定数は残す）
 
   // 予測対象はC/Fと同じ「現金及び現金同等物」（現金類・預金類。カード・投資資産・前払/預け金は含まない）
   function forecastIsCashAccount(name) { return name && CF_CASH_ACCOUNTS.has(name) && !settings.balanceExcludedAccounts.has(name); }
@@ -5726,11 +5726,12 @@ if (knownCycle) {
     lines.push("");
     lines.push("■ 予測の前提");
     if (f.basis) {
-      const avgPart = `直近${f.windowSize}か月の移動平均${f.seasonal ? "と前年同月の平均" : ""}`;
+      const avgPart = `直近${f.windowSize}か月の平均`;
+      const medPart = `直近${f.windowSize}か月の中央値`;
       const fixedPart = `固定費は検出した定期支払い（月額 ${YEN(f.basis.fixedMonthlyTotal)}${f.basis.fixedYearlyTotal ? `、年払い合計 ${YEN(f.basis.fixedYearlyTotal)}` : ""}）${f.basis.fixedCardBaseAvg ? `とカード決済の基礎額（月平均 ${YEN(Math.round(f.basis.fixedCardBaseAvg))}）` : ""}`;
       lines.push(f.basis.salaryAssumption != null
-        ? `- 給与は契約手取りの前提（月 ${YEN(f.basis.salaryAssumption)}・手入力）、変動費は${avgPart}、${fixedPart}`
-        : `- 給与・変動費は${avgPart}、${fixedPart}`);
+        ? `- 給与は契約手取りの前提（月 ${YEN(f.basis.salaryAssumption)}・手入力）、変動費は${medPart}、${fixedPart}`
+        : `- 給与は${avgPart}、変動費は${medPart}、${fixedPart}`);
     }
     const divs = loadDividends();
     if (divs.length) lines.push(`- 配当・分配金（手入力・税引後）：${divs.map((d) => `${d.name} ${YEN(d.amount)}×${d.months.map((x) => x + "月").join("・")}`).join("、")}`);
@@ -5854,13 +5855,13 @@ if (knownCycle) {
     const recentUsable = usable.slice(-windowSize);
     result.windowSize = recentUsable.length;
     result.windowMonths = recentUsable;
-    result.seasonal = usable.length >= FORECAST_SEASONAL_MIN_MONTHS;
-
-    // 収入（＝給与のみ）・変動費は直近実績の移動平均（＋季節調整）で見込む。投資・財務活動は、生の実績を平均すると
+    // 変動費の代表値は直近窓の中央値（一括支出の大きい月に引きずられないため）。収入（＝給与のみ）は
+    // 前提が無い場合に限り直近窓の平均を使う。季節ブレンド（前年同月との半々）は行わず、result.seasonal は常に false。
+    // 投資・財務活動は、生の実績を平均すると
     // 不定期なまとまった投資・払い出しに引きずられるため、代わりに下の「定期投資自動検出」の結果だけを使う。
     const recentVariable = recentUsable.map((m) => m.variable);
     const recentIncome = recentUsable.map((m) => m.income);
-    const baseVariableAvg = forecastAvg(recentVariable);
+    const baseVariableAvg = recentVariable.length ? median(recentVariable) : 0;   // 変動費の代表値＝中央値（フィールド名 variableAvg は互換のため維持）
     const baseIncomeAvg = forecastAvg(recentIncome);
     // カード決済の「基礎額」（サブスク外の継続的なカード支出。実績集計では固定費側に
     // 数えられている分＝ fixed − fixedCash − cardSub）は、サブスクではないため下の
@@ -5918,16 +5919,8 @@ if (knownCycle) {
       const key = yy + "-" + String(mm).padStart(2, "0");
 
       let incomeForecast = baseIncomeAvg, variableForecast = baseVariableAvg;
-      if (result.seasonal) {
-        const prevYearKey = (yy - 1) + "-" + String(mm).padStart(2, "0");
-        const prevYearRow = usable.find((h) => h.key === prevYearKey);
-        if (prevYearRow) {
-          incomeForecast = (prevYearRow.income + baseIncomeAvg) / 2;
-          variableForecast = (prevYearRow.variable + baseVariableAvg) / 2;
-        }
-      }
 
-      // 給与（契約手取り）の前提があれば、実績平均・季節ブレンドではなく前提額を標準月の給与とする
+      // 給与（契約手取り）の前提があれば、実績平均ではなく前提額を標準月の給与とする
       if (salaryAssumption != null) incomeForecast = salaryAssumption;
 
       // 配当・分配金（手入力）：受取月にその金額を収入へ足す
@@ -6256,10 +6249,8 @@ if (knownCycle) {
         const usedCount = forecast.usableCount;
     if (usedCount < 2) {
       noteEl.textContent = "実績データが足りません（会計月が2ヶ月以上必要）";
-    } else if (forecast.seasonal) {
-      noteEl.textContent = `実績${usedCount}ヶ月分・直近${forecast.windowSize}ヶ月の移動平均＋前年同月`;
     } else {
-      noteEl.textContent = `実績${usedCount}ヶ月分・直近${forecast.windowSize}ヶ月の移動平均（精度は低め）`;
+      noteEl.textContent = `実績${usedCount}ヶ月分・直近${forecast.windowSize}ヶ月（変動費は中央値）`;
     }
 
     // ---- 予測の前提（根拠）パネル：何をどれだけ見込んでいるかを金額・件数つきで明示する ----
@@ -6275,7 +6266,7 @@ if (knownCycle) {
         el("div", { class: "bal-row" }, [
           el("span", { class: "name" }, ["対象期間"]),
           el("span", { class: "amt num amt-wrap" }, [
-            `${rangeLabel}（${forecast.windowSize}ヶ月分の実績${forecast.seasonal ? "＋前年同月を半分の重みで加味" : ""}）`,
+            `${rangeLabel}（${forecast.windowSize}ヶ月分の実績）`,
           ]),
         ]),
         el("div", { class: "bal-row" }, [
@@ -6293,7 +6284,7 @@ if (knownCycle) {
           ]),
         ])] : []),
         el("div", { class: "bal-row" }, [
-          el("span", { class: "name" }, ["変動費見込み（月平均）"]),
+          el("span", { class: "name" }, ["変動費見込み（中央値）"]),
           el("span", { class: "amt num amt-wrap" }, [
             forecastDrillLabel(`${YEN(basis.variableAvg)}（${basis.variableRows.length}件の実績から算出）`, basis.variableRows, "変動費の実績（予測の根拠）"),
           ]),

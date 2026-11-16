@@ -1,7 +1,7 @@
 // H1（欠点修正）のユニット検証：資金繰り予測の平均母集団から進行中の会計月を外す。
 // 合成フィクスチャ（fixtures_make、asOf=2026-11-14 固定、進行中月=2026-10）で
 //   - 窓（basis.windowStartKey〜windowEndKey）に進行中月が含まれないこと
-//   - 変動費平均が「完了月の直近6ヶ月」の単純平均と一致すること
+//   - 変動費の代表値が「完了月の直近6ヶ月」の中央値と一致すること
 //   - usableCount が history 件数 − 1 になること
 // を確認し、合成データで
 //   - 完了月が2ヶ月以上あれば進行中月を除いた平均になること
@@ -66,7 +66,7 @@ const WANTED = [
   'subscriptionGroupKey', 'detectRecurrenceFreq', 'detectSubscriptions', 'detectSubscriptionsUncached', 'subscriptionTypicalAmount', 'detectInvestmentSubscriptions', 'manualFixedCostKey',
   'subsCache', 'subsCacheOn',
   'FORECAST_MONTHS_AHEAD', 'FORECAST_WINDOW_MIN', 'FORECAST_SEASONAL_MIN_MONTHS',
-  'computeForecastMonthlyHistory', 'forecastAvg', 'forecastStdev', 'computeForecast',
+  'computeForecastMonthlyHistory', 'median', 'forecastAvg', 'forecastStdev', 'computeForecast',
   'DIVIDEND_LS_KEY', 'loadDividends', 'SALARY_NET_LS_KEY', 'SALARY_NET_DEFAULT', 'PASS_PRICE_DEFAULT', 'loadSalaryNetAssumption',
   'passReimbursementMap', 'passReimbursementForKey', 'passReimbursementFilled', 'projectCardSettlementMonthKey',
   'sumCashFromMap', 'accountBalanceAsOfLabel', 'parseAsofDate',
@@ -145,8 +145,10 @@ check('history の末尾は進行中月（実績表は従来どおり進行中�
 check('usableCount = history 件数 − 1（進行中月だけが外れる）', fc.usableCount === hist.length - 1, fc.usableCount + ' vs ' + hist.length);
 const completedAsc = hist.filter((m) => m.key < currentKey);
 const win = completedAsc.slice(-fc.windowSize);
-const expectedVarAvg = win.reduce((t, m) => t + m.variable, 0) / win.length;
-check('変動費平均が完了月の窓の単純平均と一致', Math.abs(fc.basis.variableAvg - expectedVarAvg) < 0.01, fc.basis.variableAvg + ' vs ' + expectedVarAvg);
+const sortedVar = win.map((m) => m.variable).sort((a, b) => a - b);
+const midVar = Math.floor(sortedVar.length / 2);
+const expectedVarAvg = sortedVar.length % 2 !== 0 ? sortedVar[midVar] : (sortedVar[midVar - 1] + sortedVar[midVar]) / 2;
+check('変動費の代表値が完了月の窓の中央値と一致', Math.abs(fc.basis.variableAvg - expectedVarAvg) < 0.01, fc.basis.variableAvg + ' vs ' + expectedVarAvg);
 check('窓の開始キーが完了月の窓と一致', fc.basis.windowStartKey === win[0].key, fc.basis.windowStartKey + ' vs ' + win[0].key);
 const oldStyleAvg = hist.slice(-fc.windowSize).reduce((t, m) => t + m.variable, 0) / fc.windowSize;
 check('（参考）進行中月混入時の平均より下がらない＝楽観バイアスが消える方向', fc.basis.variableAvg >= oldStyleAvg, fc.basis.variableAvg + ' vs ' + oldStyleAvg);
@@ -172,13 +174,13 @@ const rowsFull = [
 state.transactions = rowsFull;
 const fcA = computeForecast();
 check('完了月2ヶ月：窓の末尾は完了月 2026-09', fcA.basis.windowEndKey === '2026-09', fcA.basis.windowEndKey);
-check('完了月2ヶ月：変動費平均 = (60,000+90,000)/2 = 75,000', Math.abs(fcA.basis.variableAvg - 75000) < 0.01, String(fcA.basis.variableAvg));
+check('完了月2ヶ月：変動費の中央値 = (60,000+90,000)/2 = 75,000', Math.abs(fcA.basis.variableAvg - 75000) < 0.01, String(fcA.basis.variableAvg));
 check('完了月2ヶ月：usableCount = 2', fcA.usableCount === 2, String(fcA.usableCount));
 // 完了月が 2026-09 のみの場合はフォールバック（進行中月も含める）
 state.transactions = rowsFull.filter((r) => r.acctMonthKey !== '2026-08');
 const fcB = computeForecast();
 check('完了月1ヶ月：フォールバックで窓の末尾が進行中月 2026-10', fcB.basis.windowEndKey === '2026-10', fcB.basis.windowEndKey);
-check('完了月1ヶ月：変動費平均 = (90,000+10,000)/2 = 50,000（従来動作）', Math.abs(fcB.basis.variableAvg - 50000) < 0.01, String(fcB.basis.variableAvg));
+check('完了月1ヶ月：変動費の中央値 = (90,000+10,000)/2 = 50,000（従来動作）', Math.abs(fcB.basis.variableAvg - 50000) < 0.01, String(fcB.basis.variableAvg));
 
 console.log('== 結果: pass ' + pass + ' / fail ' + fail + ' ==');
 if (fail) process.exit(1);

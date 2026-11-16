@@ -76,7 +76,7 @@ const WANTED = [
   // 資金繰り予測
   'DIVIDEND_LS_KEY', 'loadDividends',
   'FORECAST_MONTHS_AHEAD', 'FORECAST_WINDOW_MIN', 'FORECAST_WINDOW_MAX', 'FORECAST_SEASONAL_MIN_MONTHS',
-  'forecastAvg', 'forecastStdev', 'breakdownKeyForRow', 'subscriptionGroupKey',
+  'median', 'forecastAvg', 'forecastStdev', 'breakdownKeyForRow', 'subscriptionGroupKey',
   'detectSubscriptions', 'detectSubscriptionsUncached', 'subscriptionTypicalAmount', 'detectInvestmentSubscriptions',
   'subsCacheOn', 'subsCache', 'latestActualDate', 'isPrepaidAccount', 'isExcludedRow',
   'SUBSCRIPTION_EXCLUDED_CATEGORIES', 'SUB_GRACE_DAYS', 'detectPrepaidSubscriptions', 'detectRecurrenceFreq', 'manualFixedCostKey',
