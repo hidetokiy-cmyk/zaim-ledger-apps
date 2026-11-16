@@ -2324,7 +2324,7 @@
     securitiesScrapeInfo: null, // { count, totalCostBasis, totalMarketValue, cash, other, importedAt }
     savedViews: [], // 台帳の保存ビュー [{ id, name, cond: { search, searchMode, amountMin, amountMax, adv, categoryFilter, filterLevel, periodMode, periodAnchor }, updatedAt }]
     securitiesHistory: [], // 証券の時価推移。取込・バックフィルのたびに1日1件を残す [{ date: 'YYYY-MM-DD'(JST), importedAt, totalMarketValue, totalCostBasis, cash, other, count, items: [{ name, qty, marketValue, costBasis }] }]
-    zaimScrapeInfo: null, // { matched, unmatched: [names], importedAt }
+    zaimScrapeInfo: null, // { matched, added, unmatched: [names], excluded: [labels], balances: [{name, balance, noBalance}], importedAt }。unmatched=突合できなかった口座（警告対象）、excluded=元本管理・除外口座として意図的に対象外にした「口座名（…のため対象外）」形式のラベル（警告対象外・旧データには無い）
     accountBalanceAsOfDate: null, // 口座残高（accountBalanceOverride）の確認日。YYYY-MM-DD文字列。未設定時は初期値にフォールバック
     pendingZaimImport: null, // スクレイピングスクリプト等がクラウド経由で置いていく未取込データ { items: [{name, balance}], scrapedAt: ISO文字列 }
     pendingZaimCsv: null, // スクレイピングスクリプトが取引CSVをリポジトリ内の別ファイル（zaim-export.csv）に置いたことを示すマーカー { downloadedAt: ISO文字列 }
@@ -2782,8 +2782,8 @@
       // 取込後の状態をクラウドへ書き戻して pendingZaimImport をクリアする（他端末にも反映されるように）。
       if (settings.pendingZaimImport && Array.isArray(settings.pendingZaimImport.items)) {
         const pending = settings.pendingZaimImport;
-        const { matched, added, unmatched, balances } = applyZaimImportItems(pending.items);
-        settings.zaimScrapeInfo = { matched, added, unmatched, balances, importedAt: new Date(pending.scrapedAt || Date.now()) };
+        const { matched, added, unmatched, excluded, balances } = applyZaimImportItems(pending.items);
+        settings.zaimScrapeInfo = { matched, added, unmatched, excluded, balances, importedAt: new Date(pending.scrapedAt || Date.now()) };
         setAccountBalanceAsOfDate(pending.scrapedAt || new Date());
         settings.pendingZaimImport = null;
         if (state.transactions) { refreshSettingsLists(); render(); }
@@ -8242,10 +8242,14 @@ function svgEl(tag, attrs) {
       }
     } catch (e) { /* 拾えなければ出さない */ }
     try {
-      const un = settings.zaimScrapeInfo && settings.zaimScrapeInfo.unmatched;
+      // 意図的な対象外（元本管理・除外口座）は正常なので警告に出さない。
+      // 旧バージョンで保存済みの unmatched には対象外エントリが混ざっているため、ラベルが「対象外）」で終わるものは読み取り側でも除く。
+      const un = settings.zaimScrapeInfo && Array.isArray(settings.zaimScrapeInfo.unmatched)
+        ? settings.zaimScrapeInfo.unmatched.filter((n) => !String(n).endsWith("対象外）"))
+        : [];
       // 内訳（口座名）も同じデータ源から運ぶ。締めパネル（ステップ1）と同じ並び・同じ区切りで、
       // ホームの状態バーだけが内訳行を添えて出す（二重管理にしないため、名前の出所はここ一箇所）。
-      if (un && un.length) alerts.push({ level: "warn", text: `連携で一致しない口座：${un.length}件`, detail: un.join("、") });
+      if (un.length) alerts.push({ level: "warn", text: `連携で一致しない口座：${un.length}件`, detail: un.join("、") });
     } catch (e) { /* 拾えなければ出さない */ }
     try {
       const pd = pointExpiryData();
@@ -10210,20 +10214,22 @@ function svgEl(tag, attrs) {
 
   // 自動スクレイピング取込から使う口座残高の反映ロジック。
   // items: [{name, balance}, ...] を既存口座名にマッチさせてaccountBalanceOverrideへ反映する。
+  // 戻り値: unmatched は本当に突合できなかった口座、excluded は設計上意図的に対象外とした口座（どちらもラベル文字列の配列）。
   function applyZaimImportItems(items) {
     initAccountSettingsDefaults();
     const known = knownAccountNames();
     let matched = 0;
     let added = 0;
     const unmatched = [];
+    const excluded = [];   // 元本管理・除外口座など、設計上意図的に突合対象外とした口座（正常。警告には出さない）
     const balances = [];   // 実際に取り込んだ口座名（突合用）とZaim残高
     items.forEach((item) => {
       if (!item || typeof item.balance !== "number" || !item.name) return;
       const nm = canonAcct(String(item.name).trim());   // 名前変更の記録があれば新名として扱う
       const target = matchAccountName(nm, known);
       const resolved = target || nm;
-      if (getAccountMeta(resolved).principalOnly) { unmatched.push(item.name + "（元本管理のため対象外）"); return; }
-      if (settings.balanceExcludedAccounts.has(resolved)) { unmatched.push(item.name + "（除外口座のため対象外）"); return; }
+      if (getAccountMeta(resolved).principalOnly) { excluded.push(item.name + "（元本管理のため対象外）"); return; }
+      if (settings.balanceExcludedAccounts.has(resolved)) { excluded.push(item.name + "（除外口座のため対象外）"); return; }
       if (!target) {
         // 未知の口座名: 新規口座として「その他」グループに自動追加
         settings.accountBalanceOverride.set(resolved, item.balance);
@@ -10236,7 +10242,7 @@ function svgEl(tag, attrs) {
       balances.push({ name: target, balance: item.balance, noBalance: !!item.noBalance });
       matched++;
     });
-    return { matched, added, unmatched, balances };
+    return { matched, added, unmatched, excluded, balances };
   }
 
   // ---------- 証券の時価推移（securitiesHistory） ----------

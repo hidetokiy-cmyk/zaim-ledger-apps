@@ -22,6 +22,7 @@ const TESTS = [
   'unit_pass_filled_l3.js',
   'boot_smoke.js',
   'boot_payslip_const_history.js',
+  'boot_unmatched_alert.js',
 ];
 
 let failed = 0;
