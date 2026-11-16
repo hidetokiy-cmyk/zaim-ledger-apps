@@ -5729,9 +5729,10 @@ if (knownCycle) {
       const avgPart = `直近${f.windowSize}か月の平均`;
       const medPart = `直近${f.windowSize}か月の中央値`;
       const fixedPart = `固定費は検出した定期支払い（月額 ${YEN(f.basis.fixedMonthlyTotal)}${f.basis.fixedYearlyTotal ? `、年払い合計 ${YEN(f.basis.fixedYearlyTotal)}` : ""}）${f.basis.fixedCardBaseAvg ? `とカード決済の基礎額（月平均 ${YEN(Math.round(f.basis.fixedCardBaseAvg))}）` : ""}`;
+      const hybridPart = f.basis.hybridMonths ? `、直近${f.basis.hybridMonths}ヶ月は実際の引落予定ベース` : "";
       lines.push(f.basis.salaryAssumption != null
-        ? `- 給与は契約手取りの前提（月 ${YEN(f.basis.salaryAssumption)}・${f.basis.salaryAssumptionSet ? "手入力" : "初期値"}）、変動費は${medPart}、${fixedPart}`
-        : `- 給与は${avgPart}、変動費は${medPart}、${fixedPart}`);
+        ? `- 給与は契約手取りの前提（月 ${YEN(f.basis.salaryAssumption)}・${f.basis.salaryAssumptionSet ? "手入力" : "初期値"}）、変動費は${medPart}、${fixedPart}${hybridPart}`
+        : `- 給与は${avgPart}、変動費は${medPart}、${fixedPart}${hybridPart}`);
     }
     const divs = loadDividends();
     if (divs.length) lines.push(`- 配当・分配金（手入力・税引後）：${divs.map((d) => `${d.name} ${YEN(d.amount)}×${d.months.map((x) => x + "月").join("・")}`).join("、")}`);
@@ -5962,6 +5963,70 @@ if (knownCycle) {
         net: netForecast, balance, upper: balance + band, lower: balance - band,
       });
     }
+
+    // ハイブリッド化：90日見通し（実スケジュール）の届く範囲は、代表値ではなく
+    // 見通しの日次シミュレーションで上書きし、予測と見通しの乖離を無くす。
+    // 会計月の区間は (開始−1日, 終了日]（終了日の給与はその会計月に属する）。
+    // 見通しが使えない環境（単体テスト等）や失敗時は、代表値の結果をそのまま使う。
+    try {
+      const outlook = (typeof computeOutlook90 === "function") ? computeOutlook90() : null;
+      if (outlook && outlook.pts && outlook.pts.length > 1 && outlook.events && result.basis) {
+        const DAY = 86400000;
+        const t0 = startOfDay(outlook.today).getTime();
+        const idxOf = (date) => Math.max(0, Math.min(90, Math.round((startOfDay(date).getTime() - t0) / DAY)));
+        const evSum = outlook.events.reduce((s, e) => s + e.amount, 0);
+        const dripPerDay = (evSum - (outlook.endBal - outlook.startBal)) / 90;
+        const divNames = new Set(dividendList.map((d) => d.name));
+        let hybridMonths = 0;
+        result.months.forEach((m, mi) => {
+          const [yy, mm] = m.key.split("-").map(Number);
+          const bounds = cycleBoundsForKey(yy, mm - 1);
+          const spanDays = Math.round((bounds.end - bounds.start) / DAY);
+          if (!(spanDays > 0)) return;
+          const aDate = new Date(bounds.start.getTime() - DAY);
+          const iEnd = new Date(bounds.end.getTime() - DAY);   // 区間は (開始−1日, 終了−1日]：終了日の給与は翌月度に属する
+          const covEnd = iEnd < outlook.end ? iEnd : outlook.end;
+          const ia = mi === 0 ? 0 : idxOf(aDate);
+          const ib = idxOf(covEnd);
+          const coveredDays = Math.max(0, ib - ia);
+          if (coveredDays <= 0) return;
+          const tailDays = Math.max(0, Math.round((iEnd - covEnd) / DAY));
+          const tailFrac = Math.min(1, tailDays / spanDays);
+          let cIncome = 0, cFixed = 0, cDebit = 0, cPass = 0, cDiv = 0, cPassFilled = false;
+          outlook.events.forEach((e) => {
+            const ie = idxOf(e.date);
+            if (ie <= ia || ie > ib) return;
+            if (e.amount > 0) {
+              cIncome += e.amount;
+              if ((e.label || "").includes("定期券")) { cPass += e.amount; if ((e.label || "").includes("補完")) cPassFilled = true; }
+              if (divNames.has(e.label)) cDiv += e.amount;
+            } else if ((e.label || "").endsWith("の引落")) cDebit += -e.amount;
+            else cFixed += -e.amount;
+          });
+          m.income = cIncome + m.income * tailFrac;
+          m.fixed = cFixed + m.fixed * tailFrac;
+          m.variable = cDebit + dripPerDay * coveredDays + m.variable * tailFrac;
+          m.investFin = m.investFin * tailFrac;
+          m.dividend = cDiv + m.dividend * tailFrac;
+          m.pass = cPass + m.pass * tailFrac;
+          if (cPass > 0) m.passFilled = cPassFilled;
+          m.net = m.income - m.fixed - m.variable + m.investFin;
+          m.hybrid = true;
+          hybridMonths++;
+        });
+        if (hybridMonths > 0) {
+          result.basis.hybridMonths = hybridMonths;
+          let bal = startBalance;
+          result.months.forEach((m) => {
+            bal += m.net;
+            m.balance = bal;
+            const band = netStdev * Math.sqrt(m.i);
+            m.upper = bal + band;
+            m.lower = bal - band;
+          });
+        }
+      }
+    } catch (e) { /* ハイブリッド化に失敗したら代表値の結果をそのまま使う */ }
     return result;
   }
 
@@ -6251,7 +6316,7 @@ if (knownCycle) {
     if (usedCount < 2) {
       noteEl.textContent = "実績データが足りません（会計月が2ヶ月以上必要）";
     } else {
-      noteEl.textContent = `実績${usedCount}ヶ月分・直近${forecast.windowSize}ヶ月（変動費は中央値）`;
+      noteEl.textContent = `実績${usedCount}ヶ月分・直近${forecast.windowSize}ヶ月（変動費は中央値）${forecast.basis && forecast.basis.hybridMonths ? `・直近${forecast.basis.hybridMonths}ヶ月は引落予定ベース` : ""}`;
     }
 
     // ---- 予測の前提（根拠）パネル：何をどれだけ見込んでいるかを金額・件数つきで明示する ----
