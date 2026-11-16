@@ -191,6 +191,7 @@ const f1 = computeForecast();
 console.log('  sufficientData:', f1.sufficientData, '| months:', f1.months.map((m) => m.key + ':' + m.income + (m.pass ? '(pass ' + m.pass + ')' : '')).join(' '));
 check('予測が成立する', f1.sufficientData === true);
 check('basis.salaryAssumption = 202129', f1.basis && f1.basis.salaryAssumption === 202129, String(f1.basis && f1.basis.salaryAssumption));
+check('未設定 → basis.salaryAssumptionSet = false（初期値で計算中＝「初期値」表記になる）', f1.basis && f1.basis.salaryAssumptionSet === false, String(f1.basis && f1.basis.salaryAssumptionSet));
 const nov = f1.months.find((m) => m.key === '2026-11');
 const dec = f1.months.find((m) => m.key === '2026-12');
 check('11月度が予測に含まれる', !!nov);
@@ -205,11 +206,18 @@ saveSalaryNetAssumption(0);
 const f2 = computeForecast();
 console.log('  months:', f2.months.map((m) => m.key + ':' + m.income + (m.pass ? '(pass ' + m.pass + ')' : '')).join(' '));
 check('basis.salaryAssumption = null', f2.basis && f2.basis.salaryAssumption === null, String(f2.basis && f2.basis.salaryAssumption));
+check('0を明示保存 → basis.salaryAssumptionSet = true', f2.basis && f2.basis.salaryAssumptionSet === true, String(f2.basis && f2.basis.salaryAssumptionSet));
 const nov2 = f2.months.find((m) => m.key === '2026-11');
 const dec2 = f2.months.find((m) => m.key === '2026-12');
 check('フォールバック時も定期券は立つ（11月度 pass = 66,970）', nov2 && nov2.pass === 66970, nov2 && String(nov2.pass));
 check('フォールバック時の給与は前提額ではない（11月度 income − pass ≠ 202,129）', nov2 && (nov2.income - nov2.pass) !== 202129, nov2 && String(nov2.income));
 check('フォールバック時の給与は前提額ではない（12月度 income ≠ 202,129）', dec2 && dec2.income !== 202129, dec2 && String(dec2.income));
+
+console.log('== 資金繰り予測（前提を明示保存：180,000） ==');
+saveSalaryNetAssumption(180000);
+const f3 = computeForecast();
+check('basis.salaryAssumption = 180000', f3.basis && f3.basis.salaryAssumption === 180000, String(f3.basis && f3.basis.salaryAssumption));
+check('明示保存 → basis.salaryAssumptionSet = true（「手入力」表記になる）', f3.basis && f3.basis.salaryAssumptionSet === true, String(f3.basis && f3.basis.salaryAssumptionSet));
 localStorage.removeItem(SALARY_NET_LS_KEY);
 
 console.log('== 結果: pass ' + pass + ' / fail ' + fail + ' ==');

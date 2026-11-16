@@ -66,7 +66,7 @@ const WANTED = [
   'subsCache', 'subsCacheOn',
   'FORECAST_MONTHS_AHEAD', 'FORECAST_WINDOW_MIN', 'FORECAST_SEASONAL_MIN_MONTHS',
   'computeForecastMonthlyHistory', 'median', 'forecastAvg', 'forecastStdev', 'computeForecast',
-  'DIVIDEND_LS_KEY', 'loadDividends', 'SALARY_NET_LS_KEY', 'SALARY_NET_DEFAULT', 'PASS_PRICE_DEFAULT', 'loadSalaryNetAssumption',
+  'DIVIDEND_LS_KEY', 'loadDividends', 'SALARY_NET_LS_KEY', 'SALARY_NET_DEFAULT', 'PASS_PRICE_DEFAULT', 'loadSalaryNetAssumption', 'salaryNetIsSet',
   'passReimbursementMap', 'passReimbursementForKey', 'passReimbursementFilled', 'projectCardSettlementMonthKey',
   'sumCashFromMap', 'accountBalanceAsOfLabel', 'parseAsofDate',
 ];
