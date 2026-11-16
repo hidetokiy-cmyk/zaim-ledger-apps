@@ -61,8 +61,9 @@ tr.warn td.v{color:var(--accent);font-weight:700}
 .note{font-size:12px;color:var(--ink-soft);line-height:1.7;margin-top:6px}
 #msg{color:var(--accent);font-size:12.5px;min-height:1.2em;margin-bottom:6px}
 </style></head><body>
-<div class="topbar"><a class="back" href="index.html">← 家計元帳</a><span>給与明細シミュレータ</span></div>
-<header><h1>給与明細シミュレータ</h1><p>勤怠を入れると、支給・控除・手取りを試算します（freee の明細に合わせた計算式）。家計元帳のデータとは連携しません。</p></header>
+<div class="topbar"><a class="back" href="index.html">← 家計元帳</a><span>給与明細シミュレータ</span><span id="syncState" style="margin-left:auto"></span></div>
+<header><h1>給与明細シミュレータ</h1><p>勤怠を入れると、支給・控除・手取りを試算します（freee の明細に合わせた計算式）。入力は端末間で共有されます。</p></header>
+<div id="unlockRow" hidden style="max-width:1180px;margin:0 auto;padding:0 18px"><section class="in"><h2>設定の共有</h2><label>トークンのパスフレーズ<input id="unlockPass" type="password" autocomplete="current-password"></label><div class="acts"><button class="sm" id="unlockBtn" type="button">ロック解除して共有</button></div><div class="hint" id="unlockMsg"></div></section></div>
 <main>
 
 <div>
@@ -152,10 +153,13 @@ function constVal(raw,k){const s=nf(raw);if(/^\d+(\.\d+)?$/.test(s)&&parseFloat(
 const KEY='payslipSim.v1',CK=['base','std','commute','hours','yearDays','monthDays'],AK=['ot1','ot2','late','absent'];
 const okYM=s=>/^\d{4}-(0[1-9]|1[0-2])$/.test(s);
 /* consts＝共通の定数（変更点がない月で使う）／changes＝定数の変更点 [{from:'YYYY-MM',consts:{6キー}}]（from の昇順）。changes は後から足したフィールド：無い保存データもそのまま読める */
-let S={v:1,ym:'',consts:{},changes:[],months:{}};
-try{const o=JSON.parse(localStorage.getItem(KEY)||'null');if(o&&o.v===1){S.ym=typeof o.ym==='string'?o.ym:'';S.consts=o.consts||{};S.months=o.months||{};
-  if(Array.isArray(o.changes)){const m={};o.changes.forEach(x=>{if(x&&okYM(x.from)&&x.consts&&typeof x.consts==='object'){const c={};CK.forEach(k=>{if(x.consts[k]!=null)c[k]=String(x.consts[k])});m[x.from]=c}});S.changes=Object.keys(m).sort().map(f=>({from:f,consts:m[f]}))}}}catch(e){}
+/* updatedAt＝共有データとしての最終更新時刻（端末間共有の競合判定に使う）。表示月の移動では進めない */
+function normChanges(a){if(!Array.isArray(a))return[];const m={};a.forEach(x=>{if(x&&okYM(x.from)&&x.consts&&typeof x.consts==='object'){const c={};CK.forEach(k=>{if(x.consts[k]!=null)c[k]=String(x.consts[k])});m[x.from]=c}});return Object.keys(m).sort().map(f=>({from:f,consts:m[f]}))}
+let S={v:1,ym:'',consts:{},changes:[],months:{},updatedAt:null};
+try{const o=JSON.parse(localStorage.getItem(KEY)||'null');if(o&&o.v===1){S.ym=typeof o.ym==='string'?o.ym:'';S.consts=o.consts||{};S.months=o.months||{};S.updatedAt=typeof o.updatedAt==='string'?o.updatedAt:null;S.changes=normChanges(o.changes)}}catch(e){}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+/* データを変更したときだけ updatedAt を進め、共有への反映を予約する */
+function touch(){S.updatedAt=new Date().toISOString();schedulePush()}
 const nowYM=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')};
 if(!okYM(S.ym))S.ym=nowYM();
 /* その月の有効定数（入力欄に出す生の文字列）＝その月以前で最も新しい変更点。無ければ共通の定数、未保存のキーは初期値 */
@@ -204,17 +208,88 @@ function render(){
 function chgUI(){const h=hasChange(S.ym);$('chgMark').textContent=h?'この月から定数を変更':'';$('delChange').disabled=!h}
 function fillConsts(){const c=effConsts(S.ym);CK.forEach(k=>{$('c_'+k).value=c[k]});chgUI()}
 function fillMonth(){const m=S.months[S.ym]||{};AK.forEach(k=>{$(k).value=m[k]||''});$('ymLabel').textContent=S.ym.slice(0,4)+'年'+(+S.ym.slice(5))+'月';fillConsts();render()}
-function saveMonth(){const m={};AK.forEach(k=>{const s=$(k).value;if(s.trim()!=='')m[k]=s});if(Object.keys(m).length)S.months[S.ym]=m;else delete S.months[S.ym];save()}
+function saveMonth(){const m={};AK.forEach(k=>{const s=$(k).value;if(s.trim()!=='')m[k]=s});if(Object.keys(m).length)S.months[S.ym]=m;else delete S.months[S.ym];touch();save()}
 /* 定数パネルの現在値（6キー全部）を、表示中の月の変更点として保存（同じ月にあれば上書き） */
-function saveChange(){const c={};CK.forEach(k=>{c[k]=$('c_'+k).value});const i=S.changes.findIndex(x=>x.from===S.ym);if(i>=0)S.changes[i].consts=c;else{S.changes.push({from:S.ym,consts:c});S.changes.sort((a,b)=>a.from<b.from?-1:a.from>b.from?1:0)}save()}
+function saveChange(){const c={};CK.forEach(k=>{c[k]=$('c_'+k).value});const i=S.changes.findIndex(x=>x.from===S.ym);if(i>=0)S.changes[i].consts=c;else{S.changes.push({from:S.ym,consts:c});S.changes.sort((a,b)=>a.from<b.from?-1:a.from>b.from?1:0)}touch();save()}
 function goto(ym){S.ym=ym;save();fillMonth()}
 AK.forEach(k=>$(k).addEventListener('input',()=>{saveMonth();render()}));
 CK.forEach(k=>$('c_'+k).addEventListener('input',()=>{saveChange();chgUI();render()}));
 $('prev').addEventListener('click',()=>goto(shiftYM(S.ym,-1)));
 $('next').addEventListener('click',()=>goto(shiftYM(S.ym,1)));
 $('thisMonth').addEventListener('click',()=>goto(nowYM()));
-$('clearMonth').addEventListener('click',()=>{delete S.months[S.ym];save();fillMonth()});
-$('delChange').addEventListener('click',()=>{S.changes=S.changes.filter(x=>x.from!==S.ym);save();fillConsts();render()});
-$('resetConst').addEventListener('click',()=>{S.consts={};S.changes=[];save();fillConsts();render()});
+$('clearMonth').addEventListener('click',()=>{delete S.months[S.ym];touch();save();fillMonth()});
+$('delChange').addEventListener('click',()=>{S.changes=S.changes.filter(x=>x.from!==S.ym);touch();save();fillConsts();render()});
+$('resetConst').addEventListener('click',()=>{S.consts={};S.changes=[];touch();save();fillConsts();render()});
 fillMonth();
+
+/* ===== 端末間共有（家計元帳の settings.json に payslipSim として保存） =====
+   同期設定（リポジトリ＋トークン）は家計元帳と同じ localStorage（zaimLedgerSync）を読む。
+   トークンがパスフレーズで暗号化されている場合は、このページでもロック解除できる。
+   競合は updatedAt の新しい方を採用（last-write-wins）。保存は、取得した settings.json
+   全体を土台に payslipSim だけを差し替えて書き戻す（他のキーは一切触らない）。 */
+const SYNC_LS='zaimLedgerSync',SYNC_SS='zaimLedgerSyncToken',SYNC_PATH='settings.json';
+const syncCfg={repo:'',token:'',enc:null,locked:false};
+try{const cfg=JSON.parse(localStorage.getItem(SYNC_LS)||'{}');syncCfg.repo=cfg.repo||'';
+  if(cfg.tokenEnc){syncCfg.enc=cfg.tokenEnc;syncCfg.locked=true}
+  else if(cfg.token)syncCfg.token=cfg.token;
+  else{const st=sessionStorage.getItem(SYNC_SS);if(st)syncCfg.token=st}}catch(e){}
+const syncState=t=>{const e=$('syncState');if(e)e.textContent=t};
+const b64ToBytesP=b64=>Uint8Array.from(atob(b64),c=>c.charCodeAt(0));
+function base64ToUtf8P(b64){const bin=atob(b64.replace(/\n/g,''));const bytes=Uint8Array.from(bin,c=>c.charCodeAt(0));return new TextDecoder().decode(bytes)}
+function utf8ToBase64P(str){return btoa(Array.from(new TextEncoder().encode(str),b=>String.fromCharCode(b)).join(''))}
+async function deriveKeyP(pass,salt,iter){const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(pass),'PBKDF2',false,['deriveKey']);return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:iter,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt'])}
+async function decryptTokenP(enc,pass){const key=await deriveKeyP(pass,b64ToBytesP(enc.salt),enc.iter||310000);const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64ToBytesP(enc.iv)},key,b64ToBytesP(enc.ct));return new TextDecoder().decode(pt)}
+function ghFetchP(url,opts,ms){const o={...(opts||{})};if(!o.method||o.method==='GET')o.cache='no-cache';const ac=new AbortController();const timer=setTimeout(()=>ac.abort(),ms||15000);return fetch(url,{...o,signal:ac.signal}).finally(()=>clearTimeout(timer))}
+const ghHeadersP=()=>({Authorization:'Bearer '+syncCfg.token,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'});
+const localData=()=>({consts:S.consts,changes:S.changes,months:S.months});
+const hasLocalData=()=>Object.keys(S.months).length>0||S.changes.length>0||Object.keys(S.consts).length>0;
+function normEnvP(v){if(!v||typeof v!=='object'||!v.data||typeof v.data!=='object')return null;const d=v.data;if(!d.consts||typeof d.consts!=='object'||!d.months||typeof d.months!=='object'||!Array.isArray(d.changes))return null;return{data:{consts:d.consts,changes:normChanges(d.changes),months:d.months},updatedAt:typeof v.updatedAt==='string'?v.updatedAt:null}}
+function adoptEnvP(env){S.consts=env.data.consts;S.changes=env.data.changes;S.months=env.data.months;S.updatedAt=env.updatedAt;save();fillMonth()}
+let syncBusy=false,syncTimerP=null;
+function schedulePush(){if(!syncCfg.repo||!syncCfg.token)return;clearTimeout(syncTimerP);syncTimerP=setTimeout(()=>{syncNow()},1500)}
+async function pushSharedP(obj,sha){
+  const body={message:'update settings (payslip) '+(S.updatedAt||''),content:utf8ToBase64P(JSON.stringify({...obj,payslipSim:{data:localData(),updatedAt:S.updatedAt}},null,2))};
+  if(sha)body.sha=sha;
+  const res=await ghFetchP(`https://api.github.com/repos/${syncCfg.repo}/contents/${SYNC_PATH}`,{method:'PUT',headers:ghHeadersP(),body:JSON.stringify(body)});
+  return res.ok;
+}
+async function syncNow(){
+  if(!syncCfg.repo||!syncCfg.token||syncBusy||typeof fetch!=='function')return;
+  syncBusy=true;
+  try{
+    const res=await ghFetchP(`https://api.github.com/repos/${syncCfg.repo}/contents/${SYNC_PATH}`,{headers:ghHeadersP()});
+    if(res.status===404){
+      if(hasLocalData()){if(!S.updatedAt){S.updatedAt=new Date().toISOString();save()}syncState(await pushSharedP({v:1},null)?'共有中':'共有に失敗')}
+      else syncState('共有中');
+      return;
+    }
+    if(!res.ok){syncState('共有に失敗');return}
+    const data=await res.json();const obj=JSON.parse(base64ToUtf8P(data.content));
+    const env=normEnvP(obj.payslipSim);
+    if(env&&(env.updatedAt||'')>(S.updatedAt||'')){adoptEnvP(env);syncState('共有中');return}
+    if(env&&!hasLocalData()){adoptEnvP(env);syncState('共有中');return}
+    if(!env&&!hasLocalData()){syncState('共有中');return}
+    /* 端末が新しい（またはクラウドに無い）→ 上げる。未スタンプの旧データはここでスタンプを打つ */
+    if(!S.updatedAt){S.updatedAt=new Date().toISOString();save()}
+    if(env&&JSON.stringify(env.data)===JSON.stringify(localData())&&(env.updatedAt||'')===(S.updatedAt||'')){syncState('共有中');return}
+    let ok=await pushSharedP(obj,data.sha);
+    if(!ok){ /* 競合したら取り直して1回だけ再試行（その間にクラウドが新しくなっていれば取り込む） */
+      const r2=await ghFetchP(`https://api.github.com/repos/${syncCfg.repo}/contents/${SYNC_PATH}`,{headers:ghHeadersP()});
+      if(r2.ok){const d2=await r2.json();const o2=JSON.parse(base64ToUtf8P(d2.content));const e2=normEnvP(o2.payslipSim);
+        if(e2&&(e2.updatedAt||'')>(S.updatedAt||'')){adoptEnvP(e2);syncState('共有中');return}
+        ok=await pushSharedP(o2,d2.sha);}
+    }
+    syncState(ok?'共有中':'共有に失敗');
+  }catch(e){syncState('共有に失敗')}
+  finally{syncBusy=false}
+}
+if(syncCfg.locked){$('unlockRow').hidden=false;syncState('共有：ロック中')}
+$('unlockBtn').addEventListener('click',async()=>{
+  const pass=$('unlockPass').value;
+  if(!pass||!syncCfg.enc)return;
+  if(!(window.crypto&&crypto.subtle)){$('unlockMsg').textContent='このブラウザでは暗号化が使えません';return}
+  try{syncCfg.token=await decryptTokenP(syncCfg.enc,pass)}catch(e){$('unlockMsg').textContent='パスフレーズが違います';return}
+  syncCfg.locked=false;$('unlockRow').hidden=true;$('unlockMsg').textContent='';syncState('');syncNow();
+});
+if(syncCfg.repo&&syncCfg.token)syncNow();
 </script></body></html>

@@ -2556,6 +2556,9 @@
       manualFixedCosts: Object.fromEntries(settings.manualFixedCosts),
       accountRenames: Object.fromEntries(settings.accountRenames),
       categoryBudgets: Object.fromEntries(settings.categoryBudgets),
+      payslipSim: sharedPayslipEnv(),
+      salaryNetAssumption: sharedSalaryEnv(),
+      dividendAssumptions: sharedDividendsEnv(),
       balancePattern: state.balancePattern,
       updatedAt: new Date().toISOString(),
     };
@@ -2664,6 +2667,7 @@
     settings.manualFixedCosts = asMapBy(obj.manualFixedCosts, "手動の固定費", repaired, isObjValue);
     settings.accountRenames = asMapBy(obj.accountRenames, "口座名の変更", repaired, (x) => typeof x === "string");
     settings.categoryBudgets = asMapBy(obj.categoryBudgets, "カテゴリ予算", repaired, (x) => typeof x === "number" && x > 0);
+    adoptSharedData(obj, repaired);
     // 既定値に戻した項目があれば、無言にせずバナーで知らせる（M11）
     settingsRepairNote = repaired.length ? `設定の一部（${[...new Set(repaired)].join("・")}）の形式が不正だったため、既定値に戻しました。` : null;
     if (repaired.length) console.warn("settings: 形式が不正な項目を既定値に戻しました", [...new Set(repaired)]);
@@ -2984,6 +2988,10 @@
       "pendingZaimImport", "pendingZaimCsv", "zaimCsvSyncedAt", "pendingSecuritiesImport", "accountMetaInited", "syncHeartbeat", "pendingPointExpiry", "externalPoints"]
       .forEach((key) => { merged[key] = mergeScalarField(base, local, remote, key, conflicts); });
     merged.securitiesHistory = mergeSecuritiesHistoryField(local, remote);
+    // 共有手入力データ（給与シミュレータ・給与前提・配当前提）は3-wayではなく、データセット
+    // ごとの updatedAt が新しい方を採用する（per-dataset の last-write-wins）。
+    ["payslipSim", "salaryNetAssumption", "dividendAssumptions"]
+      .forEach((key) => { const w = pickSharedWinner(local[key], remote[key], key); if (w) merged[key] = w; else delete merged[key]; });
     merged.v = remote.v || local.v || 1;
     merged.updatedAt = new Date().toISOString();
     return { merged, conflicts };
@@ -5586,7 +5594,14 @@ if (knownCycle) {
     } catch (e) { return []; }
   }
   function saveDividends(list) {
-    try { localStorage.setItem(DIVIDEND_LS_KEY, JSON.stringify(list)); return true; } catch (e) { return false; }
+    try {
+      localStorage.setItem(DIVIDEND_LS_KEY, JSON.stringify(list));
+      const at = new Date().toISOString();
+      try { localStorage.setItem(DIVIDENDS_AT_KEY, at); } catch (e) { /* スタンプだけの失敗は無視 */ }
+      sharedDividends = { list: sanitizeDividends(list), updatedAt: at };
+      scheduleCloudSave();   // 共有データとしてクラウドにも上げる
+      return true;
+    } catch (e) { return false; }
   }
   function renderDividendList() {
     const wrap = document.getElementById("forecastDivList");
@@ -5657,8 +5672,141 @@ if (knownCycle) {
     st.textContent = salaryNetIsSet() ? "" : `未設定（初期値 ${YEN(SALARY_NET_DEFAULT)} で計算中）`;
   }
   function saveSalaryNetAssumption(v) {
-    try { localStorage.setItem(SALARY_NET_LS_KEY, String(v)); return true; } catch (e) { return false; }
+    try {
+      localStorage.setItem(SALARY_NET_LS_KEY, String(v));
+      const at = new Date().toISOString();
+      try { localStorage.setItem(SALARY_NET_AT_KEY, at); } catch (e) { /* スタンプだけの失敗は無視 */ }
+      sharedSalaryNet = { set: true, value: Math.round(Number(v)), updatedAt: at };
+      scheduleCloudSave();   // 共有データとしてクラウドにも上げる
+      return true;
+    } catch (e) { return false; }
   }
+  // ---------- 端末間で共有する手入力データ（給与シミュレータ・給与前提・配当前提） ----------
+  // この3つは元々このブラウザの localStorage にだけあり、端末ごとに食い違っていた。
+  // settings.json に envelope（本体＋updatedAt）として載せ、データセットごとにクラウドと
+  // 端末の updatedAt が新しい方を採用する（per-dataset の last-write-wins）。
+  // クラウドに無いデータセットは、端末にあれば初回同期でそのまま上げる（移行）。
+  // 逆に、端末にデータを持たないブラウザが settings を保存し直しても、applyCloudObject で
+  // 取り込んだ envelope を holder に保持し、settingsToCloudObject がそのまま載せ直すため、
+  // 共有データが保存の往復で消えることはない（2026-11-16 に pendingPointExpiry 等が
+  // 保存往復で消えた事故と同じ轍を踏まないための形）。
+  const PAYSLIP_LS_KEY = "payslipSim.v1";
+  const SALARY_NET_AT_KEY = "zaimLedgerSalaryNetAt";
+  const DIVIDENDS_AT_KEY = "zaimLedgerDividendsAt";
+  let sharedPayslip = null, sharedSalaryNet = null, sharedDividends = null;   // 解決済み envelope（settingsToCloudObject が出す値）
+  const isoOrNull = (s) => (typeof s === "string" && !isNaN(new Date(s).getTime())) ? s : null;
+  const stampOf = (env) => (env && env.updatedAt) || "";
+  function sanitizeDividends(a) {
+    if (!Array.isArray(a)) return [];
+    return a.filter((d) => d && typeof d.name === "string" && Number(d.amount) > 0 && Array.isArray(d.months))
+      .map((d) => ({ name: d.name, amount: Math.round(Number(d.amount)), months: d.months.map(Number).filter((n) => Number.isInteger(n) && n >= 1 && n <= 12) }))
+      .filter((d) => d.months.length > 0);
+  }
+  function normPayslipEnv(v) {
+    if (!asPlainObj(v) || !asPlainObj(v.data)) return null;
+    const d = v.data;
+    if (!asPlainObj(d.consts) || !asPlainObj(d.months) || !Array.isArray(d.changes)) return null;
+    return { data: { consts: d.consts, changes: d.changes, months: d.months }, updatedAt: isoOrNull(v.updatedAt) };
+  }
+  function normSalaryEnv(v) {
+    if (!asPlainObj(v)) return null;
+    if (!v.set) return { set: false, value: 0, updatedAt: isoOrNull(v.updatedAt) };
+    const n = Math.round(Number(v.value));
+    if (!Number.isFinite(n) || n < 0) return null;
+    return { set: true, value: n, updatedAt: isoOrNull(v.updatedAt) };
+  }
+  function normDividendsEnv(v) {
+    if (!asPlainObj(v) || !Array.isArray(v.list)) return null;
+    return { list: sanitizeDividends(v.list), updatedAt: isoOrNull(v.updatedAt) };
+  }
+  // 競合マージ用：2つの envelope から updatedAt が新しい方（同点は remote＝第2引数）を返す
+  function pickSharedWinner(localV, remoteV, key) {
+    const norm = key === "payslipSim" ? normPayslipEnv : key === "salaryNetAssumption" ? normSalaryEnv : normDividendsEnv;
+    const l = norm(localV), r = norm(remoteV);
+    if (!l) return r;
+    if (!r) return l;
+    return stampOf(l) > stampOf(r) ? l : r;
+  }
+  // この端末の localStorage から envelope を作る。データ自体が無ければ null。
+  // updatedAt は端末側のスタンプ（未スタンプの旧データは null＝最も古い扱い）。
+  function localPayslipEnv() {
+    try {
+      const o = JSON.parse(localStorage.getItem(PAYSLIP_LS_KEY) || "null");
+      if (!o || o.v !== 1) return null;
+      return normPayslipEnv({ data: { consts: o.consts || {}, changes: Array.isArray(o.changes) ? o.changes : [], months: o.months || {} }, updatedAt: o.updatedAt });
+    } catch (e) { return null; }
+  }
+  function localSalaryEnv() {
+    try {
+      const raw = localStorage.getItem(SALARY_NET_LS_KEY);
+      const at = isoOrNull(localStorage.getItem(SALARY_NET_AT_KEY));
+      if (raw == null && !at) return null;   // この端末では一度も触っていない
+      const set = salaryNetIsSet();
+      return { set, value: set ? Math.round(Number(raw)) : 0, updatedAt: at };
+    } catch (e) { return null; }
+  }
+  function localDividendsEnv() {
+    try {
+      const raw = localStorage.getItem(DIVIDEND_LS_KEY);
+      const at = isoOrNull(localStorage.getItem(DIVIDENDS_AT_KEY));
+      if (raw == null && !at) return null;
+      return { list: loadDividends(), updatedAt: at };
+    } catch (e) { return null; }
+  }
+  // クラウドへ出す envelope：解決済み（holder）があればそれ、無ければ端末の内容から作る
+  function sharedPayslipEnv() { return sharedPayslip || localPayslipEnv(); }
+  function sharedSalaryEnv() { return sharedSalaryNet || localSalaryEnv(); }
+  function sharedDividendsEnv() { return sharedDividends || localDividendsEnv(); }
+  // 採用した envelope を端末の localStorage へ書き戻す（給与シミュレータの表示月 ym は端末側の状態なので保持する）
+  function writeLocalPayslip(env) {
+    try {
+      const cur = JSON.parse(localStorage.getItem(PAYSLIP_LS_KEY) || "null") || {};
+      localStorage.setItem(PAYSLIP_LS_KEY, JSON.stringify({ v: 1, ym: typeof cur.ym === "string" ? cur.ym : "", consts: env.data.consts, changes: env.data.changes, months: env.data.months, updatedAt: env.updatedAt }));
+    } catch (e) { /* ignore */ }
+  }
+  function writeLocalSalary(env) {
+    try {
+      if (env.set) localStorage.setItem(SALARY_NET_LS_KEY, String(env.value)); else localStorage.removeItem(SALARY_NET_LS_KEY);
+      if (env.updatedAt) localStorage.setItem(SALARY_NET_AT_KEY, env.updatedAt); else localStorage.removeItem(SALARY_NET_AT_KEY);
+    } catch (e) { /* ignore */ }
+  }
+  function writeLocalDividends(env) {
+    try {
+      localStorage.setItem(DIVIDEND_LS_KEY, JSON.stringify(env.list));
+      if (env.updatedAt) localStorage.setItem(DIVIDENDS_AT_KEY, env.updatedAt); else localStorage.removeItem(DIVIDENDS_AT_KEY);
+    } catch (e) { /* ignore */ }
+  }
+  // applyCloudObject から呼ぶ：データセットごとにクラウドと端末の新しい方を採用する。
+  // クラウドが新しければ端末へ書き戻し、端末が新しければ（またはクラウドに無ければ）
+  // 次の保存で上げるため scheduleCloudSave する。未スタンプの旧データの移行では、
+  // 採用時にここでスタンプを打ってから上げる。
+  function adoptSharedData(obj, repaired) {
+    const jobs = [
+      { key: "payslipSim", label: "給与シミュレータの共有データ", norm: normPayslipEnv, local: localPayslipEnv, write: writeLocalPayslip, set: (e) => { sharedPayslip = e; } },
+      { key: "salaryNetAssumption", label: "給与の前提", norm: normSalaryEnv, local: localSalaryEnv, write: writeLocalSalary, set: (e) => { sharedSalaryNet = e; } },
+      { key: "dividendAssumptions", label: "配当の前提", norm: normDividendsEnv, local: localDividendsEnv, write: writeLocalDividends, set: (e) => { sharedDividends = e; } },
+    ];
+    let push = false;
+    jobs.forEach((j) => {
+      const cloud = j.norm(obj[j.key]);
+      if (obj[j.key] != null && !cloud) repaired.push(j.label);
+      const local = j.local();
+      if (!cloud && !local) { j.set(null); return; }
+      if (cloud && (!local || stampOf(cloud) >= stampOf(local))) {
+        j.set(cloud);
+        if (local && stampOf(cloud) === stampOf(local) && jstr(cloud) === jstr(local)) return;   // 既に一致している
+        j.write(cloud);
+        return;
+      }
+      // 端末が新しい（またはクラウドに無い）→ 端末を採用して上げる
+      let env = local;
+      if (!env.updatedAt) { env = { ...env, updatedAt: new Date().toISOString() }; j.write(env); }
+      j.set(env);
+      push = true;
+    });
+    if (push) scheduleCloudSave();
+  }
+
   // 定期券の交通費精算：購入した月の給料日に、購入額と同額が給与と一緒に振り込まれる
   // （2026-11-08 購入分からの方式）。データからの検出：
   //   ① 給与カテゴリの負の収入行（メモに「定期券」、入金先は預け金）＝精算との相殺として
