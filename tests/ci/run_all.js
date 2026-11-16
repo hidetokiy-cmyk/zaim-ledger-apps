@@ -21,6 +21,7 @@ const TESTS = [
   'unit_forecast_l2.js',
   'unit_pass_filled_l3.js',
   'boot_smoke.js',
+  'boot_payslip_const_history.js',
 ];
 
 let failed = 0;
