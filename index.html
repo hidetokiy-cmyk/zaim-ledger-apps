@@ -5730,7 +5730,7 @@ if (knownCycle) {
       const medPart = `直近${f.windowSize}か月の中央値`;
       const fixedPart = `固定費は検出した定期支払い（月額 ${YEN(f.basis.fixedMonthlyTotal)}${f.basis.fixedYearlyTotal ? `、年払い合計 ${YEN(f.basis.fixedYearlyTotal)}` : ""}）${f.basis.fixedCardBaseAvg ? `とカード決済の基礎額（月平均 ${YEN(Math.round(f.basis.fixedCardBaseAvg))}）` : ""}`;
       lines.push(f.basis.salaryAssumption != null
-        ? `- 給与は契約手取りの前提（月 ${YEN(f.basis.salaryAssumption)}・手入力）、変動費は${medPart}、${fixedPart}`
+        ? `- 給与は契約手取りの前提（月 ${YEN(f.basis.salaryAssumption)}・${f.basis.salaryAssumptionSet ? "手入力" : "初期値"}）、変動費は${medPart}、${fixedPart}`
         : `- 給与は${avgPart}、変動費は${medPart}、${fixedPart}`);
     }
     const divs = loadDividends();
@@ -5894,6 +5894,7 @@ if (knownCycle) {
       windowEndKey: recentUsable.length ? recentUsable[recentUsable.length - 1].key : null,
       incomeAvg: baseIncomeAvg,
       salaryAssumption,
+      salaryAssumptionSet: salaryNetIsSet(),   // 前提が明示保存された値か（false のとき実効値は初期値）
       variableAvg: baseVariableAvg,
       investFinAvg: investFinMonthlyBase,
       netStdev,
@@ -6273,7 +6274,7 @@ if (knownCycle) {
           el("span", { class: "name" }, ["給与見込み（月平均）"]),
           el("span", { class: "amt num amt-wrap" }, [
             basis.salaryAssumption != null
-              ? `${YEN(basis.salaryAssumption)}（契約手取りの前提・手入力）`
+              ? `${YEN(basis.salaryAssumption)}（契約手取りの前提・${basis.salaryAssumptionSet ? "手入力" : "初期値"}）`
               : forecastDrillLabel(`${YEN(basis.incomeAvg)}（${basis.incomeRows.length}件の実績から算出）`, basis.incomeRows, "給与の実績（予測の根拠）"),
           ]),
         ]),
