@@ -11033,12 +11033,14 @@ function svgEl(tag, attrs) {
         btn.setAttribute("aria-label", `${title}を${c ? "開く" : "折りたたむ"}`);
         btn.title = c ? "開く" : "折りたたむ";
       };
-      btn.addEventListener("click", () => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();   // カード全体のクリック（例：90日の見通しから資金繰り予測への遷移）に伝播させない
         const c = !p.classList.contains("collapsed");
         apply(c);
         if (c) closed.add(p.id); else closed.delete(p.id);
         try { localStorage.setItem(KEY, JSON.stringify(Array.from(closed))); } catch (e) { /* 覚えられなくても開閉はできる */ }
       });
+      btn.addEventListener("keydown", (e) => e.stopPropagation());   // カード全体のキー操作（Enter/空白での遷移）に伝播させない
       head.appendChild(btn);
       apply(closed.has(p.id));
     });
@@ -11064,12 +11066,14 @@ function svgEl(tag, attrs) {
         btn.setAttribute("aria-label", `${title}を${c ? "開く" : "折りたたむ"}`);
         btn.title = c ? "開く" : "折りたたむ";
       };
-      btn.addEventListener("click", () => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();   // 親要素のクリックに伝播させない
         const c = !g.classList.contains("collapsed");
         apply(c);
         if (c) closed.add(g.id); else closed.delete(g.id);
         try { localStorage.setItem(KEY, JSON.stringify(Array.from(closed))); } catch (e) { /* 覚えられなくても開閉はできる */ }
       });
+      btn.addEventListener("keydown", (e) => e.stopPropagation());   // 親要素のキー操作に伝播させない
       head.appendChild(btn);
       apply(closed.has(g.id));
     });
@@ -11095,12 +11099,14 @@ function svgEl(tag, attrs) {
         btn.setAttribute("aria-label", `${title}を${c ? "開く" : "折りたたむ"}`);
         btn.title = c ? "開く" : "折りたたむ";
       };
-      btn.addEventListener("click", () => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();   // 親要素のクリックに伝播させない
         const c = !g.classList.contains("collapsed");
         apply(c);
         if (c) closed.add(g.id); else closed.delete(g.id);
         try { localStorage.setItem(KEY, JSON.stringify(Array.from(closed))); } catch (e) { /* 覚えられなくても開閉はできる */ }
       });
+      btn.addEventListener("keydown", (e) => e.stopPropagation());   // 親要素のキー操作に伝播させない
       head.appendChild(btn);
       apply(closed.has(g.id));
     });

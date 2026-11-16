@@ -23,6 +23,7 @@ const TESTS = [
   'boot_smoke.js',
   'boot_payslip_const_history.js',
   'boot_unmatched_alert.js',
+  'boot_outlook_collapse.js',
 ];
 
 let failed = 0;
