@@ -25,6 +25,8 @@ const TESTS = [
   'boot_unmatched_alert.js',
   'boot_outlook_collapse.js',
   'boot_forecast_hybrid.js',
+  'boot_shared_sync_index.js',
+  'boot_shared_sync_payslip.js',
 ];
 
 let failed = 0;
