@@ -38,6 +38,8 @@ input.bad{border-color:var(--accent);outline:1px solid var(--accent)}
 .mnav .ym{flex:1;text-align:center;font:700 18px "Shippori Mincho",serif}
 button.sm{font:inherit;font-size:13px;padding:5px 11px;border:1px solid var(--rule-strong);border-radius:4px;background:var(--paper);color:var(--ink);cursor:pointer;white-space:nowrap}
 button.sm:hover{border-color:var(--ink)}
+button.sm:disabled{opacity:.4;cursor:default}button.sm:disabled:hover{border-color:var(--rule-strong)}
+#chgMark{color:var(--green);font-size:12px;font-weight:700;margin-bottom:6px}#chgMark:empty{display:none}
 .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
 details.in{background:var(--paper-raised);border:1px solid var(--rule-strong);border-radius:6px;padding:10px 14px;margin-bottom:12px}
 details.in summary{cursor:pointer;font-weight:700;font-size:14px}
@@ -80,14 +82,16 @@ tr.warn td.v{color:var(--accent);font-weight:700}
 <div class="hint">時間は「時:分」（例 5:48）。欠勤は 0.5 刻み可。</div>
 <div class="acts"><button class="sm" id="clearMonth" type="button">この月の入力を消す</button></div>
 </section>
-<details class="in" id="constBox"><summary>定数（全月共通）</summary>
+<details class="in" id="constBox"><summary>定数</summary>
+<div class="hint">変更はその月以降に適用</div>
+<div id="chgMark"></div>
 <label>所定月給<input id="c_base" inputmode="decimal" autocomplete="off"></label>
 <label>標準報酬月額（現行）<input id="c_std" inputmode="decimal" autocomplete="off"></label>
 <label>非課税通勤<input id="c_commute" inputmode="decimal" autocomplete="off"></label>
 <label>月所定労働時間<input id="c_hours" inputmode="decimal" autocomplete="off"></label>
 <label>年所定労働日数（参考表示のみ）<input id="c_yearDays" inputmode="decimal" autocomplete="off"></label>
 <label>月所定労働日数（参考表示のみ）<input id="c_monthDays" inputmode="decimal" autocomplete="off"></label>
-<div class="acts"><button class="sm" id="resetConst" type="button">既定値に戻す</button></div>
+<div class="acts"><button class="sm" id="delChange" type="button">この月の変更を消す</button><button class="sm" id="resetConst" type="button">既定値に戻す</button></div>
 <div class="note">空欄・不正な値は既定値として計算します。</div>
 </details>
 </div>
@@ -146,12 +150,17 @@ function constVal(raw,k){const s=nf(raw);if(/^\d+(\.\d+)?$/.test(s)&&parseFloat(
 
 /* ===== 保存（このページ専用キー。家計元帳の settings・台帳データには触れない） ===== */
 const KEY='payslipSim.v1',CK=['base','std','commute','hours','yearDays','monthDays'],AK=['ot1','ot2','late','absent'];
-let S={v:1,ym:'',consts:{},months:{}};
-try{const o=JSON.parse(localStorage.getItem(KEY)||'null');if(o&&o.v===1){S.ym=typeof o.ym==='string'?o.ym:'';S.consts=o.consts||{};S.months=o.months||{}}}catch(e){}
+const okYM=s=>/^\d{4}-(0[1-9]|1[0-2])$/.test(s);
+/* consts＝共通の定数（変更点がない月で使う）／changes＝定数の変更点 [{from:'YYYY-MM',consts:{6キー}}]（from の昇順）。changes は後から足したフィールド：無い保存データもそのまま読める */
+let S={v:1,ym:'',consts:{},changes:[],months:{}};
+try{const o=JSON.parse(localStorage.getItem(KEY)||'null');if(o&&o.v===1){S.ym=typeof o.ym==='string'?o.ym:'';S.consts=o.consts||{};S.months=o.months||{};
+  if(Array.isArray(o.changes)){const m={};o.changes.forEach(x=>{if(x&&okYM(x.from)&&x.consts&&typeof x.consts==='object'){const c={};CK.forEach(k=>{if(x.consts[k]!=null)c[k]=String(x.consts[k])});m[x.from]=c}});S.changes=Object.keys(m).sort().map(f=>({from:f,consts:m[f]}))}}}catch(e){}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
 const nowYM=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')};
-const okYM=s=>/^\d{4}-(0[1-9]|1[0-2])$/.test(s);
 if(!okYM(S.ym))S.ym=nowYM();
+/* その月の有効定数（入力欄に出す生の文字列）＝その月以前で最も新しい変更点。無ければ共通の定数、未保存のキーは初期値 */
+function effConsts(ym){let ch=null;for(const x of S.changes){if(x.from<=ym)ch=x;else break}const c={};CK.forEach(k=>{const v=ch&&ch.consts[k]!=null?ch.consts[k]:S.consts[k];c[k]=v!=null?v:String(DEF[k])});return c}
+const hasChange=ym=>S.changes.some(x=>x.from===ym);
 const shiftYM=(ym,d)=>{let y=+ym.slice(0,4),m=+ym.slice(5)-1+d;y+=Math.floor(m/12);m=((m%12)+12)%12;return y+'-'+String(m+1).padStart(2,'0')};
 
 /* ===== 表示 ===== */
@@ -192,16 +201,20 @@ function render(){
 }
 
 /* ===== 入出力の配線 ===== */
-function fillMonth(){const m=S.months[S.ym]||{};AK.forEach(k=>{$(k).value=m[k]||''});$('ymLabel').textContent=S.ym.slice(0,4)+'年'+(+S.ym.slice(5))+'月';render()}
-function fillConsts(){CK.forEach(k=>{$('c_'+k).value=S.consts[k]!=null?S.consts[k]:String(DEF[k])})}
+function chgUI(){const h=hasChange(S.ym);$('chgMark').textContent=h?'この月から定数を変更':'';$('delChange').disabled=!h}
+function fillConsts(){const c=effConsts(S.ym);CK.forEach(k=>{$('c_'+k).value=c[k]});chgUI()}
+function fillMonth(){const m=S.months[S.ym]||{};AK.forEach(k=>{$(k).value=m[k]||''});$('ymLabel').textContent=S.ym.slice(0,4)+'年'+(+S.ym.slice(5))+'月';fillConsts();render()}
 function saveMonth(){const m={};AK.forEach(k=>{const s=$(k).value;if(s.trim()!=='')m[k]=s});if(Object.keys(m).length)S.months[S.ym]=m;else delete S.months[S.ym];save()}
+/* 定数パネルの現在値（6キー全部）を、表示中の月の変更点として保存（同じ月にあれば上書き） */
+function saveChange(){const c={};CK.forEach(k=>{c[k]=$('c_'+k).value});const i=S.changes.findIndex(x=>x.from===S.ym);if(i>=0)S.changes[i].consts=c;else{S.changes.push({from:S.ym,consts:c});S.changes.sort((a,b)=>a.from<b.from?-1:a.from>b.from?1:0)}save()}
 function goto(ym){S.ym=ym;save();fillMonth()}
 AK.forEach(k=>$(k).addEventListener('input',()=>{saveMonth();render()}));
-CK.forEach(k=>$('c_'+k).addEventListener('input',()=>{S.consts[k]=$('c_'+k).value;save();render()}));
+CK.forEach(k=>$('c_'+k).addEventListener('input',()=>{saveChange();chgUI();render()}));
 $('prev').addEventListener('click',()=>goto(shiftYM(S.ym,-1)));
 $('next').addEventListener('click',()=>goto(shiftYM(S.ym,1)));
 $('thisMonth').addEventListener('click',()=>goto(nowYM()));
 $('clearMonth').addEventListener('click',()=>{delete S.months[S.ym];save();fillMonth()});
-$('resetConst').addEventListener('click',()=>{S.consts={};save();fillConsts();render()});
-fillConsts();fillMonth();
+$('delChange').addEventListener('click',()=>{S.changes=S.changes.filter(x=>x.from!==S.ym);save();fillConsts();render()});
+$('resetConst').addEventListener('click',()=>{S.consts={};S.changes=[];save();fillConsts();render()});
+fillMonth();
 </script></body></html>
