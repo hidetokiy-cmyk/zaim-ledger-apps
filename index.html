@@ -1722,7 +1722,7 @@
       </div>
       <div class="card panel hidden" id="orukanPanel">
         <div class="panel-head">
-          <div class="section-title serif">オルカン（全世界株式）の推移</div>
+          <div class="section-title serif" id="orukanTitle">オルカン（全世界株式）の推移</div>
           <div class="level-toggle-light" id="orukanMetricToggle" style="flex:none;">
             <button data-metric="marketValue" class="active" type="button">評価額</button>
             <button data-metric="gain" type="button">評価損益</button>
@@ -7210,20 +7210,40 @@ function svgEl(tag, attrs) {
     const panel = document.getElementById("orukanPanel");
     const chart = document.getElementById("orukanChart");
     const summary = document.getElementById("orukanSummary");
+    const titleEl = document.getElementById("orukanTitle");
     if (!panel || !chart) return;
     const pts = orukanSeriesPoints();
     if (!pts.length) { panel.classList.add("hidden"); chart.innerHTML = ""; if (summary) summary.textContent = ""; return; }
     panel.classList.remove("hidden");
     const metric = state.orukanMetric === "gain" ? "gain" : "marketValue";
     document.querySelectorAll("#orukanMetricToggle button").forEach((b) => b.classList.toggle("active", b.dataset.metric === metric));
-    const labels = pts.map((p) => {
-      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(p.date);
-      return m ? `${Number(m[2])}/${Number(m[3])}` : p.date;
-    });
+    const mode = state.periodMode;
+    let shown, labels;
+    if (mode === "all") {
+      shown = pts;
+      labels = pts.map((p) => {
+        const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(p.date);
+        return m ? `${m[1]}/${Number(m[2])}/${Number(m[3])}` : p.date;
+      });
+    } else {
+      const count = PERIOD_TREND_COUNT[mode] || 12;
+      shown = []; labels = [];
+      for (let i = count - 1; i >= 0; i--) {
+        const offset = -i;
+        const endKey = dkey(addDays(periodRangeForMode(mode, state.periodAnchor, offset).end, -1));
+        let pt = null;
+        for (let j = pts.length - 1; j >= 0; j--) { if (pts[j].date <= endKey) { pt = pts[j]; break; } }
+        if (!pt) continue;
+        shown.push(pt);
+        labels.push(periodShortLabelForMode(mode, state.periodAnchor, offset));
+      }
+    }
+    if (titleEl) titleEl.textContent = mode === "all" ? "オルカン（全世界株式）の推移" : `オルカン（全世界株式）の推移（${PERIOD_MODE_LABEL[mode]}）`;
+    if (!shown.length) { chart.innerHTML = ""; chart.appendChild(emptyState("データがありません")); if (summary) summary.textContent = ""; return; }
     const series = [metric === "gain"
-      ? { name: "評価損益", color: "var(--green)", negativeColor: "var(--red)", values: pts.map((p) => p.gain) }
-      : { name: "評価額", color: "var(--green)", values: pts.map((p) => p.marketValue) }];
-    const last = pts[pts.length - 1];
+      ? { name: "評価損益", color: "var(--green)", negativeColor: "var(--red)", values: shown.map((p) => p.gain) }
+      : { name: "評価額", color: "var(--green)", values: shown.map((p) => p.marketValue) }];
+    const last = shown[shown.length - 1];
     const gainText = (last.gain < 0 ? "−" : "+") + YEN(Math.abs(last.gain));
     let text = `評価額 ${YEN(last.marketValue)}（評価損益 ${gainText}）`;
     if (typeof last.qty === "number" && last.qty > 0) text += `・${Math.round(last.qty).toLocaleString("ja-JP")}口`;
