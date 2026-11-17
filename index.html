@@ -1720,6 +1720,17 @@
         <div class="legend-small" id="acctHistoryToggles" style="flex-wrap:wrap;"></div>
         <div class="line-chart" id="acctHistoryChart"></div>
       </div>
+      <div class="card panel hidden" id="orukanPanel">
+        <div class="panel-head">
+          <div class="section-title serif">オルカン（全世界株式）の推移</div>
+          <div class="level-toggle-light" id="orukanMetricToggle" style="flex:none;">
+            <button data-metric="marketValue" class="active" type="button">評価額</button>
+            <button data-metric="gain" type="button">評価損益</button>
+          </div>
+        </div>
+        <div id="orukanSummary" style="font-size:13px;color:var(--ink-soft);margin-bottom:6px;"></div>
+        <div class="line-chart" id="orukanChart"></div>
+      </div>
       <div class="card panel" id="memoryLayerPanel">
         <div class="panel-head"><div class="section-title serif">残高の履歴（アプリの記憶層）</div><div class="sub-meta">同期のたびに残す残高記録</div></div>
         <div id="memoryLayerBody"></div>
@@ -2315,6 +2326,7 @@
     ledgerMode: "tx",          // 台帳タブ内の切替: 'tx' | 'timeline'
     assetsHistoryHidden: new Set(),   // 資産構成の推移グラフで非表示にしたグループ名
     acctHistoryMode: "group",   // 口座・グループ別 残高推移の切替: 'group' | 'account'
+    orukanMetric: "marketValue",   // オルカンの推移の指標: 'marketValue' | 'gain'
     acctHistoryHiddenGroups: new Set(),   // 口座・グループ別 残高推移（グループ別）で非表示にしたグループ名
     acctHistoryAccounts: null,   // 口座別で表示する口座名の Set（null＝既定：現在残高の絶対値が大きい上位5口座）
     assetsHistorySecuritiesMV: true,   // 資産構成の推移で証券を時価表示するか（履歴がある日は含み損益で調整。既定ON）
@@ -2338,6 +2350,7 @@
     securitiesScrapeInfo: null, // { count, totalCostBasis, totalMarketValue, cash, other, importedAt }
     savedViews: [], // 台帳の保存ビュー [{ id, name, cond: { search, searchMode, amountMin, amountMax, adv, categoryFilter, filterLevel, periodMode, periodAnchor }, updatedAt }]
     securitiesHistory: [], // 証券の時価推移。取込・バックフィルのたびに1日1件を残す [{ date: 'YYYY-MM-DD'(JST), importedAt, totalMarketValue, totalCostBasis, cash, other, count, items: [{ name, qty, marketValue, costBasis }] }]
+    orukanWeeklyHistory: [], // オルカンの週次履歴（過去分）[{ date: 'YYYY-MM-DD', marketValue, gain }]。日次分は securitiesHistory から合算する
     zaimScrapeInfo: null, // { matched, added, unmatched: [names], excluded: [labels], balances: [{name, balance, noBalance}], importedAt }。unmatched=突合できなかった口座（警告対象）、excluded=元本管理・除外口座として意図的に対象外にした「口座名（…のため対象外）」形式のラベル（警告対象外・旧データには無い）
     accountBalanceAsOfDate: null, // 口座残高（accountBalanceOverride）の確認日。YYYY-MM-DD文字列。未設定時は初期値にフォールバック
     pendingZaimImport: null, // スクレイピングスクリプト等がクラウド経由で置いていく未取込データ { items: [{name, balance}], scrapedAt: ISO文字列 }
@@ -2558,6 +2571,7 @@
       securitiesScrapeInfo: settings.securitiesScrapeInfo ? { ...settings.securitiesScrapeInfo, importedAt: settings.securitiesScrapeInfo.importedAt.toISOString() } : null,
       savedViews: settings.savedViews,
       securitiesHistory: settings.securitiesHistory.map((h) => ({ ...h, importedAt: h.importedAt instanceof Date ? h.importedAt.toISOString() : h.importedAt })),
+      orukanWeeklyHistory: settings.orukanWeeklyHistory,
       zaimScrapeInfo: settings.zaimScrapeInfo ? { ...settings.zaimScrapeInfo, importedAt: settings.zaimScrapeInfo.importedAt.toISOString() } : null,
       accountBalanceAsOfDate: settings.accountBalanceAsOfDate,
       pendingZaimImport: settings.pendingZaimImport,
@@ -2668,6 +2682,7 @@
     settings.accountMetaInited = !!obj.accountMetaInited;
     settings.securitiesScrapeInfo = asScrapeInfo(obj.securitiesScrapeInfo, "証券の取込情報", repaired);
     settings.securitiesHistory = normalizeSecuritiesHistory(obj.securitiesHistory);
+    settings.orukanWeeklyHistory = normalizeOrukanWeeklyHistory(obj.orukanWeeklyHistory);
     settings.savedViews = normalizeSavedViews(obj.savedViews);
     settings.zaimScrapeInfo = asScrapeInfo(obj.zaimScrapeInfo, "Zaimの取込情報", repaired);
     settings.accountBalanceAsOfDate = typeof obj.accountBalanceAsOfDate === "string" ? obj.accountBalanceAsOfDate : null;
@@ -2984,6 +2999,14 @@
     return Array.from(byDate.values()).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
   }
 
+  // オルカン週次履歴は date で union。同日はリモート優先（正規化は後勝ちなので remote を後ろに並べる）。
+  function mergeOrukanWeeklyHistoryField(local, remote) {
+    return normalizeOrukanWeeklyHistory([
+      ...(Array.isArray(local.orukanWeeklyHistory) ? local.orukanWeeklyHistory : []),
+      ...(Array.isArray(remote.orukanWeeklyHistory) ? remote.orukanWeeklyHistory : []),
+    ]);
+  }
+
   // 保存が競合した際に呼ぶ3-way merge本体。base（前回同期時点）が無い（初回など）場合は
   // 安全側に倒して「remoteをベースにローカルの差分だけ載せる」動作になる。
   function mergeCloudObjects(base, local, remote) {
@@ -3002,6 +3025,7 @@
       "pendingZaimImport", "pendingZaimCsv", "zaimCsvSyncedAt", "pendingSecuritiesImport", "accountMetaInited", "syncHeartbeat", "pendingPointExpiry", "externalPoints"]
       .forEach((key) => { merged[key] = mergeScalarField(base, local, remote, key, conflicts); });
     merged.securitiesHistory = mergeSecuritiesHistoryField(local, remote);
+    merged.orukanWeeklyHistory = mergeOrukanWeeklyHistoryField(local, remote);
     // 共有手入力データ（給与シミュレータ・給与前提・配当前提）は3-wayではなく、データセット
     // ごとの updatedAt が新しい方を採用する（per-dataset の last-write-wins）。
     ["payslipSim", "salaryNetAssumption", "dividendAssumptions"]
@@ -7161,6 +7185,52 @@ function svgEl(tag, attrs) {
     renderLineChartSVG(wrap, labels, visible, { valueFormatter: (v) => YEN(v), axisValueFormatter: YEN_COMPACT, onPointClick: (i) => jumpToPeriodIndex(i, count), exportName: byAccount ? "口座別残高推移" : "グループ別残高推移" });
   }
 
+  // オルカン（全世界株式）の推移の系列。週次点は「最初の日次エントリの日付より前」だけ採用し、以降は日次点（securitiesHistory の合算）。
+  function orukanSeriesPoints() {
+    const hist = Array.isArray(settings.securitiesHistory) ? settings.securitiesHistory : [];
+    const daily = [];
+    hist.forEach((h) => {
+      if (!h || typeof h.date !== "string" || !Array.isArray(h.items)) return;
+      const items = h.items.filter((it) => it && typeof it.name === "string" && /オール・カントリー|全世界株式/.test(it.name));
+      if (!items.length) return;
+      const sum = (key) => items.reduce((s, it) => s + (typeof it[key] === "number" ? it[key] : 0), 0);
+      const mv = sum("marketValue");
+      daily.push({ date: h.date, marketValue: mv, gain: mv - sum("costBasis"), qty: sum("qty") });
+    });
+    daily.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    const first = daily.length ? daily[0].date : null;
+    const weekly = (Array.isArray(settings.orukanWeeklyHistory) ? settings.orukanWeeklyHistory : [])
+      .filter((p) => p && (first === null || p.date < first))
+      .map((p) => ({ date: p.date, marketValue: p.marketValue, gain: p.gain, qty: null }));
+    return weekly.concat(daily).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  }
+
+  // オルカン（全世界株式）の推移（評価額／評価損益）
+  function renderOrukanChart() {
+    const panel = document.getElementById("orukanPanel");
+    const chart = document.getElementById("orukanChart");
+    const summary = document.getElementById("orukanSummary");
+    if (!panel || !chart) return;
+    const pts = orukanSeriesPoints();
+    if (!pts.length) { panel.classList.add("hidden"); chart.innerHTML = ""; if (summary) summary.textContent = ""; return; }
+    panel.classList.remove("hidden");
+    const metric = state.orukanMetric === "gain" ? "gain" : "marketValue";
+    document.querySelectorAll("#orukanMetricToggle button").forEach((b) => b.classList.toggle("active", b.dataset.metric === metric));
+    const labels = pts.map((p) => {
+      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(p.date);
+      return m ? `${Number(m[2])}/${Number(m[3])}` : p.date;
+    });
+    const series = [metric === "gain"
+      ? { name: "評価損益", color: "var(--green)", negativeColor: "var(--red)", values: pts.map((p) => p.gain) }
+      : { name: "評価額", color: "var(--green)", values: pts.map((p) => p.marketValue) }];
+    const last = pts[pts.length - 1];
+    const gainText = (last.gain < 0 ? "−" : "+") + YEN(Math.abs(last.gain));
+    let text = `評価額 ${YEN(last.marketValue)}（評価損益 ${gainText}）`;
+    if (typeof last.qty === "number" && last.qty > 0) text += `・${Math.round(last.qty).toLocaleString("ja-JP")}口`;
+    if (summary) summary.textContent = text;
+    renderLineChartSVG(chart, labels, series, { valueFormatter: (v) => YEN(v), axisValueFormatter: YEN_COMPACT, exportName: "オルカン推移" });
+  }
+
   function renderMonthChart() {
     const panel = document.getElementById("monthlyPanel");
     const chart = document.getElementById("monthChart");
@@ -10074,6 +10144,7 @@ function svgEl(tag, attrs) {
     renderMonthChart();
     renderAssetsHistoryChart();
     renderAcctHistoryChart();
+    try { renderOrukanChart(); } catch (e) { console.error("オルカン推移の表示に失敗", e); }
     try { renderMemoryLayerPanel(); } catch (e) { console.error("記憶層パネルの表示に失敗", e); }
     renderTrendChart();
     try { renderAnalysisConclusion(); } catch (e) { console.error("分析の結論の表示に失敗", e); }
@@ -10566,6 +10637,17 @@ function svgEl(tag, attrs) {
     return Array.from(byDate.values()).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
   }
 
+  // オルカン週次履歴を正規化する（dateがYYYY-MM-DD、marketValue/gainが有限数のものだけ。同日は後勝ち、日付昇順）
+  function normalizeOrukanWeeklyHistory(list) {
+    const byDate = new Map();
+    (Array.isArray(list) ? list : []).forEach((p) => {
+      if (!p || typeof p.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(p.date)) return;
+      if (!Number.isFinite(p.marketValue) || !Number.isFinite(p.gain)) return;
+      byDate.set(p.date, { date: p.date, marketValue: p.marketValue, gain: p.gain });
+    });
+    return Array.from(byDate.values()).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  }
+
   // 証券履歴へ1日分をupsertする（同日は置換、日付昇順を維持）。正規化できなければfalse。
   function upsertSecuritiesHistory(entry) {
     const e = normalizeSecuritiesHistoryEntry(entry);
@@ -10622,6 +10704,14 @@ function svgEl(tag, attrs) {
     if (!btn) return;
     state.acctHistoryMode = btn.dataset.mode === "account" ? "account" : "group";
     renderAcctHistoryChart();
+  });
+
+  // オルカンの推移の「評価額／評価損益」切替（状態はセッション内のみ保持）
+  document.getElementById("orukanMetricToggle").addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-metric]");
+    if (!btn) return;
+    state.orukanMetric = btn.dataset.metric === "gain" ? "gain" : "marketValue";
+    renderOrukanChart();
   });
 
   // 総資産ヒーローの「証券を時価で表示」トグル（状態はセッション内のみ保持。既定ON）
