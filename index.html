@@ -1709,6 +1709,17 @@
         <div style="font-size:13px;color:var(--ink-soft);margin-top:6px;">※「証券を時価で表示」がONのとき、証券の履歴がある日は含み損益で調整して表示します。このときグラフの合計は、貸借対照表（簿価ベース）と含み損益の分だけ異なります。</div>
         <div style="font-size:13px;color:var(--ink-soft);margin-top:6px;">証券スクレイピングを取り込むたびに、その日の時価・取得原価を履歴に残します。</div>
       </div>
+      <div class="card panel">
+        <div class="panel-head">
+          <div class="section-title serif" id="acctHistoryTitle">口座・グループ別 残高推移</div>
+          <div class="level-toggle-light" id="acctHistoryModeToggle" style="flex:none;">
+            <button data-mode="group" class="active" type="button">グループ別</button>
+            <button data-mode="account" type="button">口座別</button>
+          </div>
+        </div>
+        <div class="legend-small" id="acctHistoryToggles" style="flex-wrap:wrap;"></div>
+        <div class="line-chart" id="acctHistoryChart"></div>
+      </div>
       <div class="card panel" id="memoryLayerPanel">
         <div class="panel-head"><div class="section-title serif">残高の履歴（アプリの記憶層）</div><div class="sub-meta">同期のたびに残す残高記録</div></div>
         <div id="memoryLayerBody"></div>
@@ -2303,6 +2314,9 @@
     analysisMode: "charts",    // 分析タブ内の切替: 'charts' | 'statements'
     ledgerMode: "tx",          // 台帳タブ内の切替: 'tx' | 'timeline'
     assetsHistoryHidden: new Set(),   // 資産構成の推移グラフで非表示にしたグループ名
+    acctHistoryMode: "group",   // 口座・グループ別 残高推移の切替: 'group' | 'account'
+    acctHistoryHiddenGroups: new Set(),   // 口座・グループ別 残高推移（グループ別）で非表示にしたグループ名
+    acctHistoryAccounts: null,   // 口座別で表示する口座名の Set（null＝既定：現在残高の絶対値が大きい上位5口座）
     assetsHistorySecuritiesMV: true,   // 資産構成の推移で証券を時価表示するか（履歴がある日は含み損益で調整。既定ON）
     assetsHeroSecuritiesMV: true,   // 総資産ヒーローで証券を時価表示するか（最新の含み損益を加算。既定ON）
     insightFeedRead: new Set(),   // 気づきフィードで既読にした項目のキー（localStorage に保存し、再訪後も保持する）
@@ -3910,6 +3924,8 @@
         return { name: s.name, accounts };
       });
     };
+    // 口座別: 口座1つ＝定義1つ（口座・グループ別 残高推移の「口座別」用。pattern 1〜3 には影響しない）
+    if (pattern === "account") return names.map((n) => ({ name: n, accounts: [n] }));
     const groupNames = accountGroupNames();
     if (pattern === 1) return partition(groupNames.map((g) => ({ name: g, test: (n) => accountGroupOf(n) === g })));
     if (pattern === 2) {
@@ -7084,6 +7100,67 @@ function svgEl(tag, attrs) {
     renderStackedAreaSVG(wrap, labels, visible, { valueFormatter: (v) => YEN(v), axisValueFormatter: YEN_COMPACT, onPointClick: (i) => jumpToPeriodIndex(i, count), exportName: "資産構成の推移" });
   }
 
+  // 口座・グループ別 残高推移（簿価ベース。証券の時価調整はしない）
+  function renderAcctHistoryChart() {
+    const wrap = document.getElementById("acctHistoryChart");
+    const toggles = document.getElementById("acctHistoryToggles");
+    if (!wrap) return;
+    const titleEl = document.getElementById("acctHistoryTitle");
+    document.querySelectorAll("#acctHistoryModeToggle button").forEach((b) => b.classList.toggle("active", b.dataset.mode === state.acctHistoryMode));
+    if (state.periodMode === "all") {
+      if (titleEl) titleEl.textContent = "口座・グループ別 残高推移";
+      wrap.innerHTML = "";
+      wrap.appendChild(el("div", { style: "font-size:15.5px;color:var(--ink-soft)" }, ["全期間モードでは推移は表示できません（日次〜年次を選択してください）"]));
+      if (toggles) toggles.innerHTML = "";
+      return;
+    }
+    if (titleEl) titleEl.textContent = `口座・グループ別 残高推移（${PERIOD_MODE_LABEL[state.periodMode]}）`;
+    const count = PERIOD_TREND_COUNT[state.periodMode] || 12;
+    const byAccount = state.acctHistoryMode === "account";
+    const { labels, groups: allGroups } = computeGroupBalancesForMode(byAccount ? "account" : 1, state.periodMode, state.periodAnchor, count);
+
+    const available = allGroups.filter((g) => g.values.some((v) => v !== 0));
+    const palette = CAT_COLORS.map((c) => `var(${c})`);
+    const colorOf = (name) => palette[available.findIndex((g) => g.name === name) % palette.length];
+
+    // 表示対象の判定：グループ別は非表示セット、口座別は選択セット（未設定なら現在残高の絶対値が大きい上位5口座）
+    let isOn;
+    if (byAccount) {
+      let shown = state.acctHistoryAccounts;
+      if (!shown) {
+        const cur = getAccountBalancesAsOf(parseAsofDate());
+        shown = new Set(available.slice().sort((a, b) => Math.abs(cur.get(b.name) || 0) - Math.abs(cur.get(a.name) || 0)).slice(0, 5).map((g) => g.name));
+      }
+      isOn = (name) => shown.has(name);
+    } else {
+      isOn = (name) => !state.acctHistoryHiddenGroups.has(name);
+    }
+    const toggle = (name) => {
+      if (byAccount) {
+        const next = new Set(available.filter((g) => isOn(g.name)).map((g) => g.name));
+        if (next.has(name)) next.delete(name); else next.add(name);
+        state.acctHistoryAccounts = next;
+      } else if (state.acctHistoryHiddenGroups.has(name)) state.acctHistoryHiddenGroups.delete(name);
+      else state.acctHistoryHiddenGroups.add(name);
+      renderAcctHistoryChart();
+    };
+
+    if (toggles) {
+      toggles.innerHTML = "";
+      available.forEach((g) => {
+        const on = isOn(g.name);
+        toggles.appendChild(el("label", { class: "toggle-chip" + (on ? "" : " off"), style: `--chip-color:${colorOf(g.name)}` }, [
+          el("input", { type: "checkbox", ...(on ? { checked: "checked" } : {}), onclick: () => toggle(g.name) }),
+          el("span", null, [g.name]),
+        ]));
+      });
+    }
+
+    const visible = available.filter((g) => isOn(g.name)).map((g) => ({ name: g.name, values: g.values, color: colorOf(g.name) }));
+    if (visible.length === 0) { wrap.innerHTML = ""; wrap.appendChild(emptyState("データがありません")); return; }
+    renderLineChartSVG(wrap, labels, visible, { valueFormatter: (v) => YEN(v), axisValueFormatter: YEN_COMPACT, onPointClick: (i) => jumpToPeriodIndex(i, count), exportName: byAccount ? "口座別残高推移" : "グループ別残高推移" });
+  }
+
   function renderMonthChart() {
     const panel = document.getElementById("monthlyPanel");
     const chart = document.getElementById("monthChart");
@@ -9996,6 +10073,7 @@ function svgEl(tag, attrs) {
     renderStatementsPanel(filtered, broad);
     renderMonthChart();
     renderAssetsHistoryChart();
+    renderAcctHistoryChart();
     try { renderMemoryLayerPanel(); } catch (e) { console.error("記憶層パネルの表示に失敗", e); }
     renderTrendChart();
     try { renderAnalysisConclusion(); } catch (e) { console.error("分析の結論の表示に失敗", e); }
@@ -10536,6 +10614,14 @@ function svgEl(tag, attrs) {
   document.getElementById("assetsHistorySecuritiesMV").addEventListener("change", (e) => {
     state.assetsHistorySecuritiesMV = e.target.checked;
     renderAssetsHistoryChart();
+  });
+
+  // 口座・グループ別 残高推移の「グループ別／口座別」切替（状態はセッション内のみ保持）
+  document.getElementById("acctHistoryModeToggle").addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-mode]");
+    if (!btn) return;
+    state.acctHistoryMode = btn.dataset.mode === "account" ? "account" : "group";
+    renderAcctHistoryChart();
   });
 
   // 総資産ヒーローの「証券を時価で表示」トグル（状態はセッション内のみ保持。既定ON）
