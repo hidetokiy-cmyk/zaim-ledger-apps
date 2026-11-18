@@ -157,7 +157,7 @@ h+='</table>'+(items.length?'<button class="sm pri" id="applyAll" type="button">
 box.innerHTML=h;
 box.querySelectorAll('button[data-t]').forEach(b=>b.addEventListener('click',()=>setVal(b.dataset.t,+b.dataset.v)));
 const all=$('applyAll');if(all)all.addEventListener('click',()=>items.forEach(r=>setVal(r[1],r[2])));
-if(/[#&]from=ledger/.test(location.hash))[['don',y.don],['shakai',y.shakai],['shaho',y.shaho],['shaself',y.shakaiSelf]].forEach(([id,x])=>{if(!$(id).value.trim()&&x>0)setVal(id,x)});
+if(/[#&]from=ledger/.test(location.hash))[['sal',y.gross],['wh',y.wh],['don',y.don],['shakai',y.shakai],['shaho',y.shaho],['shaself',y.shakaiSelf]].forEach(([id,x])=>{if(!$(id).value.trim()&&x>0)setVal(id,x)});
 }
 initHand();
 function sendResult(){
