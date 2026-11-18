@@ -5923,7 +5923,7 @@ if (knownCycle) {
         : `- 給与は${avgPart}、変動費は${medPart}、${fixedPart}${hybridPart}`);
       if (f.basis.nencho) {
         const n = f.basis.nencho;
-        lines.push(`- 12月給与は年末調整の計算見込み（年間源泉 ${YEN(n.annualWh)}／年税額 ${YEN(n.annualTax)}／精算 ${sgn(n.settle)}／12月手取り ${YEN(n.decNet)}）`);
+        lines.push(`- 12月度に年末調整の精算を反映（実績のみ${n.provisional ? "・暫定" : ""}：年間源泉 ${YEN(n.annualWh)}／年税額 ${YEN(n.annualTax)}／精算 ${sgn(n.settle)}）`);
       }
     }
     const divs = loadDividends();
@@ -6015,7 +6015,6 @@ if (knownCycle) {
       mix(state.balancePattern);
       mix(localStorage.getItem(SALARY_NET_LS_KEY) || "");
       mix(localStorage.getItem(DIVIDEND_LS_KEY) || "");
-      mix(localStorage.getItem(typeof PAYSLIP_LS_KEY === "string" ? PAYSLIP_LS_KEY : "payslipSim.v1") || "");   // 12月勤怠の転記（年末調整の計算）で予測が変わる
       const t = new Date();
       mix(t.getFullYear() + "-" + (t.getMonth() + 1) + "-" + t.getDate());
       return (h >>> 0).toString(36);
@@ -6028,7 +6027,7 @@ if (knownCycle) {
     if (key !== null) forecastCache = { key, result };
     return result;
   }
-  // ===== 年末調整の精算額（計算のみ。12月給与に乗る分を、実績＋給与シミュレータの12月勤怠から出す） =====
+  // ===== 年末調整の精算額（実績のみ。12月給与・冬賞与は Zaim に実績の行が入った時点で反映される） =====
   // 給与所得控除・税率・基礎控除は tax-furusato.html の令和8年パラメータの複製（税制改正時は両方を更新する）
   const NENCHO_TAX_YEAR = 2026;
   const nenchoKd = (s) => s <= 2200000 ? Math.min(s, 740000) : s <= 3600000 ? s * .3 + 80000 : s <= 6600000 ? s * .2 + 440000 : s <= 8500000 ? s * .1 + 1100000 : 1950000;
@@ -6039,53 +6038,25 @@ if (knownCycle) {
       const year = new Date().getFullYear();
       if (year !== NENCHO_TAX_YEAR) return null;
       const key = year + "-12";
-      const env = localPayslipEnv();
-      const att = env ? env.data.months[key] : null;
-      if (!att) return null;
-      // 12月分の定数：payslip.html の effConsts と同じ規則（from が12月以前の最後の変更点を1つ選び、
-      // キーごとに 変更点 → 共通の定数 → DEF の順で引く）
-      const DEF = { base: 242000, std: 240000, commute: 11162, hours: 153.73 };
-      let ch = null;
-      for (const x of env.data.changes) { if (x && x.from <= key) ch = x; else break; }
-      const c = {};
-      Object.keys(DEF).forEach((k) => {
-        const raw = ch && ch.consts && ch.consts[k] != null ? ch.consts[k] : (env.data.consts ? env.data.consts[k] : null);
-        const s = String(raw == null ? "" : raw).normalize("NFKC").trim();
-        c[k] = /^\d+(\.\d+)?$/.test(s) && parseFloat(s) > 0 ? parseFloat(s) : DEF[k];
-      });
-      // 12月の勤怠（"H:MM" 文字列と欠勤日数。payslip.html の parseHM / parseDays と同じ読み方）
-      const hm = (s) => { const m = String(s == null ? "" : s).normalize("NFKC").trim().match(/^(\d+)(?::(\d{1,2}))?$/); return m && (m[2] == null || +m[2] <= 59) ? (+m[1] * 60 + (m[2] == null ? 0 : +m[2])) / 60 : 0; };
-      const dy = (s) => { const t = String(s == null ? "" : s).normalize("NFKC").trim(); return /^\d+(\.\d+)?$/.test(t) ? parseFloat(t) : 0; };
-      const ot1 = hm(att.ot1), ot2 = hm(att.ot2), late = hm(att.late), absent = dy(att.absent);
-      // 丸めは payslip.html の n15 / RD / RU と同じ
-      const n15 = (x) => Number(Number(x).toPrecision(15));
-      const rd = (x) => { const y = n15(x); return y >= 0 ? Math.floor(y) : -Math.floor(-y); };
-      const ru = (x) => { const y = n15(x); return y >= 0 ? Math.ceil(y) : -Math.ceil(-y); };
-      // 支給小計 sub（非課税通勤は含めない）と社保合計 shaho：payslip.html の compute() と同じ式
-      const wage = c.base / c.hours, kihon = c.base - 3000;
-      const sub = kihon + (absent > 0 ? 0 : 3000) + (ot1 > 0 ? rd(wage * ot1) - 1 : 0) + (ot2 > 0 ? rd(wage * ot2 * 1.25) - 1 : 0) - rd(wage * late) - ru(kihon / c.hours * absent * 7.5);
-      const shaho = c.std * 0.04925 + c.std * 0.00115 + c.std * 0.0915 + rd((sub + c.commute) * 0.005);
-      // 1〜11月支給分の実績（国民年金など自分で払う社保は確定申告側なので対象外）
-      let gross = 0, shakai = 0, wh = 0;
+      // 実績のみ：当年の「給与」カテゴリの income 行をすべて集計（computeTaxYearTotals と同じ土俵。
+      // 国民年金など自分で払う社保は確定申告側なので対象外）
+      let gross = 0, shakai = 0, wh = 0, hasDec = false;
       for (const r of state.transactions || []) {
         if (r.aggSetting === "exclude" || r.type !== "income" || r.category !== "給与") continue;
-        if (r.date.getFullYear() !== year || r.date.getMonth() > 10) continue;
+        if (r.date.getFullYear() !== year) continue;
         const txt = [r.store, r.item, r.memo].filter(Boolean).join(" ");
         gross += r.amount;
         if (PAYROLL_SHAKAI_RE.test(txt)) shakai += r.amount;
         else if (/所得税/.test(txt)) wh += r.amount;
+        // 12月の天引き行は先日付で登録されるため、本体（振込・賞与）行が入った時だけ「12月分が入った」とみなす
+        else if (!/住民税/.test(txt) && r.date.getMonth() === 11) hasDec = true;
       }
       if (!(gross > 0)) return null;
-      const annualGross = gross + sub, annualShakai = shakai + shaho;
-      const shotoku = annualGross - nenchoKd(annualGross);
-      const taxable = Math.floor(Math.max(0, shotoku - annualShakai - nenchoBt(shotoku)) / 1000) * 1000;
+      const shotoku = gross - nenchoKd(gross);
+      const taxable = Math.floor(Math.max(0, shotoku - shakai - nenchoBt(shotoku)) / 1000) * 1000;
       const annualTax = Math.floor(nenchoTax(taxable) * 1.021 / 100) * 100;
-      // 12月給与の手取り見込み（12月の通常源泉は精算で相殺されるため、実績の源泉合計と年税額だけで決まる）
-      const decNet = Math.round(sub - shaho - annualTax + wh);
-      const assumed = loadSalaryNetAssumption();
-      const std = assumed != null ? assumed : outlookMonthlySalary();
-      if (std == null || !Number.isFinite(std)) return null;
-      return { key, delta: decNet - Math.round(std), annualGross, annualShakai, annualWh: wh, annualTax, decSub: sub, decShaho: shaho, decNet };
+      const settle = wh - annualTax;
+      return { key, delta: settle, settle, annualGross: gross, annualShakai: shakai, annualWh: wh, annualTax, provisional: !hasDec };
     } catch (e) { console.error("年末調整の計算に失敗", e); return null; }
   }
   function computeForecastUncached() {
@@ -6187,7 +6158,7 @@ if (knownCycle) {
       const passReimb = passReimbursementForKey(key, passMap);
       if (passReimb > 0) incomeForecast += passReimb;
 
-      // 年末調整の精算（計算）：12月給与の見込みを、標準月の給与から実見込みへ置き換える差分
+      // 年末調整の精算（実績のみ）：精算額（源泉合計 − 年税額）そのものを12月度に上乗せする
       const nencho = nenchoEst && nenchoEst.key === key ? nenchoEst.delta : 0;
       incomeForecast += nencho;
 
@@ -6287,7 +6258,7 @@ if (knownCycle) {
         }
       }
     } catch (e) { /* ハイブリッド化に失敗したら代表値の結果をそのまま使う */ }
-    if (nenchoEst && result.basis && result.months.some((m) => m.key === nenchoEst.key)) result.basis.nencho = { key: nenchoEst.key, delta: nenchoEst.delta, annualWh: nenchoEst.annualWh, annualTax: nenchoEst.annualTax, settle: nenchoEst.annualWh - nenchoEst.annualTax, decNet: nenchoEst.decNet };
+    if (nenchoEst && result.basis && result.months.some((m) => m.key === nenchoEst.key)) result.basis.nencho = { key: nenchoEst.key, delta: nenchoEst.delta, annualWh: nenchoEst.annualWh, annualTax: nenchoEst.annualTax, settle: nenchoEst.settle, provisional: nenchoEst.provisional };
     return result;
   }
 
@@ -6611,9 +6582,9 @@ if (knownCycle) {
           ]),
         ])] : []),
         ...(basis.nencho ? [el("div", { class: "bal-row" }, [
-          el("span", { class: "name" }, ["年末調整（計算）"]),
+          el("span", { class: "name" }, ["年末調整（実績のみ）"]),
           el("span", { class: "amt num amt-wrap" }, [
-            `12月度：年間源泉 ${YEN(basis.nencho.annualWh)} − 年税額 ${YEN(basis.nencho.annualTax)} ＝ 精算 ${basis.nencho.settle >= 0 ? "+" : "−"}${YEN(Math.abs(basis.nencho.settle))}、12月手取り見込み ${YEN(basis.nencho.decNet)}`,
+            `12月度：年間源泉 ${YEN(basis.nencho.annualWh)} − 年税額 ${YEN(basis.nencho.annualTax)} ＝ 精算 ${basis.nencho.settle >= 0 ? "+" : "−"}${YEN(Math.abs(basis.nencho.settle))}${basis.nencho.provisional ? "（暫定）" : ""}`,
           ]),
         ])] : []),
         el("div", { class: "bal-row" }, [
