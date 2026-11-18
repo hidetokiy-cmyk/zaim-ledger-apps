@@ -9229,10 +9229,11 @@ function svgEl(tag, attrs) {
     // 所得税・住民税は、給与行から拾えなかった場合だけ「税金」カテゴリの支出で補う（天引き分は両方に記録されていて二重計上になるため）
     for (const y of Object.keys(years)) {
       const g = years[y];
+      g.shaho = g.shakai || g.shakaiX;
       g.shakai = (g.shakai || g.shakaiX) + g.shakaiSelf;
       if (!g.wh) g.wh = g.whX;
       if (!g.res) g.res = g.resX;
-      delete g.shakaiX; delete g.shakaiSelf; delete g.whX; delete g.resX;
+      delete g.shakaiX; delete g.whX; delete g.resX;
     }
     return years;
   }
