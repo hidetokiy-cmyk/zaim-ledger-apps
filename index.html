@@ -7135,14 +7135,16 @@ function svgEl(tag, attrs) {
     if (opts.exportName) addChartExportButton(container, svg, opts.exportName);
 
     const fmt = opts.valueFormatter ? opts.valueFormatter : (v) => v;
+    // ツールチップは innerHTML で組み立てるため、データ由来の文字列（口座名などの系列名・ラベル）をエスケープする
+    const escT = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
     attachChartTooltip(container, svg, {
       padL, padT, plotW, plotH, w, n, x,
       getLines: (i) => {
-        const lines = [`<div class="tt-date">${labels[i]}</div>`];
+        const lines = [`<div class="tt-date">${escT(labels[i])}</div>`];
         series.forEach((s) => {
           const v = s.values[i];
           const color = s.negativeColor && v < 0 ? s.negativeColor : s.color;
-          lines.push(`<div><span class="tt-swatch" style="background:${color}"></span>${s.name ? s.name + "：" : ""}${fmt(v)}</div>`);
+          lines.push(`<div><span class="tt-swatch" style="background:${color}"></span>${s.name ? escT(s.name) + "：" : ""}${fmt(v)}</div>`);
         });
         return lines;
       },
@@ -7267,8 +7269,10 @@ function svgEl(tag, attrs) {
       hoverDot.setAttribute("visibility", "visible");
 
       const fmt = opts.valueFormatter ? opts.valueFormatter : (v) => v;
-      const lines = [`<div class="tt-date">${labels[i]}</div>`];
-      if (hovered) lines.push(`<div><span class="tt-swatch" style="background:${hovered.color}"></span>${hovered.name}：${fmt(hovered.value)}</div>`);
+      // ツールチップは innerHTML で組み立てるため、データ由来の文字列（グループ名・ラベル）をエスケープする
+      const escT = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+      const lines = [`<div class="tt-date">${escT(labels[i])}</div>`];
+      if (hovered) lines.push(`<div><span class="tt-swatch" style="background:${hovered.color}"></span>${escT(hovered.name)}：${fmt(hovered.value)}</div>`);
       lines.push(`<div class="tt-total">合計（表示中）：${fmt(totalSeries[i])}</div>`);
       tooltip.innerHTML = lines.join("");
       tooltip.style.display = "block";
@@ -7579,10 +7583,11 @@ function svgEl(tag, attrs) {
     if (opts.exportName) addChartExportButton(container, svg, opts.exportName);
 
     const fmt = opts.valueFormatter ? opts.valueFormatter : (v) => v;
+    const escT = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
     const barX = (i) => padL + slot * (i + 0.5);
     attachChartTooltip(container, svg, {
       padL, padT, plotW, plotH, w, n, x: barX,
-      getLines: (i) => [`<div class="tt-date">${labels[i]}</div>`, `<div><span class="tt-swatch" style="background:${opts.color || "var(--gold)"}"></span>${fmt(values[i])}</div>`],
+      getLines: (i) => [`<div class="tt-date">${escT(labels[i])}</div>`, `<div><span class="tt-swatch" style="background:${opts.color || "var(--gold)"}"></span>${fmt(values[i])}</div>`],
       onHover: (i) => { bars.forEach((b, bi) => b.setAttribute("opacity", bi === i ? "0.7" : "1")); },
       onLeave: () => { bars.forEach((b) => b.setAttribute("opacity", "1")); },
       onClick: opts.onPointClick,
