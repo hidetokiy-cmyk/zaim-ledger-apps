@@ -5909,15 +5909,16 @@ if (knownCycle) {
     lines.push("");
     lines.push(`■ 今後${f.months.length}か月の残高見込み`);
     f.months.forEach((m) => {
-      lines.push(`- ${m.label}：収支 ${sgn(m.net)}${m.dividend ? `（うち配当・分配金 ${YEN(m.dividend)}）` : ""}${m.pass ? `（うち定期券・交通費精算${m.passFilled ? "（補完）" : ""} ${YEN(m.pass)}）` : ""}${m.nencho ? `（うち年末調整 ${sgn(m.nencho)}）` : ""} → 残高 ${YEN(m.balance)}（目安 ${YEN(m.lower)}〜${YEN(m.upper)}）`);
+      lines.push(`- ${m.label}：収支 ${sgn(m.net)}${m.dividend ? `（うち配当・分配金 ${YEN(m.dividend)}）` : ""}${m.pass ? `（うち定期券・交通費精算${m.passFilled ? "（補完）" : ""} ${YEN(m.pass)}）` : ""}${m.passSettle ? `（うち定期券カード精算 -${YEN(m.passSettle)}）` : ""}${m.bonus ? `（うち賞与 ${YEN(m.bonus)}）` : ""}${m.nencho ? `（うち年末調整 ${sgn(m.nencho)}）` : ""} → 残高 ${YEN(m.balance)}（目安 ${YEN(m.lower)}〜${YEN(m.upper)}）`);
     });
     lines.push("");
     lines.push("■ 予測の前提");
     if (f.basis) {
       const avgPart = `直近${f.windowSize}か月の平均`;
       const medPart = `直近${f.windowSize}か月の中央値`;
-      const fixedPart = `固定費は検出した定期支払い（月額 ${YEN(f.basis.fixedMonthlyTotal)}${f.basis.fixedYearlyTotal ? `、年払い合計 ${YEN(f.basis.fixedYearlyTotal)}` : ""}）${f.basis.fixedCardBaseAvg ? `とカード決済の基礎額（月平均 ${YEN(Math.round(f.basis.fixedCardBaseAvg))}）` : ""}`;
+      const fixedPart = `固定費は検出した定期支払い（月額 ${YEN(f.basis.fixedMonthlyTotal)}${f.basis.fixedYearlyTotal ? `、年払い合計 ${YEN(f.basis.fixedYearlyTotal)}` : ""}）${f.basis.fixedCardBaseAvg ? `とカード決済の基礎額（中央値 ${YEN(Math.round(f.basis.fixedCardBaseAvg))}）` : ""}`;
       const hybridPart = f.basis.hybridMonths ? `、直近${f.basis.hybridMonths}ヶ月は実際の引落予定ベース` : "";
+      if (f.basis.bonus) lines.push(`- 賞与は前回実績（額面 ${YEN(f.basis.bonus.lastGross)}、${f.basis.bonus.coverage}か月分）から月額換算し、社保・税を差し引いて見込む`);
       lines.push(f.basis.salaryAssumption != null
         ? `- 給与は契約手取りの前提（月 ${YEN(f.basis.salaryAssumption)}・${f.basis.salaryAssumptionSet ? "手入力" : "初期値"}）、変動費は${medPart}、${fixedPart}${hybridPart}`
         : `- 給与は${avgPart}、変動費は${medPart}、${fixedPart}${hybridPart}`);
@@ -6088,11 +6089,98 @@ if (knownCycle) {
     const recentIncome = recentUsable.map((m) => m.income);
     const baseVariableAvg = recentVariable.length ? median(recentVariable) : 0;   // 変動費の代表値＝中央値（フィールド名 variableAvg は互換のため維持）
     const baseIncomeAvg = forecastAvg(recentIncome);
+    // 定期券（ビューカード購入）のカード精算：精算が落ちるサイクルの会計月キー → 精算額。
+    // 収入側（交通費精算）は購入月に立つので、支出側も精算が落ちるサイクルに額を計上してそろえる。
+    // 過去月の基礎額からはこの額を除き、予測では該当月へ個別に足す（ハイブリッド月は実際の引落で入る）。
+    const passSettleMap = new Map();
+    let lastPassAccount = null, lastPassDate = null;
+    (state.transactions || []).forEach((r) => {
+      if (r.type !== "transfer" || !(r.amount > 0)) return;
+      const txt = [r.memo, r.item].filter(Boolean).join(" ");
+      const isPass = (/ビュー/.test(r.fromAccount || "") || /定期券/.test(txt)) && /預け金/.test(r.toAccount || "");
+      if (!isPass) return;
+      let sk = r.fromAccount ? projectCardSettlementMonthKey(r.fromAccount, r.date) : null;
+      // 投影できない口座は、精算日＝購入日の2か月後の4日とみなす
+      if (!sk) sk = getCycleBounds(new Date(r.date.getFullYear(), r.date.getMonth() + 2, 4)).key;
+      passSettleMap.set(sk, (passSettleMap.get(sk) || 0) + r.amount);
+      if (!lastPassDate || r.date > lastPassDate) { lastPassDate = r.date; lastPassAccount = r.fromAccount; }
+    });
+    // 賞与の社保・税の料率（現行）。標準賞与額（千円未満切捨て）に健保・子育支援金・厚生年金、
+    // 額面に雇用保険を掛ける。所得税率は前回実績から逆算し、求まらなければ既定値を使う。
+    // 賞与が1回しか無いときの既定値：初回の実績は4–6月分の3か月分だったため、対象月数は3、支給間隔は6。
+    const BONUS_RATE_KENPO = 0.04925;
+    const BONUS_RATE_KODOMO = 0.00115;
+    const BONUS_RATE_NENKIN = 0.0915;
+    const BONUS_RATE_KOYO = 0.005;
+    const BONUS_TAX_RATE_DEFAULT = 0.0408;
+    const BONUS_DEFAULT_COVERAGE = 3;
+    const BONUS_DEFAULT_INTERVAL = 6;
+    // 賞与アンカー：「給与」カテゴリの income 行のうちメモ・品目に「賞与」を含むものを日付ごとに合算（＝額面）。
+    // 本体行（手取り振込）と預け金宛ての天引き行（社保・所得税）の合計が額面になる。
+    const bonusByDate = new Map();
+    (state.transactions || []).forEach((r) => {
+      if (r.type !== "income" || r.category !== "給与") return;
+      if (!/賞与/.test([r.memo, r.item].filter(Boolean).join(" "))) return;
+      const d = startOfDay(r.date);
+      let g = bonusByDate.get(d.getTime());
+      if (!g) { g = { date: d, gross: 0, rows: [] }; bonusByDate.set(d.getTime(), g); }
+      g.gross += r.amount;
+      g.rows.push(r);
+    });
+    const bonusGroups = [...bonusByDate.values()].sort((a, b) => a.date - b.date);
+    const lastBonus = bonusGroups.length ? bonusGroups[bonusGroups.length - 1] : null;
+    const lastBonusGross = lastBonus ? lastBonus.gross : 0;
+    const lastBonusDate = lastBonus ? lastBonus.date : null;
+    // 対象月数・支給間隔：2回以上あれば直近2回の間隔（月数、四捨五入）。1回だけなら既定値
+    // （初回の実績が4–6月分の3か月だったため対象月数3、間隔6）。
+    let lastCoverage = BONUS_DEFAULT_COVERAGE;
+    let bonusInterval = BONUS_DEFAULT_INTERVAL;
+    if (bonusGroups.length >= 2) {
+      const prevBonus = bonusGroups[bonusGroups.length - 2];
+      const gapMonths = Math.max(1, Math.round((lastBonus.date - prevBonus.date) / 86400000 / 30.4375));
+      lastCoverage = gapMonths;
+      bonusInterval = gapMonths;
+    }
+    const bonusMonthlyRate = lastCoverage > 0 ? lastBonusGross / lastCoverage : 0;
+    // 所得税率：直近の賞与の「所得税」行 ÷（額面 − 社保分）。社保分＝預け金宛てで所得税以外の行。
+    let bonusTaxRate = BONUS_TAX_RATE_DEFAULT;
+    if (lastBonus) {
+      let taxAmt = 0, socialAmt = 0;
+      lastBonus.rows.forEach((r) => {
+        const line2 = String(r.memo || "").split(/\r?\n/)[1] || "";
+        if (/所得税/.test(line2)) taxAmt += r.amount;
+        else if (/預け金/.test(r.toAccount || "")) socialAmt += r.amount;
+      });
+      const taxBase = lastBonusGross - socialAmt;
+      if (taxAmt > 0 && taxBase > 0) bonusTaxRate = taxAmt / taxBase;
+    }
+    // 将来の賞与：前回の支給日に支給間隔を繰り返し足した日付のうち、今日より未来のものだけを手取りで見込む
+    // （過去分は開始残高に含まれている）。
+    const bonusMap = new Map();
+    let bonusNext = null;
+    if (lastBonusDate && lastBonusGross > 0) {
+      const today0 = startOfDay(new Date());
+      for (let k = 1; k * bonusInterval <= FORECAST_MONTHS_AHEAD + bonusInterval; k++) {
+        const bd = new Date(lastBonusDate.getFullYear(), lastBonusDate.getMonth() + k * bonusInterval, lastBonusDate.getDate());
+        if (bd <= today0) continue;
+        const gross = Math.round(bonusMonthlyRate * bonusInterval);
+        const std = Math.floor(gross / 1000) * 1000;
+        const social = Math.round(std * BONUS_RATE_KENPO) + Math.round(std * BONUS_RATE_KODOMO)
+          + Math.round(std * BONUS_RATE_NENKIN) + Math.round(gross * BONUS_RATE_KOYO);
+        const tax = Math.floor((gross - social) * bonusTaxRate);
+        const net = gross - social - tax;
+        const bkey = getCycleBounds(bd).key;
+        bonusMap.set(bkey, (bonusMap.get(bkey) || 0) + net);
+        if (!bonusNext) bonusNext = { gross, net, date: bd, key: bkey, lastGross: lastBonusGross, coverage: lastCoverage };
+      }
+    }
     // カード決済の「基礎額」（サブスク外の継続的なカード支出。実績集計では固定費側に
-    // 数えられている分＝ fixed − fixedCash − cardSub）は、サブスクではないため下の
+    // 数えられている分＝ fixed − fixedCash − cardSub − 定期券のカード精算）は、サブスクではないため下の
     // fixedForecast には入らず、変動費（variable）にも含まれないので、そのままでは
-    // 予測から丸ごと落ちる。実績表の分類と前提を揃えるため、同じ窓の平均を固定費に足す。
-    const cardBaseAvg = forecastAvg(recentUsable.map((m) => Math.max(0, m.fixed - m.fixedCash - m.cardSub)));
+    // 予測から丸ごと落ちる。実績表の分類と前提を揃えるため、同じ窓の中央値を固定費に足す
+    // （突出した月の精算に引きずられないよう、変動費の代表値と同じく中央値）。
+    const cardBaseVals = recentUsable.map((m) => Math.max(0, m.fixed - m.fixedCash - m.cardSub - (passSettleMap.get(m.key) || 0)));
+    const cardBaseAvg = cardBaseVals.length ? median(cardBaseVals) : 0;   // 変数名 cardBaseAvg / basis.fixedCardBaseAvg は互換のため維持（中身は中央値）
     const cardBaseRows = recentUsable.flatMap((m) => m.cardFixedRows || []);
     // 給与（契約手取り）の前提（手入力）。あれば実績平均ではなく前提額を標準月の給与とする
     const salaryAssumption = loadSalaryNetAssumption();
@@ -6158,6 +6246,16 @@ if (knownCycle) {
       const passReimb = passReimbursementForKey(key, passMap);
       if (passReimb > 0) incomeForecast += passReimb;
 
+      // 定期券のカード精算（未検出の将来購入分）：補完で精算収入が立つ購入月は、購入日をその月の10日と仮置きし、
+      // 直近の購入口座（無ければ購入の2か月後の4日）で精算サイクルへ投影して passSettleMap に足す。
+      // fixedForecast にはここでは足さない（ハイブリッドの後で非ハイブリッド月にだけ足す）。
+      if (passReimb > 0 && passReimbursementFilled(key, passMap)) {
+        const pd = new Date(yy, mm - 1, 10);
+        let psk = lastPassAccount ? projectCardSettlementMonthKey(lastPassAccount, pd) : null;
+        if (!psk) psk = getCycleBounds(new Date(yy, mm - 1 + 2, 4)).key;
+        passSettleMap.set(psk, (passSettleMap.get(psk) || 0) + PASS_PRICE_DEFAULT);
+      }
+
       // 年末調整の精算（実績のみ）：精算額（源泉合計 − 年税額）そのものを12月度に上乗せする
       const nencho = nenchoEst && nenchoEst.key === key ? nenchoEst.delta : 0;
       incomeForecast += nencho;
@@ -6169,7 +6267,7 @@ if (knownCycle) {
       // ここでは支払方法を問わず一律に含めてよい。
       // 金額は代表額（直近3件の中央値）を使う（M3）。月次は月次換算額（隔月払いは2で割る）を
       // 毎月に均し、年次は到来月に代表額を計上する。
-      let fixedForecast = cardBaseAvg;   // カード決済の基礎額（同じ窓の月平均）を毎月見込む
+      let fixedForecast = cardBaseAvg;   // カード決済の基礎額（同じ窓の中央値、定期券のカード精算を除く）を毎月見込む
       activeSubs.forEach((s) => {
         if (s.freq === "month") { fixedForecast += s.monthlyEquivalent; return; }
         if (!s.cashPaid && s.account) {
@@ -6189,7 +6287,7 @@ if (knownCycle) {
       result.months.push({
         key, label: cycleLabel(key), i,
         income: incomeForecast, dividend: dividendForecast, pass: passReimb, passFilled: passReimb > 0 && passReimbursementFilled(key, passMap), fixed: fixedForecast, variable: variableForecast, investFin: investFinForecast,
-        net: netForecast, nencho, balance, upper: balance + band, lower: balance - band,
+        passSettle: 0, bonus: 0, net: netForecast, nencho, balance, upper: balance + band, lower: balance - band,
       });
     }
 
@@ -6258,6 +6356,31 @@ if (knownCycle) {
         }
       }
     } catch (e) { /* ハイブリッド化に失敗したら代表値の結果をそのまま使う */ }
+
+    // 定期券のカード精算と賞与（手取り）の計上。
+    // ・定期券精算：ハイブリッド月は実際のカード引落イベントで精算が入るので、二重に数えないよう非ハイブリッド月だけに足す。
+    // ・賞与：90日見通しは賞与イベントを持たないため、ハイブリッド月でも二重計上にならない。hybrid を問わず収入へ足す。
+    let passOrBonusAdded = false;
+    result.months.forEach((m) => {
+      const ps = passSettleMap.get(m.key) || 0;
+      if (ps && !m.hybrid) { m.fixed += ps; m.passSettle = ps; passOrBonusAdded = true; }
+      const bn = bonusMap.get(m.key) || 0;
+      if (bn) { m.income += bn; m.bonus = bn; passOrBonusAdded = true; }
+    });
+    if (passOrBonusAdded) {
+      let bal = result.startBalance;
+      result.months.forEach((m) => {
+        m.net = m.income - m.fixed - m.variable + m.investFin;
+        bal += m.net;
+        m.balance = bal;
+        const band = netStdev * Math.sqrt(m.i);
+        m.upper = bal + band;
+        m.lower = bal - band;
+      });
+    }
+    if (result.basis) {
+      result.basis.bonus = (bonusNext && result.months.some((m) => m.key === bonusNext.key)) ? bonusNext : null;
+    }
     if (nenchoEst && result.basis && result.months.some((m) => m.key === nenchoEst.key)) result.basis.nencho = { key: nenchoEst.key, delta: nenchoEst.delta, annualWh: nenchoEst.annualWh, annualTax: nenchoEst.annualTax, settle: nenchoEst.settle, provisional: nenchoEst.provisional };
     return result;
   }
@@ -6585,6 +6708,12 @@ if (knownCycle) {
           el("span", { class: "name" }, ["年末調整（実績のみ）"]),
           el("span", { class: "amt num amt-wrap" }, [
             `12月度：年間源泉 ${YEN(basis.nencho.annualWh)} − 年税額 ${YEN(basis.nencho.annualTax)} ＝ 精算 ${basis.nencho.settle >= 0 ? "+" : "−"}${YEN(Math.abs(basis.nencho.settle))}${basis.nencho.provisional ? "（暫定）" : ""}`,
+          ]),
+        ])] : []),
+        ...(basis.bonus ? [el("div", { class: "bal-row" }, [
+          el("span", { class: "name" }, ["賞与（前回実績から推計）"]),
+          el("span", { class: "amt num amt-wrap" }, [
+            `${cycleLabel(basis.bonus.key)}：額面 ${YEN(basis.bonus.gross)} → 手取り ${YEN(basis.bonus.net)}（前回 ${YEN(basis.bonus.lastGross)}・${basis.bonus.coverage}か月分）`,
           ]),
         ])] : []),
         el("div", { class: "bal-row" }, [
