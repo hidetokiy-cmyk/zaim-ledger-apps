@@ -5480,6 +5480,29 @@ if (knownCycle) {
       cardFixedByAccount.set(keyAccount, (cardFixedByAccount.get(keyAccount) || 0) + s.amount);
     });
 
+    // カードから電子マネー・証券・前払系口座へのチャージ（振替）は、買い物側（電子マネー口座の支出や
+    // 投信積立の計上）で一度計上され、カード決済にもその返済が含まれるため、そのままでは二重計上に
+    // なる。決済の振り分けでは、対象期間内のチャージ分を決済額から差し引いて一度だけ数える。
+    // 定期券購入（ビュー→預け金）は computeForecastUncached 側で精算を分離して扱うため、ここでは
+    // チャージに含めない。未払費用への振替は振替先の条件に含まれず、従来どおりサブスクの leg として
+    // 扱われる。
+    const chargeRows = state.transactions.filter((r) => {
+      if (r.type !== "transfer" || !(r.amount > 0)) return false;
+      if (isFutureRow(r) || r.aggSetting === "exclude") return false;
+      const fromMeta = getAccountMeta(r.fromAccount);
+      if (fromMeta.card !== true || fromMeta.unpaid === true) return false;
+      const to = r.toAccount;
+      if (!(forecastIsCashAccount(to) || CF_INVESTMENT_ACCOUNTS.has(to) || getAccountMeta(to).prepaid === true)) return false;
+      if ((/ビュー/.test(r.fromAccount || "") || /定期券/.test(`${r.memo || ""} ${r.item || ""}`)) && /預け金/.test(r.toAccount || "")) return false;
+      return true;
+    });
+    // 同一口座からのチャージ合計（from < date <= to の範囲）
+    function sumChargesInRange(account, from, to) {
+      let total = 0;
+      chargeRows.forEach((c) => { if (c.fromAccount === account && c.date > from && c.date <= to) total += c.amount; });
+      return total;
+    }
+
     const map = new Map();
     // 行別展開データ（incomeRows等）は、予測根拠パネルや月次内訳テーブルから
     // 「具体的にどの取引が集計・除外されているか」へドリルダウンするために保持する。
@@ -5560,9 +5583,11 @@ if (knownCycle) {
               // （費用行は fromAccount が未払費用、leg はカード発の振替のみ）なので二重計上は起きない。
               s.rows.concat(s.cardLegs || []).forEach((sr) => { if (sr.fromAccount === account && sr.date > cycleStart && sr.date <= cycleEnd) fixedAmt += sr.amount; });
             });
-            fixedAmt = Math.min(fixedAmt, r.amount);
+            // 締め期間内のチャージ分は買い物側で計上済みなので、決済額から差し引いた残りを振り分ける
+            const pool = Math.max(0, r.amount - sumChargesInRange(account, cycleStart, cycleEnd));
+            fixedAmt = Math.min(fixedAmt, pool);
             if (fixedAmt > 0) { b.fixed += fixedAmt; b.fixedRows.push(r); b.cardSub += fixedAmt; b.cardSubRows.push(r); }
-            const leftover = r.amount - fixedAmt;
+            const leftover = pool - fixedAmt;
             if (leftover > 0) {
               if (!leftoverByAccount.has(account)) leftoverByAccount.set(account, []);
               leftoverByAccount.get(account).push({ b, amount: leftover, rows: [r] });
@@ -5571,7 +5596,9 @@ if (knownCycle) {
         } else {
           let remainingFixed = cardFixedByAccount.get(account) || 0;
           rows.forEach((r) => {
-            const amt = r.amount;
+            // サイクルが推定できない口座では、決済日の1か月前〜決済日をチャージの対象期間とする
+            const rangeStart = new Date(r.date.getFullYear(), r.date.getMonth() - 1, r.date.getDate());
+            const amt = Math.max(0, r.amount - sumChargesInRange(account, rangeStart, r.date));
             const toFixed = Math.min(amt, remainingFixed);
             remainingFixed -= toFixed;
             if (toFixed > 0) { b.fixed += toFixed; b.fixedRows.push(r); b.cardSub += toFixed; b.cardSubRows.push(r); }

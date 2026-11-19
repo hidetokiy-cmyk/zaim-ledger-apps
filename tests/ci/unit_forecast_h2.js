@@ -197,6 +197,28 @@ const histS = computeForecastMonthlyHistory();
 const sep = histS.find((m) => m.key === '2026-09');
 check('合成：2026-09 の実績分類は 基礎額50,000（fixed側）＋超過30,000（variable側）', sep && Math.abs((sep.fixed - sep.fixedCash - sep.cardSub) - 50000) < 0.01 && Math.abs(sep.variable - 30000) < 0.01, sep ? JSON.stringify({ fixed: sep.fixed, variable: sep.variable }) : 'no bucket');
 
+console.log('== 合成データ（カード→電子マネーのチャージあり） ==');
+// 上の合成データに、毎月 テストカード→テストペイ のチャージ20,000と、テストペイからの支出20,000を追加。
+// 支出は買い物側（テストペイ＝現金口座）で計上されるので、決済側ではチャージ分を差し引かなければ
+// 二重計上になる。差し引き後の決済プールは 30,000 / 30,000 / 60,000 / 30,000 → 基礎額の中央値 30,000。
+settings.accountMeta = new Map([['現金', metaCash], ['テストカード', metaCard], ['テストペイ', metaCash]]);
+const rows2 = [];
+[['2026-07', 2026, 8, 50000], ['2026-08', 2026, 9, 50000], ['2026-09', 2026, 10, 80000], ['2026-10', 2026, 11, 50000]].forEach(([key, y, mo, amt]) => {
+  rows2.push(mkRow(y, mo, 5, 'income', 200000, key, '', '現金'));
+  rows2.push(mkRow(y, mo, 5, 'transfer', 20000, key, 'テストカード', 'テストペイ'));
+  rows2.push(mkRow(y, mo, 6, 'expense', 20000, key, 'テストペイ', ''));
+  rows2.push(mkRow(y, mo, 10, 'transfer', amt, key, '現金', 'テストカード'));
+});
+state.transactions = rows2;
+const histC = computeForecastMonthlyHistory();
+const julC = histC.find((m) => m.key === '2026-07');
+const sepC = histC.find((m) => m.key === '2026-09');
+check('チャージ：2026-07 の流出合計は決済50,000と一致（チャージ分の二重計上なし）', julC && Math.abs((julC.fixed + julC.variable) - 50000) < 0.01, julC ? JSON.stringify({ fixed: julC.fixed, variable: julC.variable }) : 'no bucket');
+check('チャージ：2026-09 の流出合計は決済80,000と一致', sepC && Math.abs((sepC.fixed + sepC.variable) - 80000) < 0.01, sepC ? JSON.stringify({ fixed: sepC.fixed, variable: sepC.variable }) : 'no bucket');
+check('チャージ：2026-09 の基礎額は30,000（決済80,000−チャージ20,000→プール60,000、中央値30,000）', sepC && Math.abs((sepC.fixed - sepC.fixedCash - sepC.cardSub) - 30000) < 0.01, sepC ? JSON.stringify({ fixed: sepC.fixed, fixedCash: sepC.fixedCash, cardSub: sepC.cardSub }) : 'no bucket');
+const fcC = computeForecast();
+check('チャージ：予測の基礎額の中央値 = 30,000', Math.abs(fcC.basis.fixedCardBaseAvg - 30000) < 0.01, String(fcC.basis.fixedCardBaseAvg));
+
 console.log('== 結果: pass ' + pass + ' / fail ' + fail + ' ==');
 if (fail) process.exit(1);
 `;
