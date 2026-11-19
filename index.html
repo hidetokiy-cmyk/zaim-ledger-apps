@@ -2870,6 +2870,24 @@
     if (!silent) setSyncStatus("保存中…");
     try {
       const obj = settingsToCloudObject();
+      // 読み取り専用データセット（オルカン週次履歴・証券履歴・ポイント期限・外部ポイント）は
+      // ルーティーンやラムが settings.json へ直接書くもので、アプリ側では編集しない。端末の
+      // メモリ上の値が古い・欠けたまま保存するとリモートの新しい値を巻き戻してしまうため、
+      // 送信直前にリモートの現在値と突き合わせる：履歴2種は date キーで union（履歴が縮小する
+      // 正当な操作は存在しない）、pendingPointExpiry は scrapedAt の新しい方を採用し、
+      // externalPoints はリモートを優先する。取得に失敗した場合は従来どおり送信する
+      // （リモートが先行していれば下の競合マージ経路が守る）。sha は従来どおり cloudSync.sha
+      // を使う（ここで新しい sha に差し替えると、他端末の変更を無言で上書きしてしまう）。
+      try {
+        const remoteFull = await fetchCloudSettingsFull();
+        if (remoteFull && remoteFull.obj) {
+          obj.orukanWeeklyHistory = mergeOrukanWeeklyHistoryField(obj, remoteFull.obj);
+          obj.securitiesHistory = mergeSecuritiesHistoryField(obj, remoteFull.obj);
+          const rp = remoteFull.obj.pendingPointExpiry;
+          if (rp && (!obj.pendingPointExpiry || String(rp.scrapedAt || "") >= String(obj.pendingPointExpiry.scrapedAt || ""))) obj.pendingPointExpiry = rp;
+          if (Array.isArray(remoteFull.obj.externalPoints) && remoteFull.obj.externalPoints.length) obj.externalPoints = remoteFull.obj.externalPoints;
+        }
+      } catch (e) { /* 突き合わせできない場合は従来どおり */ }
       const body = {
         message: "update settings " + obj.updatedAt,
         content: utf8ToBase64(JSON.stringify(obj, null, 2)),
