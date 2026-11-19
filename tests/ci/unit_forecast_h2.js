@@ -1,10 +1,12 @@
 // H2（欠点修正）のユニット検証：カード決済の「基礎額」を資金繰り予測の固定費に計上する。
 // 合成フィクスチャ（fixtures_make、asOf=2026-11-14 固定）で
-//   - basis.fixedCardBaseAvg が、実績集計の基礎額（fixed − fixedCash − cardSub）の窓平均と一致すること
+//   - basis.fixedCardBaseAvg が、実績集計の基礎額（fixed − fixedCash − cardSub）から
+//     定期券のカード精算分を除いた窓の中央値と一致すること（2026-11-19 仕様変更：平均→中央値＋定期券分離）
 //   - 予測各月の固定費に基礎額が含まれていること（基礎額を引いた最小月＝サブスク月額合計）
+//   - 定期券のカード精算が、精算の落ちる月にだけ passSettle として計上されること
 //   - 実績集計（history）自体は変わらないこと（基礎額は従来どおり fixed 側に計上済み）
 // を確認し、合成データ（カード決済のみ・サブスクなし）で
-//   - 基礎額の月平均がそのまま毎月の固定費になること
+//   - 基礎額の中央値がそのまま毎月の固定費になること（定期券精算の月を除く）
 // を確認する。
 // Usage: node unit_forecast_h2.js [index.html path]
 const fs = require('fs');
@@ -143,8 +145,21 @@ check('fixedCardBaseAvg が basis に載る', typeof fc.basis.fixedCardBaseAvg =
 // 決済のない完了月（2026-04）が窓に入り、窓の定義差がそのまま FAIL になる。
 const currentKey = getCycleBounds(new Date(2026, 10, 14)).key;
 const win = hist.filter((m) => m.key < currentKey).slice(-fc.windowSize);
-const expectedBaseAvg = win.reduce((t, m) => t + Math.max(0, m.fixed - m.fixedCash - m.cardSub), 0) / win.length;
-check('基礎額の平均が実績集計の基礎額（fixed−fixedCash−cardSub）の窓平均と一致', Math.abs(fc.basis.fixedCardBaseAvg - expectedBaseAvg) < 0.01, fc.basis.fixedCardBaseAvg + ' vs ' + expectedBaseAvg);
+// 定期券のカード精算マップ（仕様：ビューカード購入の振替を精算サイクルへ投影。投影できなければ購入の2か月後の4日）
+const settleMap = new Map();
+(state.transactions || []).forEach((r) => {
+  if (r.type !== 'transfer' || !(r.amount > 0)) return;
+  const txt = [r.memo, r.item].filter(Boolean).join(' ');
+  const isPass = (/ビュー/.test(r.fromAccount || '') || /定期券/.test(txt)) && /預け金/.test(r.toAccount || '');
+  if (!isPass) return;
+  let sk = r.fromAccount ? projectCardSettlementMonthKey(r.fromAccount, r.date) : null;
+  if (!sk) sk = getCycleBounds(new Date(r.date.getFullYear(), r.date.getMonth() + 2, 4)).key;
+  settleMap.set(sk, (settleMap.get(sk) || 0) + r.amount);
+});
+const expectedBaseMed = median(win.map((m) => Math.max(0, m.fixed - m.fixedCash - m.cardSub - (settleMap.get(m.key) || 0))));
+check('基礎額（中央値）が実績集計の基礎額（定期券精算を除く）の窓中央値と一致', Math.abs(fc.basis.fixedCardBaseAvg - expectedBaseMed) < 0.01, fc.basis.fixedCardBaseAvg + ' vs ' + expectedBaseMed);
+const settleMonths = fc.months.filter((m) => m.passSettle > 0);
+check('定期券のカード精算が精算月にだけ計上される（1件・66,970）', settleMonths.length === 1 && Math.abs(settleMonths[0].passSettle - 66970) < 0.01, JSON.stringify(fc.months.map((m) => [m.key, m.passSettle])));
 check('基礎額の根拠行（cardFixedRows）が窓分だけ集まる', Array.isArray(fc.basis.fixedCardBaseRows) && fc.basis.fixedCardBaseRows.length > 0, String((fc.basis.fixedCardBaseRows || []).length));
 const fixedMinusBase = fc.months.map((m) => m.fixed - fc.basis.fixedCardBaseAvg);
 check('全月の固定費に基礎額が含まれる（基礎額控除後もサブスク月額以上）', fixedMinusBase.every((v) => v >= fc.basis.fixedMonthlyTotal - 0.01), JSON.stringify(fixedMinusBase));
@@ -174,8 +189,10 @@ const rows = [];
 state.transactions = rows;
 const fcS = computeForecast();
 check('合成：予測が成立する', fcS.sufficientData === true);
-check('合成：基礎額の平均 = 50,000', Math.abs(fcS.basis.fixedCardBaseAvg - 50000) < 0.01, String(fcS.basis.fixedCardBaseAvg));
-check('合成：サブスクなしでも毎月の固定費 = 50,000（基礎額のみ）', fcS.months.every((m) => Math.abs(m.fixed - 50000) < 0.01), JSON.stringify(fcS.months.map((m) => m.fixed)));
+check('合成：基礎額の中央値 = 50,000', Math.abs(fcS.basis.fixedCardBaseAvg - 50000) < 0.01, String(fcS.basis.fixedCardBaseAvg));
+// 合成データには定期券の購入行が無いが、11月は補完で購入ありとみなされ、その精算（66,970）が
+// 精算サイクル（12月度）にだけ立つ。それ以外の月は基礎額のみ = 50,000。
+check('合成：固定費は基礎額のみ 50,000（定期券精算の月は +66,970）', fcS.months.every((m) => Math.abs(m.fixed - (50000 + (m.passSettle || 0))) < 0.01) && fcS.months.filter((m) => m.passSettle > 0).length === 1, JSON.stringify(fcS.months.map((m) => [m.key, m.fixed, m.passSettle])));
 const histS = computeForecastMonthlyHistory();
 const sep = histS.find((m) => m.key === '2026-09');
 check('合成：2026-09 の実績分類は 基礎額50,000（fixed側）＋超過30,000（variable側）', sep && Math.abs((sep.fixed - sep.fixedCash - sep.cardSub) - 50000) < 0.01 && Math.abs(sep.variable - 30000) < 0.01, sep ? JSON.stringify({ fixed: sep.fixed, variable: sep.variable }) : 'no bucket');
