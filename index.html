@@ -5918,7 +5918,7 @@ if (knownCycle) {
       const medPart = `直近${f.windowSize}か月の中央値`;
       const fixedPart = `固定費は検出した定期支払い（月額 ${YEN(f.basis.fixedMonthlyTotal)}${f.basis.fixedYearlyTotal ? `、年払い合計 ${YEN(f.basis.fixedYearlyTotal)}` : ""}）${f.basis.fixedCardBaseAvg ? `とカード決済の基礎額（中央値 ${YEN(Math.round(f.basis.fixedCardBaseAvg))}）` : ""}`;
       const hybridPart = f.basis.hybridMonths ? `、直近${f.basis.hybridMonths}ヶ月は実際の引落予定ベース` : "";
-      if (f.basis.bonus) lines.push(`- 賞与は前回実績（額面 ${YEN(f.basis.bonus.lastGross)}、${f.basis.bonus.coverage}か月分）から月額換算し、社保・税を差し引いて見込む`);
+      if (f.basis.bonus) lines.push(`- 賞与は基本給 ${YEN(f.basis.bonus.basePay)}×${f.basis.bonus.monthsPerHalf}か月分（半期）を額面とし、社保・税を差し引いて見込む（前回実績 額面 ${YEN(f.basis.bonus.lastGross)}）`);
       lines.push(f.basis.salaryAssumption != null
         ? `- 給与は契約手取りの前提（月 ${YEN(f.basis.salaryAssumption)}・${f.basis.salaryAssumptionSet ? "手入力" : "初期値"}）、変動費は${medPart}、${fixedPart}${hybridPart}`
         : `- 給与は${avgPart}、変動費は${medPart}、${fixedPart}${hybridPart}`);
@@ -6107,7 +6107,9 @@ if (knownCycle) {
     });
     // 賞与の社保・税の料率（現行）。標準賞与額（千円未満切捨て）に健保・子育支援金・厚生年金、
     // 額面に雇用保険を掛ける。所得税率は前回実績から逆算し、求まらなければ既定値を使う。
-    // 賞与が1回しか無いときの既定値：初回の実績は4–6月分の3か月分だったため、対象月数は3、支給間隔は6。
+    // 賞与が1回しか無いときの既定値：初回の実績は4月入社〜5月の2か月分だったため、対象月数は2、支給間隔は6。
+    // 額面は「基本給 × 半年あたりの支給月数（2か月分）」で見込む（在籍按分の前回実績
+    // 151,400＝基本給227,000×2か月分×2/6 と整合。2026-11-19 HiDe 確認）。
     const BONUS_RATE_KENPO = 0.04925;
     const BONUS_RATE_KODOMO = 0.00115;
     const BONUS_RATE_NENKIN = 0.0915;
@@ -6115,6 +6117,9 @@ if (knownCycle) {
     const BONUS_TAX_RATE_DEFAULT = 0.0408;
     const BONUS_DEFAULT_COVERAGE = 2;
     const BONUS_DEFAULT_INTERVAL = 6;
+    const BONUS_MONTHS_PER_HALF = 2;
+    const BONUS_KAIKIN = 3000;
+    const BONUS_BASE_DEFAULT = 242000;
     // 賞与アンカー：「給与」カテゴリの income 行のうちメモ・品目に「賞与」を含むものを日付ごとに合算（＝額面）。
     // 本体行（手取り振込）と預け金宛ての天引き行（社保・所得税）の合計が額面になる。
     const bonusByDate = new Map();
@@ -6132,7 +6137,7 @@ if (knownCycle) {
     const lastBonusGross = lastBonus ? lastBonus.gross : 0;
     const lastBonusDate = lastBonus ? lastBonus.date : null;
     // 対象月数・支給間隔：2回以上あれば直近2回の間隔（月数、四捨五入）。1回だけなら既定値
-    // （初回の実績が4–6月分の3か月だったため対象月数3、間隔6）。
+    // （初回の実績が4月入社〜5月の2か月分だったため対象月数2、間隔6）。
     let lastCoverage = BONUS_DEFAULT_COVERAGE;
     let bonusInterval = BONUS_DEFAULT_INTERVAL;
     if (bonusGroups.length >= 2) {
@@ -6142,6 +6147,20 @@ if (knownCycle) {
       bonusInterval = gapMonths;
     }
     const bonusMonthlyRate = lastCoverage > 0 ? lastBonusGross / lastCoverage : 0;
+    // 賞与の基礎になる現在の基本給：給与シミュレータの定数（base＝基本給＋皆勤手当、changes の
+    // 適用後の最新値）から皆勤手当を引く。定数が読めなければ契約の初期値で代用する。
+    let bonusBasePay = 0;
+    try {
+      const psEnv = (typeof sharedPayslip !== "undefined" && sharedPayslip) ? sharedPayslip
+        : (typeof localPayslipEnv === "function" ? localPayslipEnv() : null);
+      const psData = psEnv && psEnv.data ? psEnv.data : null;
+      let base = psData && psData.consts ? Number(psData.consts.base) : NaN;
+      if (psData && Array.isArray(psData.changes)) {
+        psData.changes.forEach((c) => { if (c && c.base != null && Number(c.base) > 0) base = Number(c.base); });
+      }
+      if (!(base > 0)) base = BONUS_BASE_DEFAULT;
+      if (base > BONUS_KAIKIN) bonusBasePay = base - BONUS_KAIKIN;
+    } catch (e) { bonusBasePay = 0; }
     // 所得税率：直近の賞与の「所得税」行 ÷（額面 − 社保分）。社保分＝預け金宛てで所得税以外の行。
     let bonusTaxRate = BONUS_TAX_RATE_DEFAULT;
     if (lastBonus) {
@@ -6163,7 +6182,9 @@ if (knownCycle) {
       for (let k = 1; k * bonusInterval <= FORECAST_MONTHS_AHEAD + bonusInterval; k++) {
         const bd = new Date(lastBonusDate.getFullYear(), lastBonusDate.getMonth() + k * bonusInterval, lastBonusDate.getDate());
         if (bd <= today0) continue;
-        const gross = Math.round(bonusMonthlyRate * bonusInterval);
+        const gross = bonusBasePay > 0
+          ? Math.round(bonusBasePay * BONUS_MONTHS_PER_HALF * bonusInterval / 6)
+          : Math.round(bonusMonthlyRate * bonusInterval);
         const std = Math.floor(gross / 1000) * 1000;
         const social = Math.round(std * BONUS_RATE_KENPO) + Math.round(std * BONUS_RATE_KODOMO)
           + Math.round(std * BONUS_RATE_NENKIN) + Math.round(gross * BONUS_RATE_KOYO);
@@ -6171,7 +6192,7 @@ if (knownCycle) {
         const net = gross - social - tax;
         const bkey = getCycleBounds(bd).key;
         bonusMap.set(bkey, (bonusMap.get(bkey) || 0) + net);
-        if (!bonusNext) bonusNext = { gross, net, date: bd, key: bkey, lastGross: lastBonusGross, coverage: lastCoverage };
+        if (!bonusNext) bonusNext = { gross, net, date: bd, key: bkey, lastGross: lastBonusGross, coverage: lastCoverage, basePay: bonusBasePay, monthsPerHalf: BONUS_MONTHS_PER_HALF };
       }
     }
     // カード決済の「基礎額」（サブスク外の継続的なカード支出。実績集計では固定費側に
@@ -6713,7 +6734,7 @@ if (knownCycle) {
         ...(basis.bonus ? [el("div", { class: "bal-row" }, [
           el("span", { class: "name" }, ["賞与（前回実績から推計）"]),
           el("span", { class: "amt num amt-wrap" }, [
-            `${cycleLabel(basis.bonus.key)}：額面 ${YEN(basis.bonus.gross)} → 手取り ${YEN(basis.bonus.net)}（前回 ${YEN(basis.bonus.lastGross)}・${basis.bonus.coverage}か月分）`,
+            `${cycleLabel(basis.bonus.key)}：額面 ${YEN(basis.bonus.gross)} → 手取り ${YEN(basis.bonus.net)}（${basis.bonus.basePay > 0 ? `基本給 ${YEN(basis.bonus.basePay)}×${basis.bonus.monthsPerHalf}か月分` : `前回 ${YEN(basis.bonus.lastGross)}・${basis.bonus.coverage}か月分から換算`}）`,
           ]),
         ])] : []),
         el("div", { class: "bal-row" }, [
