@@ -9216,66 +9216,90 @@ function svgEl(tag, attrs) {
     const out = [], skipped = [];
     // 締め日サイクルが推定できない口座（家賃の「口座引落」など）の引落予定。cycle を持たないため
     // 利用期間（from/end）は意味を持たず、from/end には引落日を入れておく（表示側は cycle の有無で出し分ける）。
-    //   a) 将来日付の支出/振替行があれば、日付ごとに合算して item 化する（主経路。est=false）。
-    //      Zaim の将来行が maxItems に満たないときは、最後の将来行の日・金額を翌月以降へ延ばして埋める
-    //      （est=true。登録済みの将来行が切れた先で見通しから抜け落ちないための補完）。
-    //   b) 将来行が1件も無ければ、実績から推定する（est=true）。直近の支出日の「日」の最頻値と直近1か月分の
-    //      合計額で翌月以降を作る。ただし単発の利用や休眠口座を拾わないよう、支出が2か月以上にあり、
-    //      最後の支出が62日以内の口座に限る。
-    const noCycleItems = (purchases) => {
+    // 引落日は支出行の日付ではなく「引落の典型日」から決める。Zaim の将来の支出行は記帳用の定期入力で、
+    // 日付が実際の引落日とずれる（月によって23〜27日にばらつく）ため。典型日は、その口座への資金移動
+    // （現金口座からの transfer）の直近6か月の「日」の最頻値。各月の settle は典型日を isBusinessDay で
+    // 翌営業日に寄せた日。資金移動の実績が無い口座は、支出日の最頻値で代替する。
+    //   金額・件数：その月に属する将来の支出行の合算（est=false）。将来行のない月（延長分を含む）は
+    //   直近の実績月の合計（est=true）。将来行が1件も無い口座の実績推定は、支出が2か月以上にあり、
+    //   最後の支出が62日以内のときだけ（単発の利用や休眠口座を拾わない）。
+    //   引き落とし済みの月：settle の10日前以降に資金移動の実績があればスキップ（カード経路の lastSettle ガードと同じ）。
+    const noCycleItems = (purchases, ins) => {
       const ym = (d) => d.getFullYear() * 12 + d.getMonth();
-      const monthSettle = (y, m0, day) => new Date(y, m0, Math.min(day, new Date(y, m0 + 1, 0).getDate()));
+      const monthSettle = (y, m0, day) => {
+        let d = new Date(y, m0, Math.min(day, new Date(y, m0 + 1, 0).getDate()));
+        while (!isBusinessDay(d)) d = addDays(d, 1);
+        return d;
+      };
       const mk = (settle, amount, n, est) => ({ settle, from: settle, end: settle, amount, n, closed: false, est });
-      const fut = new Map(), past = [];
-      purchases.forEach((p) => {
+      // 日の最頻値（日付単位で数える。同数なら新しい方）
+      const modeDay = (dates) => {
+        const uniq = Array.from(new Set(dates.map((d) => startOfDay(d).getTime()))).sort((x, y) => y - x);
+        const cnt = new Map();
+        uniq.forEach((t, i) => { const dd = new Date(t).getDate(), c = cnt.get(dd) || { n: 0, first: i }; c.n++; cnt.set(dd, c); });
+        const best = Array.from(cnt.entries()).sort((x, y) => (y[1].n - x[1].n) || (x[1].first - y[1].first))[0];
+        return best ? best[0] : null;
+      };
+      // 「集計に含めない」行は、連携取込の集計行など内訳行と重複する行なので数えない（カード経路の
+      // 「全出金合計」は請求照合のモデルとして対象外にしないが、こちらは内訳行の合計が実額になる）。
+      const counted = purchases.filter((p) => p.aggSetting !== "exclude");
+      const futByMonth = new Map(), past = [], futDates = [];
+      counted.forEach((p) => {
         if (isFutureRow(p)) {
-          const d = startOfDay(p.date), g = fut.get(d.getTime()) || { settle: d, amount: 0, n: 0 };
-          g.amount += p.amount; g.n++; fut.set(d.getTime(), g);
+          const k = ym(p.date), g = futByMonth.get(k) || { amount: 0, n: 0 };
+          g.amount += p.amount; g.n++; futByMonth.set(k, g); futDates.push(p.date);
         } else past.push(p);
       });
-      const items = [];
-      const groups = Array.from(fut.values()).filter((g) => g.settle >= today).sort((a, b) => a.settle - b.settle);
-      if (groups.length) {
-        groups.forEach((g) => { if (items.length < maxItems) items.push(mk(g.settle, g.amount, g.n, false)); });
-        const last = groups[groups.length - 1];
-        for (let k = 1; items.length < maxItems && k <= maxItems; k++) {
-          items.push(mk(monthSettle(last.settle.getFullYear(), last.settle.getMonth() + k, last.settle.getDate()), last.amount, last.n, true));
-        }
-        return items;
+      const pastIns = ins.filter((r) => !isFutureRow(r));
+      // 直近の実績月の合計（将来行のない月の金額）。実績が無ければ最後の将来行の月の合計で代替。
+      let latest = null, fb = null;
+      if (past.length) {
+        latest = startOfDay(past.reduce((m, p) => (p.date > m ? p.date : m), past[0].date));
+        fb = { amount: 0, n: 0 };
+        past.forEach((p) => { if (ym(p.date) === ym(latest)) { fb.amount += p.amount; fb.n++; } });
+      } else if (futByMonth.size) {
+        fb = futByMonth.get(Math.max(...futByMonth.keys()));
       }
-      if (!past.length) return items;
-      const latest = startOfDay(past.reduce((m, p) => (p.date > m ? p.date : m), past[0].date));
-      if (new Set(past.map((p) => ym(p.date))).size < 2 || (today - latest) / 86400000 > 62) return items;
-      const dates = Array.from(new Set(past.filter((p) => ym(latest) - ym(p.date) < 6).map((p) => startOfDay(p.date).getTime()))).sort((a, b) => b - a);
-      const cnt = new Map();
-      dates.forEach((t, i) => { const dd = new Date(t).getDate(), c = cnt.get(dd) || { n: 0, first: i }; c.n++; cnt.set(dd, c); });
-      const day = Array.from(cnt.entries()).sort((a, b) => (b[1].n - a[1].n) || (a[1].first - b[1].first))[0][0];
-      let amount = 0, n = 0;
-      past.forEach((p) => { if (ym(p.date) === ym(latest)) { amount += p.amount; n++; } });
-      if (!(amount > 0)) return items;
+      if (!futByMonth.size) {
+        if (!past.length) return [];
+        if (new Set(past.map((p) => ym(p.date))).size < 2 || (today - latest) / 86400000 > 62) return [];
+      }
+      if (!fb || !(fb.amount > 0)) return [];
+      // 引落の典型日：資金移動の日付（直近6か月）→ 無ければ支出日 → それも無ければ将来行の日付
+      const sixAgo = new Date(today.getFullYear(), today.getMonth() - 6, today.getDate());
+      let day = modeDay(pastIns.filter((r) => r.type === "transfer" && r.date >= sixAgo).map((r) => r.date));
+      const byIns = day != null;
+      if (day == null && latest) day = modeDay(past.filter((p) => ym(latest) - ym(p.date) < 6).map((p) => p.date));
+      if (day == null) day = modeDay(futDates);
+      if (day == null) return [];
+      const guardDates = byIns ? pastIns.map((r) => r.date) : past.map((p) => p.date);
+      const items = [];
       for (let k = 0; k < maxItems + 3 && items.length < maxItems; k++) {
-        const settle = monthSettle(today.getFullYear(), today.getMonth() + k, day);
+        const y = today.getFullYear(), m0 = today.getMonth() + k;
+        const settle = monthSettle(y, m0, day);
         if (settle < today) continue;
-        if (past.some((p) => p.date >= addDays(settle, -10))) continue;   // 今月分がもう引き落とされている
-        items.push(mk(settle, amount, n, true));
+        if (guardDates.some((d) => d >= addDays(settle, -10))) continue;   // 今月分がもう引き落とされている
+        const g = futByMonth.get(ym(new Date(y, m0, 1)));
+        items.push(g ? mk(settle, g.amount, g.n, false) : mk(settle, fb.amount, fb.n, true));
       }
       return items;
     };
     cards.forEach((acct) => {
       const cycle = getCardBillingCycle(acct);
-      const purchases = [], srcCount = new Map();
+      const purchases = [], srcCount = new Map(), ins = [];
       let lastSettle = null;
       for (const r of state.transactions) {
         if ((r.type === "expense" || r.type === "transfer") && r.fromAccount === acct) purchases.push(r);
         else if ((r.type === "transfer" || r.type === "balance") && r.toAccount === acct && r.fromAccount && forecastIsCashAccount(r.fromAccount)) {
           srcCount.set(r.fromAccount, (srcCount.get(r.fromAccount) || 0) + 1);
+          ins.push(r);
           if (!isFutureRow(r) && (!lastSettle || r.date > lastSettle)) lastSettle = r.date;
         }
       }
       const srcSorted = Array.from(srcCount.entries()).sort((a, b) => b[1] - a[1]);
       const source = srcSorted.length ? srcSorted[0][0] : null;
       if (!cycle) {
-        const nItems = noCycleItems(purchases);
+        const nItems = noCycleItems(purchases, ins);
         if (nItems.length) out.push({ account: acct, source, cycle: null, items: nItems });
         else if ((state.transactions || []).some((r) => r.fromAccount === acct)) skipped.push(acct);
         return;
@@ -9349,7 +9373,7 @@ function svgEl(tag, attrs) {
     });
     const notes = [cardPanelBaseNote(cards.filter((c) => c.cycle).map((c) => c.cycle), "引落日・締め日は過去の決済実績からの推定です（土日祝の前後のずれは考慮していません）。「利用期間の途中」の金額は、今日までの利用分だけです。")];
     const noCycleAccts = cards.filter((c) => !c.cycle).map((c) => c.account);
-    if (noCycleAccts.length) notes.push(`締め日のない口座（${noCycleAccts.join("、")}）は、Zaimに登録済みの将来の支出か、直近の実績から予定を出しています。`);
+    if (noCycleAccts.length) notes.push(`締め日のない口座（${noCycleAccts.join("、")}）は、引落日を実績の引落日（資金移動の日付）から推定しています。金額はZaimに登録済みの将来の支出、なければ直近の実績月の合計です。`);
     if (skipped.length) notes.push(`推定できなかったカード：${skipped.join("、")}`);
     body.appendChild(el("div", { class: "cash-note" }, [notes.join(" ")]));
   }
