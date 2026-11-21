@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <!-- 通信先の制限：このアプリが使うのは自サイト・GitHub API・Googleフォントだけ。外部サービスを足すときはここも直す -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://api.github.com; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://api.github.com https://www.jma.go.jp; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>家計元帳 — Zaim CSVビューア</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#E8DFCB" media="(prefers-color-scheme: light)">
@@ -1175,6 +1175,9 @@
   .hub-skyfx[data-cond="snow"][data-day="1"] { background: linear-gradient(180deg, rgba(226, 232, 238, .42), rgba(226, 232, 238, .12) 80%); }
   .hub-skyfx .hub-rain { position: absolute; inset: 0; background-image: repeating-linear-gradient(102deg, rgba(214, 232, 248, 0) 0 9px, rgba(214, 232, 248, .5) 9px 10px, rgba(214, 232, 248, 0) 10px 19px); background-size: 100% 46px; opacity: 0; }
   .hub-skyfx[data-cond="rain"] .hub-rain { opacity: 1; animation: hubRainFall .5s linear infinite; }
+  .hub-roomdim { position: absolute; inset: 0; z-index: 2; pointer-events: none; background: #0a0c18; opacity: 0; transition: opacity 1.2s ease; }
+  .hub-roomdim[data-warm="1"] { background: #140b06; }
+  .hub-badge.alert { background: rgba(150, 40, 20, .88); border-color: rgba(255, 255, 255, .55); }
   @keyframes hubRainFall { from { background-position: 0 -46px; } to { background-position: 0 0; } }
   @keyframes hubSky { from { opacity: .45; transform: translateX(-1.5%); } to { opacity: 1; transform: translateX(1.5%); } }
   .hub-amb-lampglow { left: -4%; top: 14%; width: 26%; height: 30%; background: radial-gradient(circle, rgba(255, 196, 96, .22), rgba(255, 196, 96, 0) 65%); animation: hubLampBreath 5.5s ease-in-out infinite; }
@@ -1459,8 +1462,9 @@
             <div class="hub-amb hub-amb-sky"></div>
             <div class="hub-amb hub-amb-lampglow"></div>
             <div class="hub-motes" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+            <div class="hub-roomdim" id="hubRoomdim" aria-hidden="true"></div>
             <button type="button" class="hub-ramu" id="hubRamu" aria-label="ラム"><span class="hub-ramu-shadow"></span><img id="hubRamuImg" src="hub/ramu.webp" alt="" width="1379" height="1451"><span class="hub-bubble hidden" id="hubBubble" role="status" aria-live="polite"></span></button>
-            <button type="button" class="hub-hs hub-still" style="left:32%;top:15%;" aria-label="エアコン"><span class="hub-badge">部屋は Phase 2</span></button>
+            <button type="button" class="hub-hs hub-still" style="left:32%;top:15%;" aria-label="エアコン"><span class="hub-badge" id="hubBadgeAc">部屋</span></button>
             <button type="button" class="hub-hs hub-still" style="left:10%;top:40%;" aria-label="ランプ"><span class="hub-badge">ライト</span></button>
             <a class="hub-hs" href="tax-furusato.html" style="left:9%;top:75%;" aria-label="巻物"><span class="hub-badge">確定申告</span></a>
             <button type="button" class="hub-hs" data-hub-tab="home" style="left:35%;top:55%;" aria-label="帳簿"><span class="hub-badge" id="hubBadgeAssets">総資産</span></button>
@@ -10639,6 +10643,39 @@ function svgEl(tag, attrs) {
       } catch (e) { /* 予報の形が変わっても落とさない */ }
     }).catch(() => {});
   }
+  // 部屋の状態：気候ジョブが zaim-ledger-settings に置く home-state.json を読み、部屋の明るさとエアコンの状態を反映する
+  let hubHomeAt = 0, hubHomeState = null;
+  async function hubHomeApply() {
+    const now = Date.now();
+    if (!hubHomeState || now - hubHomeAt > 5 * 60 * 1000) {
+      if (typeof fetchRepoFile !== "function" || typeof cloudSync === "undefined" || !cloudSync || !cloudSync.repo || !cloudSync.token || cloudSync.locked) return;
+      hubHomeAt = now;
+      try {
+        const f = await fetchRepoFile("home-state.json");
+        if (f && f.text) hubHomeState = JSON.parse(f.text);
+      } catch (e) { return; }
+    }
+    const s = hubHomeState;
+    if (!s) return;
+    const age = Date.now() - Date.parse(s.updatedAt || 0);
+    if (!(age >= 0 && age < 90 * 60 * 1000)) return;   // 古い状態は反映しない
+    const dim = document.getElementById("hubRoomdim");
+    if (dim) {
+      const base = { "全灯": 0, "調光1": 0.12, "調光2": 0.22, "豆球": 0.34, "消灯": 0.45 }[s.light];
+      let o = typeof base === "number" ? base : 0;
+      if (typeof s.lightLevel === "number") { if (s.lightLevel >= 3) o = 0; else if (s.lightLevel === 2) o = o / 2; }
+      dim.style.opacity = String(o);
+      dim.dataset.warm = s.light === "豆球" ? "1" : "";
+    }
+    const badge = document.getElementById("hubBadgeAc");
+    if (badge) {
+      if (s.acStatus === "fault") { badge.textContent = "エアコン修理待ち"; badge.classList.add("alert"); }
+      else {
+        badge.classList.remove("alert");
+        badge.textContent = typeof s.temp === "number" ? "室温 " + s.temp + "℃" : "部屋";
+      }
+    }
+  }
   // タップ演出：背景のオブジェそのものが動いて見えるよう、背景画像から切り出した実ピクセルを同じ位置に重ねて動かす
   let hubNavBusy = false;
   function hubFx(kind) {
@@ -10817,6 +10854,7 @@ function svgEl(tag, attrs) {
     const MDW = hubMD(today) + "（" + "日月火水木金土"[today.getDay()] + "）";
     set("hubBadgeDate", MDW);
     try { hubSkyApply(); } catch (e) { console.error("ハブ：窓の空", e); }
+    try { hubHomeApply(); } catch (e) { console.error("ハブ：部屋の状態", e); }
     try { const d = hubNextPayday(today); set("hubBadgePay", "給料日 " + hubMD(d)); } catch (e) { console.error("ハブ：給料日", e); }
     let assets = null;
     try { assets = hubAssetsText(); } catch (e) { assets = null; }
