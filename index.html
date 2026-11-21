@@ -1141,10 +1141,13 @@
   .hub-scene { position: absolute; inset: 0; overflow: hidden; }
   .hub-stage { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
   .hub-room { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-  .hub-ramu { position: absolute; right: 4%; bottom: 0; height: 62%; aspect-ratio: 1379 / 1451; padding: 0; border: 0; background: none; cursor: pointer; z-index: 2; animation: hubFloat 5s ease-in-out infinite; -webkit-tap-highlight-color: transparent; }
-  .hub-ramu img { width: 100%; height: 100%; display: block; pointer-events: none; }
+  .hub-ramu { position: absolute; left: 88%; bottom: 3%; height: 30%; aspect-ratio: 1379 / 1451; padding: 0; border: 0; background: none; cursor: pointer; z-index: 2; transform: translateX(-50%); transition: left 4.6s ease-in-out, bottom 4.6s ease-in-out, transform 4.6s ease-in-out; -webkit-tap-highlight-color: transparent; }
+  .hub-ramu img { width: 100%; height: 100%; display: block; pointer-events: none; animation: hubIdle 4.2s ease-in-out infinite; }
+  .hub-ramu.walking img { animation: hubWaddle .3s ease-in-out infinite; }
+  @keyframes hubIdle { 0%, 100% { transform: scale(1) translateY(0); } 50% { transform: scale(1.018) translateY(-.6%); } }
+  @keyframes hubWaddle { 0% { transform: rotate(-2.6deg) translateY(0); } 50% { transform: rotate(2.6deg) translateY(-2.4%); } 100% { transform: rotate(-2.6deg) translateY(0); } }
   @keyframes hubFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3%); } }
-  .hub-bubble { position: absolute; z-index: 4; right: 14%; bottom: 64%; max-width: 40%; padding: .5em .9em; border-radius: 12px; background: var(--paper-raised); color: var(--ink); border: 1px solid var(--rule-strong); font-size: clamp(12px, 1.5vw, 18px); line-height: 1.4; pointer-events: none; }
+  .hub-bubble { position: absolute; z-index: 4; left: 50%; bottom: 104%; transform: translateX(-50%); display: block; width: max-content; max-width: 190px; padding: .5em .9em; border-radius: 12px; background: var(--paper-raised); color: var(--ink); border: 1px solid var(--rule-strong); font-size: 14px; line-height: 1.4; pointer-events: none; }
   .hub-bubble.hidden { display: none; }
   .hub-hs { position: absolute; z-index: 3; width: clamp(44px, 9%, 110px); aspect-ratio: 1; transform: translate(-50%, -50%); display: block; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-decoration: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
   .hub-hs.hub-still { cursor: default; }
@@ -1157,17 +1160,32 @@
     .hub-scene::-webkit-scrollbar { display: none; }
     .hub-stage { position: relative; }
   }
-  /* ハブのタップ演出（各オブジェの上に重ねる効果レイヤー） */
+  /* ハブの ambient（部屋の空気感）：窓の光・ランプの灯り・舞う埃 */
+  .hub-amb { position: absolute; z-index: 1; pointer-events: none; }
+  .hub-amb-sky { left: 55%; top: 8%; width: 30%; height: 44%; border-radius: 46% 46% 6px 6px; background: linear-gradient(180deg, rgba(255, 244, 200, .22), rgba(255, 244, 200, 0) 75%); animation: hubSky 13s ease-in-out infinite alternate; }
+  @keyframes hubSky { from { opacity: .45; transform: translateX(-1.5%); } to { opacity: 1; transform: translateX(1.5%); } }
+  .hub-amb-lampglow { left: -4%; top: 14%; width: 26%; height: 30%; background: radial-gradient(circle, rgba(255, 196, 96, .22), rgba(255, 196, 96, 0) 65%); animation: hubLampBreath 5.5s ease-in-out infinite; }
+  @keyframes hubLampBreath { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
+  .hub-motes { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+  .hub-motes i { position: absolute; width: 5px; height: 5px; border-radius: 50%; background: rgba(255, 226, 150, .75); filter: blur(.6px); opacity: 0; animation: hubMote 11s linear infinite; }
+  .hub-motes i:nth-child(1) { left: 62%; top: 22%; }
+  .hub-motes i:nth-child(2) { left: 70%; top: 32%; animation-delay: 2.5s; }
+  .hub-motes i:nth-child(3) { left: 58%; top: 40%; animation-delay: 5s; }
+  .hub-motes i:nth-child(4) { left: 76%; top: 20%; animation-delay: 7.5s; }
+  .hub-motes i:nth-child(5) { left: 12%; top: 30%; animation-delay: 3.5s; }
+  @keyframes hubMote { 0% { opacity: 0; transform: translate(0, 14px); } 18% { opacity: .55; } 55% { opacity: .35; } 100% { opacity: 0; transform: translate(10px, -26px); } }
+  /* ハブのタップ演出（実物スプライトをオブジェの上に重ねて動かす） */
   .hub-fx { position: absolute; z-index: 3; pointer-events: none; opacity: 0; }
-  .hub-fx-scroll { width: 12%; height: 25%; background: repeating-linear-gradient(#f3e6c8 0 10px, #ead9ae 10px, #ead9ae 11px, #f3e6c8 11px, #f3e6c8 21px); border: 1px solid rgba(120, 90, 40, .35); border-radius: 3px; transform-origin: 50% 0; }
-  .hub-fx-scroll.go { animation: hubUnroll .8s ease forwards; }
-  @keyframes hubUnroll { 0% { opacity: 1; transform: scaleY(.12); } 100% { opacity: 1; transform: scaleY(1); } }
-  .hub-fx-paper { width: 11%; height: 15%; background: #fffdf5; border: 1px solid rgba(0, 0, 0, .18); border-radius: 2px; box-shadow: 0 2px 8px rgba(0, 0, 0, .25); }
-  .hub-fx-paper.go { animation: hubPaperOut .8s ease forwards; }
-  @keyframes hubPaperOut { 0% { opacity: 0; transform: translateY(38%); } 25% { opacity: 1; } 100% { opacity: 1; transform: translateY(-52%); } }
-  .hub-fx-page { width: 16%; height: 12%; background: linear-gradient(100deg, #f8f0dc, #eee1bd); border: 1px solid rgba(120, 90, 40, .3); border-radius: 2px; transform-origin: 50% 100%; }
-  .hub-fx-page.go { animation: hubPageFlip .75s ease forwards; }
-  @keyframes hubPageFlip { 0% { opacity: 1; transform: perspective(500px) rotateX(72deg); } 100% { opacity: 1; transform: perspective(500px) rotateX(0deg); } }
+  .hub-fx img { width: 100%; height: 100%; display: block; }
+  .hub-fx-scroll { width: 15%; aspect-ratio: 532 / 1000; transform-origin: 50% 0; filter: drop-shadow(0 4px 10px rgba(20, 12, 4, .35)); }
+  .hub-fx-scroll.go { animation: hubUnroll .85s ease forwards; }
+  @keyframes hubUnroll { 0% { opacity: 1; transform: scaleY(.13); } 100% { opacity: 1; transform: scaleY(1); } }
+  .hub-fx-paper { width: 11.5%; aspect-ratio: 661 / 800; filter: drop-shadow(0 3px 8px rgba(20, 12, 4, .3)); }
+  .hub-fx-paper.go { animation: hubPaperOut .85s ease forwards; }
+  @keyframes hubPaperOut { 0% { opacity: 0; transform: translateY(46%) rotate(2deg) scale(.92); } 22% { opacity: 1; } 100% { opacity: 1; transform: translateY(-38%) rotate(-2.5deg) scale(1); } }
+  .hub-fx-page { width: 13%; aspect-ratio: 757 / 800; transform-origin: 12% 88%; filter: drop-shadow(0 3px 8px rgba(20, 12, 4, .3)); }
+  .hub-fx-page.go { animation: hubPageFlip .8s ease forwards; }
+  @keyframes hubPageFlip { 0% { opacity: 0; transform: perspective(520px) rotateY(-72deg) rotateX(6deg); } 18% { opacity: 1; } 100% { opacity: 1; transform: perspective(520px) rotateY(0deg) rotateX(0deg); } }
   .hub-fx-glow { width: 27%; height: 27%; background: radial-gradient(circle, rgba(255, 216, 130, .9), rgba(255, 216, 130, 0) 65%); border-radius: 50%; }
   .hub-fx-glow.go { animation: hubGlow .95s ease forwards; }
   @keyframes hubGlow { 0% { opacity: 0; transform: scale(.65); } 35% { opacity: 1; } 100% { opacity: 0; transform: scale(1.2); } }
@@ -1183,7 +1201,7 @@
   .hub-fx-sweep { width: 23%; height: 31%; overflow: hidden; background: linear-gradient(115deg, transparent 32%, rgba(255, 255, 255, .4) 50%, transparent 68%); background-size: 260% 100%; background-position: 130% 0; border-radius: 4px; }
   .hub-fx-sweep.go { animation: hubSweep .85s linear forwards; }
   @keyframes hubSweep { 0% { opacity: 1; background-position: 130% 0; } 100% { opacity: 1; background-position: -40% 0; } }
-  @media (prefers-reduced-motion: reduce) { .hub-ramu { animation: none; } .hub-fx { display: none; } }
+  @media (prefers-reduced-motion: reduce) { .hub-ramu { transition: none; } .hub-ramu img { animation: none; } .hub-fx { display: none; } .hub-amb, .hub-motes i { animation: none; } }
   /* 世界観レイヤー：全タブに付き従うラムガイド＋見出しの金の標識 */
   .section-title::before { content: "◆"; color: var(--gold); font-size: .6em; margin-right: .5em; vertical-align: .22em; }
   .ramu-guide { position: fixed; right: 14px; bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 35; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
@@ -1417,8 +1435,10 @@
         <div class="hub-scene" id="hubScene">
           <div class="hub-stage" id="hubStage">
             <img class="hub-room" src="hub/room.webp" alt="" width="1920" height="1280">
-            <button type="button" class="hub-ramu" id="hubRamu" aria-label="ラム"><img src="hub/ramu.webp" alt="" width="1379" height="1451"></button>
-            <div class="hub-bubble hidden" id="hubBubble" role="status" aria-live="polite"></div>
+            <div class="hub-amb hub-amb-sky"></div>
+            <div class="hub-amb hub-amb-lampglow"></div>
+            <div class="hub-motes" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+            <button type="button" class="hub-ramu" id="hubRamu" aria-label="ラム"><img src="hub/ramu.webp" alt="" width="1379" height="1451"><span class="hub-bubble hidden" id="hubBubble" role="status" aria-live="polite"></span></button>
             <button type="button" class="hub-hs hub-still" style="left:32%;top:15%;" aria-label="エアコン"><span class="hub-badge">部屋は Phase 2</span></button>
             <button type="button" class="hub-hs hub-still" style="left:10%;top:40%;" aria-label="ランプ"><span class="hub-badge">ライト</span></button>
             <a class="hub-hs" href="tax-furusato.html" style="left:9%;top:75%;" aria-label="巻物"><span class="hub-badge">確定申告</span></a>
@@ -10573,7 +10593,7 @@ function svgEl(tag, attrs) {
       st.style.transform = "translate(-50%, -50%)";
     }
   }
-  // タップ演出：オブジェの位置に効果レイヤーを重ねてアニメーションさせる
+  // タップ演出：オブジェの位置に実物スプライト（または光・風の効果）を重ねてアニメーションさせる
   let hubNavBusy = false;
   function hubFx(kind) {
     const st = document.getElementById("hubStage");
@@ -10582,14 +10602,63 @@ function svgEl(tag, attrs) {
     if (old) old.remove();
     const d = document.createElement("div");
     d.className = "hub-fx hub-fx-" + kind;
-    const pos = { scroll: [3, 63], paper: [38.5, 37], page: [27, 49], glow: [-3.5, 26.5], breeze: [23.5, 21], sweep: [58.5, 12.5] }[kind];
+    const pos = { scroll: [3.6, 50.5], paper: [38.25, 27], page: [34, 40], glow: [-3.5, 26.5], breeze: [23.5, 21], sweep: [58.5, 12.5] }[kind];
     if (!pos) return;
     d.style.left = pos[0] + "%";
     d.style.top = pos[1] + "%";
+    const img = { scroll: "hub/scroll-open.webp", paper: "hub/paper.webp", page: "hub/page.webp" }[kind];
+    if (img) { const im = document.createElement("img"); im.src = img; im.alt = ""; d.appendChild(im); }
     if (kind === "breeze") d.innerHTML = "<i></i><i></i><i></i>";
     st.appendChild(d);
     requestAnimationFrame(() => d.classList.add("go"));
     setTimeout(() => d.remove(), 1500);
+  }
+  // ラムの徘徊：部屋のアンカー間をよちよち歩く（浮遊はしない）。タップされたら少し止まる
+  const HUB_ANCHORS = [
+    { x: 19, b: 3, s: 1 }, { x: 40, b: 2, s: 1 }, { x: 60, b: 3, s: 1 },
+    { x: 74, b: 12, s: 0.82 }, { x: 88, b: 3, s: 1 }, { x: 13, b: 9, s: 0.85 }
+  ];
+  let hubAnchorIdx = 4, hubRoamOn = false, hubRoamTimer = 0;
+  function hubReducedMotion() { return !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches); }
+  function hubWalkTo(idx) {
+    const r = document.getElementById("hubRamu");
+    if (!r) return;
+    const a = HUB_ANCHORS[idx], cur = HUB_ANCHORS[hubAnchorIdx];
+    hubAnchorIdx = idx;
+    const dist = Math.max(Math.abs(a.x - cur.x), Math.abs(a.b - cur.b) * 1.4);
+    const dur = Math.round(Math.min(6800, Math.max(2400, 1500 + dist * 95)));
+    r.style.transitionDuration = dur + "ms";
+    r.style.left = a.x + "%";
+    r.style.bottom = a.b + "%";
+    r.style.transform = "translateX(-50%) scale(" + a.s + ")";
+    r.classList.add("walking");
+    hubRoamTimer = setTimeout(() => {
+      r.classList.remove("walking");
+      hubRoamTimer = setTimeout(hubRoamNext, 2600 + Math.random() * 2800);
+    }, dur);
+  }
+  function hubRoamNext() {
+    if (!hubRoamOn) return;
+    let n = hubAnchorIdx;
+    while (n === hubAnchorIdx) n = Math.floor(Math.random() * HUB_ANCHORS.length);
+    hubWalkTo(n);
+  }
+  function hubRoamStart() {
+    if (hubRoamOn || hubReducedMotion()) return;
+    hubRoamOn = true;
+    hubRoamTimer = setTimeout(hubRoamNext, 1400);
+  }
+  function hubRoamStop() {
+    hubRoamOn = false;
+    clearTimeout(hubRoamTimer);
+    const r = document.getElementById("hubRamu");
+    if (r) r.classList.remove("walking");
+  }
+  function hubRoamPause(ms) {
+    clearTimeout(hubRoamTimer);
+    const r = document.getElementById("hubRamu");
+    if (r) r.classList.remove("walking");
+    if (hubRoamOn) hubRoamTimer = setTimeout(hubRoamNext, ms);
   }
   function renderHub() {
     const page = document.getElementById("tabHub");
@@ -10597,7 +10666,7 @@ function svgEl(tag, attrs) {
     if (!page.dataset.bound) {
       page.dataset.bound = "1";
       page.addEventListener("click", (e) => {
-        if (e.target.closest && e.target.closest("#hubRamu")) { hubSay(); return; }
+        if (e.target.closest && e.target.closest("#hubRamu")) { hubSay(); hubRoamPause(3400); return; }
         const hs = e.target.closest ? e.target.closest(".hub-hs") : null;
         if (!hs) return;
         const kind = { "エアコン": "breeze", "ランプ": "glow", "巻物": "scroll", "帳簿": "page", "封筒": "paper", "窓": "sweep" }[hs.getAttribute("aria-label") || ""];
@@ -10616,11 +10685,16 @@ function svgEl(tag, attrs) {
         }, kind && !reduced ? 780 : 0);
       });
       window.addEventListener("resize", hubFit);
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) hubRoamStop();
+        else if (!page.classList.contains("hidden")) hubRoamStart();
+      });
     }
     document.body.classList.toggle("hub-on", !page.classList.contains("hidden"));
     guideSync();
-    if (page.classList.contains("hidden")) return;   // 非表示中は計算しない（開いたときのタブ切替が render を呼ぶ）
+    if (page.classList.contains("hidden")) { hubRoamStop(); return; }   // 非表示中は計算しない（開いたときのタブ切替が render を呼ぶ）
     hubFit();
+    hubRoamStart();
     const set = (id, text) => { const e = document.getElementById(id); if (e) e.textContent = text; };
     const today = startOfDay(new Date());
     const MDW = hubMD(today) + "（" + "日月火水木金土"[today.getDay()] + "）";
