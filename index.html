@@ -8327,9 +8327,14 @@ function svgEl(tag, attrs) {
         divs.forEach((d) => { if (d.months.includes(mm.getMonth() + 1)) addEv(mm, d.amount, d.name); });
       }
     } catch (e) { console.error("見通し：配当の取得に失敗", e); }
+    // 締め日サイクルのない口座（家賃の「口座引落」など）の引落予定が入った口座。手動固定費との二重計上防止に使う。
+    const noCycleSchedAccts = new Set();
     try {
       // 90日範囲には最大で4回分の引落が入るため、既定の2件ではなく多めに取る
-      computeCardSchedule(6).cards.forEach((c) => c.items.forEach((it) => { if (it.amount > 0) addEv(it.settle, -it.amount, `${c.account}の引落`); }));
+      computeCardSchedule(6).cards.forEach((c) => {
+        if (!c.cycle) noCycleSchedAccts.add(c.account);
+        c.items.forEach((it) => { if (it.amount > 0) addEv(it.settle, -it.amount, `${c.account}の引落`); });
+      });
     } catch (e) { console.error("見通し：引落予定の取得に失敗", e); }
     try {
       // 手動登録の固定費（現金払い）は、カード予定にも日割り支出（カード口座扱いの支出は
@@ -8338,6 +8343,19 @@ function svgEl(tag, attrs) {
       // （例：家賃は27日、土日なら翌営業日）。振替の実績が無ければ支出行の典型日を使う。
       settings.manualFixedCosts.forEach((m) => {
         if (!m || !m.cashPaid || !(m.amount > 0)) return;
+        // 一致する取引（最新の支出行）の支払口座が、上の引落予定に入った口座なら、その金額は引落予定に
+        // 含まれているのでここでは数えない（二重計上防止）。一致は上の日付推定と同じ matchType/matchValue。
+        if (noCycleSchedAccts.size && m.matchValue && (m.matchType === "store" || m.matchType === "sub")) {
+          let latest = null;
+          (state.transactions || []).forEach((r) => {
+            if (r.type !== "expense" || !r.fromAccount) return;
+            const hit = m.matchType === "store"
+              ? !!(r.store && r.store.includes(m.matchValue))
+              : (typeof subscriptionGroupKey === "function" && subscriptionGroupKey(r) === "内訳:" + m.matchValue);
+            if (hit && (!latest || r.date > latest.date)) latest = r;
+          });
+          if (latest && noCycleSchedAccts.has(latest.fromAccount)) return;
+        }
         let day = 27;
         if (m.matchType === "store" && m.matchValue) {
           const past = (state.transactions || []).filter((r) => !isFutureRow(r) && r.store && r.store.includes(m.matchValue));
@@ -9196,9 +9214,55 @@ function svgEl(tag, attrs) {
     const today = startOfDay(new Date());
     const cards = Array.from(accountFlagSet("card")).filter((a) => !settings.balanceExcludedAccounts.has(a) && !getAccountMeta(a).unpaid);
     const out = [], skipped = [];
+    // 締め日サイクルが推定できない口座（家賃の「口座引落」など）の引落予定。cycle を持たないため
+    // 利用期間（from/end）は意味を持たず、from/end には引落日を入れておく（表示側は cycle の有無で出し分ける）。
+    //   a) 将来日付の支出/振替行があれば、日付ごとに合算して item 化する（主経路。est=false）。
+    //      Zaim の将来行が maxItems に満たないときは、最後の将来行の日・金額を翌月以降へ延ばして埋める
+    //      （est=true。登録済みの将来行が切れた先で見通しから抜け落ちないための補完）。
+    //   b) 将来行が1件も無ければ、実績から推定する（est=true）。直近の支出日の「日」の最頻値と直近1か月分の
+    //      合計額で翌月以降を作る。ただし単発の利用や休眠口座を拾わないよう、支出が2か月以上にあり、
+    //      最後の支出が62日以内の口座に限る。
+    const noCycleItems = (purchases) => {
+      const ym = (d) => d.getFullYear() * 12 + d.getMonth();
+      const monthSettle = (y, m0, day) => new Date(y, m0, Math.min(day, new Date(y, m0 + 1, 0).getDate()));
+      const mk = (settle, amount, n, est) => ({ settle, from: settle, end: settle, amount, n, closed: false, est });
+      const fut = new Map(), past = [];
+      purchases.forEach((p) => {
+        if (isFutureRow(p)) {
+          const d = startOfDay(p.date), g = fut.get(d.getTime()) || { settle: d, amount: 0, n: 0 };
+          g.amount += p.amount; g.n++; fut.set(d.getTime(), g);
+        } else past.push(p);
+      });
+      const items = [];
+      const groups = Array.from(fut.values()).filter((g) => g.settle >= today).sort((a, b) => a.settle - b.settle);
+      if (groups.length) {
+        groups.forEach((g) => { if (items.length < maxItems) items.push(mk(g.settle, g.amount, g.n, false)); });
+        const last = groups[groups.length - 1];
+        for (let k = 1; items.length < maxItems && k <= maxItems; k++) {
+          items.push(mk(monthSettle(last.settle.getFullYear(), last.settle.getMonth() + k, last.settle.getDate()), last.amount, last.n, true));
+        }
+        return items;
+      }
+      if (!past.length) return items;
+      const latest = startOfDay(past.reduce((m, p) => (p.date > m ? p.date : m), past[0].date));
+      if (new Set(past.map((p) => ym(p.date))).size < 2 || (today - latest) / 86400000 > 62) return items;
+      const dates = Array.from(new Set(past.filter((p) => ym(latest) - ym(p.date) < 6).map((p) => startOfDay(p.date).getTime()))).sort((a, b) => b - a);
+      const cnt = new Map();
+      dates.forEach((t, i) => { const dd = new Date(t).getDate(), c = cnt.get(dd) || { n: 0, first: i }; c.n++; cnt.set(dd, c); });
+      const day = Array.from(cnt.entries()).sort((a, b) => (b[1].n - a[1].n) || (a[1].first - b[1].first))[0][0];
+      let amount = 0, n = 0;
+      past.forEach((p) => { if (ym(p.date) === ym(latest)) { amount += p.amount; n++; } });
+      if (!(amount > 0)) return items;
+      for (let k = 0; k < maxItems + 3 && items.length < maxItems; k++) {
+        const settle = monthSettle(today.getFullYear(), today.getMonth() + k, day);
+        if (settle < today) continue;
+        if (past.some((p) => p.date >= addDays(settle, -10))) continue;   // 今月分がもう引き落とされている
+        items.push(mk(settle, amount, n, true));
+      }
+      return items;
+    };
     cards.forEach((acct) => {
       const cycle = getCardBillingCycle(acct);
-      if (!cycle) { if ((state.transactions || []).some((r) => r.fromAccount === acct)) skipped.push(acct); return; }
       const purchases = [], srcCount = new Map();
       let lastSettle = null;
       for (const r of state.transactions) {
@@ -9210,6 +9274,12 @@ function svgEl(tag, attrs) {
       }
       const srcSorted = Array.from(srcCount.entries()).sort((a, b) => b[1] - a[1]);
       const source = srcSorted.length ? srcSorted[0][0] : null;
+      if (!cycle) {
+        const nItems = noCycleItems(purchases);
+        if (nItems.length) out.push({ account: acct, source, cycle: null, items: nItems });
+        else if ((state.transactions || []).some((r) => r.fromAccount === acct)) skipped.push(acct);
+        return;
+      }
       const items = [];
       for (let k = 0; k < maxItems + 3 && items.length < maxItems; k++) {
         const y = today.getFullYear() + Math.floor((today.getMonth() + k) / 12), m0 = (today.getMonth() + k) % 12;
@@ -9265,17 +9335,21 @@ function svgEl(tag, attrs) {
     });
     cards.forEach((c) => {
       c.items.forEach((it, i) => {
-        const tag = it.closed ? el("span", { class: "bal-tag" }, ["締め済み"]) : el("span", { class: "bal-tag bal-tag-warn" }, ["利用期間の途中"]);
+        // 締め日のない口座（cycle なし）は利用期間を持たないので、タグは「予定」、利用期間は出さない。
+        const tag = !c.cycle ? el("span", { class: "bal-tag bal-tag-warn" }, ["予定"]) : it.closed ? el("span", { class: "bal-tag" }, ["締め済み"]) : el("span", { class: "bal-tag bal-tag-warn" }, ["利用期間の途中"]);
+        const period = c.cycle ? `・利用期間 ${md(it.from)}〜${md(it.end)}` : "";
         body.appendChild(el("div", { class: "sub-row" }, [
           el("div", null, [
             el("div", { class: "sub-name" }, [i === 0 ? drillLabel(c.account, { account: c.account }) : el("span", { style: "color:var(--ink-soft);" }, [c.account]), tag]),
-            el("div", { class: "sub-meta-line" }, [`${md(it.settle)}頃 引落${c.source ? `（${c.source}から）` : ""}・利用期間 ${md(it.from)}〜${md(it.end)}・${it.n}件`]),
+            el("div", { class: "sub-meta-line" }, [`${md(it.settle)}頃 引落${c.source ? `（${c.source}から）` : ""}${period}・${it.n}件${!c.cycle && it.est ? "・実績から推定" : ""}`]),
           ]),
           el("div", { class: "num amt" }, [YEN(it.amount)]),
         ]));
       });
     });
-    const notes = [cardPanelBaseNote(cards.map((c) => c.cycle), "引落日・締め日は過去の決済実績からの推定です（土日祝の前後のずれは考慮していません）。「利用期間の途中」の金額は、今日までの利用分だけです。")];
+    const notes = [cardPanelBaseNote(cards.filter((c) => c.cycle).map((c) => c.cycle), "引落日・締め日は過去の決済実績からの推定です（土日祝の前後のずれは考慮していません）。「利用期間の途中」の金額は、今日までの利用分だけです。")];
+    const noCycleAccts = cards.filter((c) => !c.cycle).map((c) => c.account);
+    if (noCycleAccts.length) notes.push(`締め日のない口座（${noCycleAccts.join("、")}）は、Zaimに登録済みの将来の支出か、直近の実績から予定を出しています。`);
     if (skipped.length) notes.push(`推定できなかったカード：${skipped.join("、")}`);
     body.appendChild(el("div", { class: "cash-note" }, [notes.join(" ")]));
   }
