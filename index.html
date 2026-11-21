@@ -1465,7 +1465,7 @@
             <div class="hub-roomdim" id="hubRoomdim" aria-hidden="true"></div>
             <button type="button" class="hub-ramu" id="hubRamu" aria-label="ラム"><span class="hub-ramu-shadow"></span><img id="hubRamuImg" src="hub/ramu.webp" alt="" width="1379" height="1451"><span class="hub-bubble hidden" id="hubBubble" role="status" aria-live="polite"></span></button>
             <button type="button" class="hub-hs hub-still" style="left:32%;top:15%;" aria-label="エアコン"><span class="hub-badge" id="hubBadgeAc">部屋</span></button>
-            <button type="button" class="hub-hs hub-still" style="left:10%;top:40%;" aria-label="ランプ"><span class="hub-badge">ライト</span></button>
+            <button type="button" class="hub-hs" style="left:10%;top:40%;" aria-label="ランプ"><span class="hub-badge">ライト</span></button>
             <a class="hub-hs" href="tax-furusato.html" style="left:9%;top:75%;" aria-label="巻物"><span class="hub-badge">確定申告</span></a>
             <button type="button" class="hub-hs" data-hub-tab="home" style="left:35%;top:55%;" aria-label="帳簿"><span class="hub-badge" id="hubBadgeAssets">総資産</span></button>
             <a class="hub-hs" href="payslip.html" style="left:50%;top:47%;" aria-label="封筒"><span class="hub-badge" id="hubBadgePay">給料日</span></a>
@@ -10676,6 +10676,57 @@ function svgEl(tag, attrs) {
       }
     }
   }
+  // ランプ操作：タップを hub-signal.json のカウンタに積み、フック経由で実機を1段進める（唯一の操作系）
+  let hubLampBusy = false, hubLampQueued = 0, hubLampCount = null, hubLampSha = null;
+  function hubLampAdvanceLocal() {
+    if (!hubHomeState) return;
+    const order = ["消灯", "全灯", "調光1", "調光2", "豆球"];
+    const i = order.indexOf(hubHomeState.light);
+    if (i < 0) return;
+    hubHomeState = Object.assign({}, hubHomeState, { light: order[(i + 1) % order.length], updatedAt: new Date().toISOString() });
+    const dim = document.getElementById("hubRoomdim");
+    if (dim) {
+      const base = { "全灯": 0, "調光1": 0.12, "調光2": 0.22, "豆球": 0.34, "消灯": 0.45 }[hubHomeState.light];
+      let o = typeof base === "number" ? base : 0;
+      if (typeof hubHomeState.lightLevel === "number") { if (hubHomeState.lightLevel >= 3) o = 0; else if (hubHomeState.lightLevel === 2) o = o / 2; }
+      dim.style.opacity = String(o);
+      dim.dataset.warm = hubHomeState.light === "豆球" ? "1" : "";
+    }
+  }
+  async function hubLampTap() {
+    hubLampAdvanceLocal();   // 画面は先に進める（実機は数秒遅れて追いつく）
+    hubLampQueued++;
+    if (hubLampBusy) return;
+    if (typeof ghFetch !== "function" || typeof fetchRepoFile !== "function" || typeof cloudSync === "undefined" || !cloudSync || !cloudSync.repo || !cloudSync.token || cloudSync.locked) { hubLampQueued = 0; return; }
+    hubLampBusy = true;
+    try {
+      while (hubLampQueued > 0) {
+        if (hubLampCount === null) {
+          hubLampCount = 0;
+          const f = await fetchRepoFile("hub-signal.json");
+          if (f && f.text) { try { hubLampCount = JSON.parse(f.text).lamp || 0; } catch (e) {} hubLampSha = f.sha || null; }
+        }
+        let sent = false;
+        for (let attempt = 0; attempt < 2 && !sent; attempt++) {
+          const next = hubLampCount + hubLampQueued;
+          const body = { message: "hub-signal: ランプ", content: b64encode(JSON.stringify({ lamp: next, at: new Date().toISOString() })) };
+          if (hubLampSha) body.sha = hubLampSha;
+          const r = await ghFetch(cloudSync.repo, "hub-signal.json", { method: "PUT", body: JSON.stringify(body) });
+          if (r && r.ok) {
+            hubLampCount = next; hubLampQueued = 0; sent = true;
+            try { const j = await r.json(); if (j && j.content && j.content.sha) hubLampSha = j.content.sha; } catch (e) {}
+          } else if (attempt === 0) {
+            const f2 = await fetchRepoFile("hub-signal.json");   // sha が古い場合は取り直して再試行
+            hubLampSha = f2 ? (f2.sha || null) : null;
+            if (f2 && f2.text) { try { hubLampCount = JSON.parse(f2.text).lamp || 0; } catch (e) {} }
+          }
+        }
+        if (!sent) hubLampQueued = 0;
+      }
+    } catch (e) { hubLampQueued = 0; }
+    hubLampBusy = false;
+    setTimeout(() => { hubHomeAt = 0; try { hubHomeApply(); } catch (e) {} }, 12000);   // 実機の反映を確かめにいく
+  }
   // タップ演出：背景のオブジェそのものが動いて見えるよう、背景画像から切り出した実ピクセルを同じ位置に重ねて動かす
   let hubNavBusy = false;
   function hubFx(kind) {
@@ -10825,6 +10876,7 @@ function svgEl(tag, attrs) {
         if (!hs) return;
         const kind = { "エアコン": "breeze", "ランプ": "glow", "巻物": "scroll", "帳簿": "page", "封筒": "paper", "窓": "sweep" }[hs.getAttribute("aria-label") || ""];
         if (kind) hubFx(kind);
+        if (hs.getAttribute("aria-label") === "ランプ") { try { hubLampTap(); } catch (e) { console.error("ハブ：ランプ操作", e); } }
         const tab = hs.getAttribute("data-hub-tab");
         const href = hs.tagName === "A" ? hs.getAttribute("href") : null;
         if (!tab && !href) return;
