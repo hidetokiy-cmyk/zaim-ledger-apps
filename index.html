@@ -1151,25 +1151,38 @@
   .hub-hs:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
   .hub-badge { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); white-space: nowrap; font-size: clamp(10px, 1.1vw, 14px); line-height: 1; padding: .4em .75em; border-radius: 999px; background: rgba(20, 16, 12, .72); color: #fff; border: 1px solid rgba(255, 255, 255, .4); pointer-events: none; }
   .hub-hs:not(.hub-still):hover .hub-badge { border-color: var(--accent); }
-  .hub-nav { position: absolute; z-index: 5; top: calc(10px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); display: flex; gap: 2px; padding: 4px; border-radius: 999px; background: rgba(20, 16, 12, .55); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, .18); }
-  .hub-nav-btn { border: 0; background: transparent; color: rgba(255, 255, 255, .75); font: inherit; font-size: 13px; padding: .45em .95em; border-radius: 999px; cursor: pointer; white-space: nowrap; -webkit-tap-highlight-color: transparent; }
-  .hub-nav-btn.active { background: rgba(255, 255, 255, .2); color: #fff; }
-  .hub-sheet { position: absolute; z-index: 5; left: 50%; transform: translateX(-50%); bottom: calc(10px + env(safe-area-inset-bottom)); width: min(700px, calc(100% - 20px)); padding: 10px 16px 12px; border-radius: 14px; background: rgba(23, 19, 16, .78); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, .16); color: #f3ede2; }
-  .hub-links { display: flex; flex-wrap: wrap; gap: 4px 18px; }
-  .hub-link { background: none; border: 0; padding: 2px 0; font: inherit; font-size: 14px; color: #f3ede2; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
-  .hub-link.hub-soon { color: rgba(243, 237, 226, .45); text-decoration: none; cursor: default; }
-  .hub-band { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px 14px; margin-top: 8px; }
-  .hub-kpi { display: flex; flex-direction: column; gap: 2px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, .18); min-width: 0; }
-  .hub-kpi-l { font-size: 13px; color: rgba(243, 237, 226, .6); white-space: nowrap; }
-  .hub-kpi-v { font-size: 16px; white-space: nowrap; color: #fff; }
-  .hub-recent-toggle { display: block; width: 100%; margin-top: 10px; padding: 4px 0 0; border: 0; border-top: 1px solid rgba(255, 255, 255, .18); background: none; color: #f3ede2; font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
-  .hub-recent-toggle::after { content: "▾"; float: right; opacity: .6; }
-  .hub-sheet.open .hub-recent-toggle::after { content: "▴"; }
-  .hub-recent { max-height: 0; overflow: hidden; transition: max-height .3s ease; }
-  .hub-sheet.open .hub-recent { max-height: 38vh; overflow-y: auto; }
-  .hub-recent .pt-row { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid rgba(255, 255, 255, .1); font-size: 14px; }
-  .hub-recent .cash-note { padding: 6px 0; font-size: 14px; color: rgba(243, 237, 226, .6); }
-  @media (prefers-reduced-motion: reduce) { .hub-ramu { animation: none; } .hub-recent { transition: none; } }
+  /* 縦長画面：見える範囲（左寄せ）の右端にラムを立たせる */
+  @media (max-aspect-ratio: 1/1) {
+    .hub-ramu { right: 53%; height: 34%; }
+    .hub-bubble { right: 50%; bottom: 36%; max-width: 52%; }
+  }
+  /* ハブのタップ演出（各オブジェの上に重ねる効果レイヤー） */
+  .hub-fx { position: absolute; z-index: 3; pointer-events: none; opacity: 0; }
+  .hub-fx-scroll { width: 12%; height: 25%; background: repeating-linear-gradient(#f3e6c8 0 10px, #ead9ae 10px, #ead9ae 11px, #f3e6c8 11px, #f3e6c8 21px); border: 1px solid rgba(120, 90, 40, .35); border-radius: 3px; transform-origin: 50% 0; }
+  .hub-fx-scroll.go { animation: hubUnroll .8s ease forwards; }
+  @keyframes hubUnroll { 0% { opacity: 1; transform: scaleY(.12); } 100% { opacity: 1; transform: scaleY(1); } }
+  .hub-fx-paper { width: 11%; height: 15%; background: #fffdf5; border: 1px solid rgba(0, 0, 0, .18); border-radius: 2px; box-shadow: 0 2px 8px rgba(0, 0, 0, .25); }
+  .hub-fx-paper.go { animation: hubPaperOut .8s ease forwards; }
+  @keyframes hubPaperOut { 0% { opacity: 0; transform: translateY(38%); } 25% { opacity: 1; } 100% { opacity: 1; transform: translateY(-52%); } }
+  .hub-fx-page { width: 16%; height: 12%; background: linear-gradient(100deg, #f8f0dc, #eee1bd); border: 1px solid rgba(120, 90, 40, .3); border-radius: 2px; transform-origin: 50% 100%; }
+  .hub-fx-page.go { animation: hubPageFlip .75s ease forwards; }
+  @keyframes hubPageFlip { 0% { opacity: 1; transform: perspective(500px) rotateX(72deg); } 100% { opacity: 1; transform: perspective(500px) rotateX(0deg); } }
+  .hub-fx-glow { width: 27%; height: 27%; background: radial-gradient(circle, rgba(255, 216, 130, .9), rgba(255, 216, 130, 0) 65%); border-radius: 50%; }
+  .hub-fx-glow.go { animation: hubGlow .95s ease forwards; }
+  @keyframes hubGlow { 0% { opacity: 0; transform: scale(.65); } 35% { opacity: 1; } 100% { opacity: 0; transform: scale(1.2); } }
+  .hub-fx-breeze { width: 17%; height: 13%; }
+  .hub-fx-breeze i { position: absolute; left: 0; width: 100%; height: 3px; border-radius: 2px; background: linear-gradient(90deg, transparent, rgba(205, 232, 255, .95), transparent); opacity: 0; }
+  .hub-fx-breeze i:nth-child(1) { top: 4%; }
+  .hub-fx-breeze i:nth-child(2) { top: 38%; }
+  .hub-fx-breeze i:nth-child(3) { top: 72%; }
+  .hub-fx-breeze.go i { animation: hubBreeze .85s ease forwards; }
+  .hub-fx-breeze.go i:nth-child(2) { animation-delay: .12s; }
+  .hub-fx-breeze.go i:nth-child(3) { animation-delay: .24s; }
+  @keyframes hubBreeze { 0% { opacity: 0; transform: translateY(-4px); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateY(16px); } }
+  .hub-fx-sweep { width: 23%; height: 31%; overflow: hidden; background: linear-gradient(115deg, transparent 32%, rgba(255, 255, 255, .4) 50%, transparent 68%); background-size: 260% 100%; background-position: 130% 0; border-radius: 4px; }
+  .hub-fx-sweep.go { animation: hubSweep .85s linear forwards; }
+  @keyframes hubSweep { 0% { opacity: 1; background-position: 130% 0; } 100% { opacity: 1; background-position: -40% 0; } }
+  @media (prefers-reduced-motion: reduce) { .hub-ramu { animation: none; } .hub-fx { display: none; } }
 </style>
 </head>
 <body>
@@ -1400,30 +1413,6 @@
             <button type="button" class="hub-hs" data-hub-tab="home" style="left:35%;top:55%;" aria-label="帳簿"><span class="hub-badge" id="hubBadgeAssets">総資産</span></button>
             <a class="hub-hs" href="payslip.html" style="left:44%;top:44%;" aria-label="封筒"><span class="hub-badge" id="hubBadgePay">給料日</span></a>
             <button type="button" class="hub-hs hub-still" style="left:70%;top:28%;" aria-label="窓"><span class="hub-badge" id="hubBadgeDate">今日</span></button>
-          </div>
-          <nav class="hub-nav" aria-label="タブ">
-            <button type="button" class="hub-nav-btn active" data-hub-tab="hub">ハブ</button>
-            <button type="button" class="hub-nav-btn" data-hub-tab="home">ホーム</button>
-            <button type="button" class="hub-nav-btn" data-hub-tab="closing">決算</button>
-            <button type="button" class="hub-nav-btn" data-hub-tab="analysis">分析</button>
-            <button type="button" class="hub-nav-btn" data-hub-tab="ledger">台帳</button>
-          </nav>
-          <div class="hub-sheet" id="hubSheet">
-            <div class="hub-links">
-              <button type="button" class="hub-link" data-hub-tab="home">家計簿</button>
-              <a class="hub-link" href="tax-furusato.html">確定申告</a>
-              <a class="hub-link" href="payslip.html">給与</a>
-              <span class="hub-link hub-soon">部屋（準備中）</span>
-              <span class="hub-link hub-soon">外（準備中）</span>
-            </div>
-            <div class="hub-band" aria-label="今日の見出し">
-              <div class="hub-kpi"><span class="hub-kpi-l">総資産</span><span class="hub-kpi-v num" id="hubKpiAssets">—</span></div>
-              <div class="hub-kpi"><span class="hub-kpi-l">今月の現金増減</span><span class="hub-kpi-v num" id="hubKpiCash">—</span></div>
-              <div class="hub-kpi"><span class="hub-kpi-l">次の引落</span><span class="hub-kpi-v num" id="hubKpiDebit">—</span></div>
-              <div class="hub-kpi"><span class="hub-kpi-l">次の給料日</span><span class="hub-kpi-v num" id="hubKpiPay">—</span></div>
-            </div>
-            <button type="button" class="hub-recent-toggle" id="hubRecentToggle" aria-expanded="false">直近の取引</button>
-            <div class="hub-recent" id="hubRecentWrap"><div id="hubRecentBody"></div></div>
           </div>
         </div>
       </div>
@@ -10517,7 +10506,6 @@ function svgEl(tag, attrs) {
   const HUB_RAMU_LINES = ["苦しゅうない、近う寄れ", "余が見張っておる", "家計は帝国の礎ぞ", "ふふん、今日も上出来", "無駄遣いは許さぬ…たぶん", "給料日が待ち遠しいのう", "撫でてもよいぞ", "余は満足じゃ"];
   let hubLastLine = -1, hubBubbleTimer = null;
   function hubMD(d) { return (d.getMonth() + 1) + "/" + d.getDate(); }
-  function hubSigned(n) { return (n < 0 ? "−" : "+") + YEN(Math.abs(n)); }
   // 次の給料日：毎月25日、土日祝なら前営業日（会計月の区切れと同じ adjustedCycleStart）。当日は当日を返す
   function hubNextPayday(today) {
     const t = startOfDay(today);
@@ -10531,29 +10519,6 @@ function svgEl(tag, attrs) {
     const t = e ? e.textContent.trim() : "";
     return t && t !== "—" ? t : null;
   }
-  // 今月（会計月）の現金・預金の正味増減。期間切替・絞り込みには依存しない。将来日付の行は含めない
-  function hubMonthCash() {
-    if (!state.transactions || !state.transactions.length) return null;
-    const range = periodRangeForMode("month", startOfDay(new Date()), 0);
-    return computeCashAccountNetChange(rowsInRange(range).filter((r) => !isFutureRow(r)));
-  }
-  // 次の引落：最も近い引落日と、その日にまとめて落ちる金額（nextCardPaymentsDigest の選択をそのまま使う）
-  function hubNextDebit() {
-    const pay = nextCardPaymentsDigest();
-    if (!pay || !pay.rows.length) return null;
-    const day = startOfDay(pay.rows[0].it.settle).getTime();
-    const amount = pay.rows.filter((x) => startOfDay(x.it.settle).getTime() === day).reduce((s, x) => s + x.it.amount, 0);
-    return { date: pay.rows[0].it.settle, amount };
-  }
-  function hubRecentRows(n) {
-    const out = [];
-    for (let i = txSorted.length - 1; i >= 0 && out.length < n; i--) {
-      const r = txSorted[i];
-      if (isFutureRow(r) || r.aggSetting === "exclude") continue;
-      out.push(r);
-    }
-    return out;
-  }
   function hubSay() {
     const b = document.getElementById("hubBubble");
     if (!b) return;
@@ -10565,15 +10530,33 @@ function svgEl(tag, attrs) {
     clearTimeout(hubBubbleTimer);
     hubBubbleTimer = setTimeout(() => b.classList.add("hidden"), 2800);
   }
-  // シーンの舞台（1920×1280）を画面に cover で合わせる。縦長画面では幅基準にして上下に余白を残す
+  // シーンの舞台（1920×1280）を画面いっぱいに cover で合わせる。縦長画面では机まわりが見えるよう左寄せ
   function hubFit() {
     const st = document.getElementById("hubStage");
     if (!st) return;
     const vw = window.innerWidth, vh = window.innerHeight;
-    let s = Math.max(vw / 1920, vh / 1280);
-    if (vw < vh) s = vw / 1920;
+    const s = Math.max(vw / 1920, vh / 1280);
     st.style.width = Math.round(1920 * s) + "px";
     st.style.height = Math.round(1280 * s) + "px";
+    st.style.transform = vw < vh ? "translate(-32%, -50%)" : "translate(-50%, -50%)";
+  }
+  // タップ演出：オブジェの位置に効果レイヤーを重ねてアニメーションさせる
+  let hubNavBusy = false;
+  function hubFx(kind) {
+    const st = document.getElementById("hubStage");
+    if (!st) return;
+    const old = st.querySelector(".hub-fx-" + kind);
+    if (old) old.remove();
+    const d = document.createElement("div");
+    d.className = "hub-fx hub-fx-" + kind;
+    const pos = { scroll: [3, 63], paper: [38.5, 37], page: [27, 49], glow: [-3.5, 26.5], breeze: [23.5, 21], sweep: [58.5, 12.5] }[kind];
+    if (!pos) return;
+    d.style.left = pos[0] + "%";
+    d.style.top = pos[1] + "%";
+    if (kind === "breeze") d.innerHTML = "<i></i><i></i><i></i>";
+    st.appendChild(d);
+    requestAnimationFrame(() => d.classList.add("go"));
+    setTimeout(() => d.remove(), 1500);
   }
   function renderHub() {
     const page = document.getElementById("tabHub");
@@ -10581,15 +10564,23 @@ function svgEl(tag, attrs) {
     if (!page.dataset.bound) {
       page.dataset.bound = "1";
       page.addEventListener("click", (e) => {
-        const t = e.target.closest ? e.target.closest("[data-hub-tab]") : null;
-        if (t) { const b = document.querySelector('.tab-btn[data-tab="' + t.getAttribute("data-hub-tab") + '"]'); if (b) b.click(); return; }
-        if (e.target.closest && e.target.closest("#hubRamu")) hubSay();
-      });
-      const tg = document.getElementById("hubRecentToggle");
-      if (tg) tg.addEventListener("click", () => {
-        const sh = document.getElementById("hubSheet");
-        const open = sh.classList.toggle("open");
-        tg.setAttribute("aria-expanded", open ? "true" : "false");
+        if (e.target.closest && e.target.closest("#hubRamu")) { hubSay(); return; }
+        const hs = e.target.closest ? e.target.closest(".hub-hs") : null;
+        if (!hs) return;
+        const kind = { "エアコン": "breeze", "ランプ": "glow", "巻物": "scroll", "帳簿": "page", "封筒": "paper", "窓": "sweep" }[hs.getAttribute("aria-label") || ""];
+        if (kind) hubFx(kind);
+        const tab = hs.getAttribute("data-hub-tab");
+        const href = hs.tagName === "A" ? hs.getAttribute("href") : null;
+        if (!tab && !href) return;
+        e.preventDefault();
+        if (hubNavBusy) return;
+        hubNavBusy = true;
+        const reduced = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+        setTimeout(() => {
+          hubNavBusy = false;
+          if (tab) { const b = document.querySelector('.tab-btn[data-tab="' + tab + '"]'); if (b) b.click(); }
+          else if (href) window.location.href = href;
+        }, kind && !reduced ? 780 : 0);
       });
       window.addEventListener("resize", hubFit);
     }
@@ -10600,29 +10591,10 @@ function svgEl(tag, attrs) {
     const today = startOfDay(new Date());
     const MDW = hubMD(today) + "（" + "日月火水木金土"[today.getDay()] + "）";
     set("hubBadgeDate", MDW);
-    try { const d = hubNextPayday(today); set("hubBadgePay", "給料日 " + hubMD(d)); set("hubKpiPay", hubMD(d) + "（" + "日月火水木金土"[d.getDay()] + "）"); } catch (e) { console.error("ハブ：給料日", e); }
+    try { const d = hubNextPayday(today); set("hubBadgePay", "給料日 " + hubMD(d)); } catch (e) { console.error("ハブ：給料日", e); }
     let assets = null;
     try { assets = hubAssetsText(); } catch (e) { assets = null; }
     set("hubBadgeAssets", assets ? "総資産 " + assets : "総資産");
-    set("hubKpiAssets", assets || "—");
-    let cash = null;
-    try { cash = hubMonthCash(); } catch (e) { console.error("ハブ：今月の現金増減", e); }
-    set("hubKpiCash", cash == null ? "—" : hubSigned(cash));
-    let debit = null;
-    try { debit = hubNextDebit(); } catch (e) { console.error("ハブ：次の引落", e); }
-    set("hubKpiDebit", debit ? hubMD(debit.date) + " " + YEN(debit.amount) : "—");
-    const body = document.getElementById("hubRecentBody");
-    if (body) {
-      body.textContent = "";
-      let rows = [];
-      try { rows = state.transactions && state.transactions.length ? hubRecentRows(5) : []; } catch (e) { rows = []; }
-      if (!rows.length) body.appendChild(el("div", { class: "cash-note" }, ["取引なし"]));
-      rows.forEach((r) => {
-        const label = r.type === "transfer" ? (r.fromAccount || "") + "→" + (r.toAccount || "") : (r.store || r.item || r.category || "");
-        const amt = r.type === "income" ? "+" + YEN(r.amount) : r.type === "expense" ? "−" + YEN(r.amount) : YEN(r.amount);
-        body.appendChild(el("div", { class: "pt-row" }, [el("span", null, [hubMD(r.date) + " " + label]), el("span", { class: "num" }, [amt])]));
-      });
-    }
   }
 
   // 期間（月・週など）を前後に動かしたとき、台帳のページをめくるように表示中のタブが立体的に切り替わる。「動きを減らす」設定のときは動かさない
