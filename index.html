@@ -248,6 +248,7 @@
   .tab-btn:hover { color: var(--ink); background: rgba(var(--ink-rgb),0.08); }
   .tab-btn.active { color: var(--ink); background: var(--paper-raised); border-color: var(--rule-strong); border-bottom-color: var(--paper-raised); }
   .tab-btn.active svg { opacity: 1; }
+  .tab-btn[data-tab="hub"].active { border-top-color: var(--accent); }
   .tab-btn[data-tab="home"].active { border-top-color: var(--accent); }
   .tab-btn[data-tab="closing"].active { border-top-color: var(--accent); }
   .tab-btn[data-tab="analysis"].active { border-top-color: var(--accent); }
@@ -1134,6 +1135,27 @@
     .day-head, .tx-summary { top: 0; }
   }
 
+  /* ハブ（Phase 1） */
+  .hub-scene { position: relative; width: 100%; aspect-ratio: 3 / 2; overflow: hidden; border-radius: 8px; background: var(--paper-raised); border: 1px solid var(--rule-strong); }
+  .hub-room { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+  .hub-ramu { position: absolute; right: 4%; bottom: 0; height: 62%; aspect-ratio: 1379 / 1451; padding: 0; border: 0; background: none; cursor: pointer; z-index: 2; animation: hubFloat 5s ease-in-out infinite; -webkit-tap-highlight-color: transparent; }
+  .hub-ramu img { width: 100%; height: 100%; display: block; pointer-events: none; }
+  @keyframes hubFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3%); } }
+  .hub-bubble { position: absolute; z-index: 4; right: 14%; bottom: 64%; max-width: 40%; padding: .5em .9em; border-radius: 12px; background: var(--paper-raised); color: var(--ink); border: 1px solid var(--rule-strong); font-size: clamp(12px, 1.5vw, 18px); line-height: 1.4; pointer-events: none; }
+  .hub-bubble.hidden { display: none; }
+  .hub-hs { position: absolute; z-index: 3; width: clamp(44px, 9%, 110px); aspect-ratio: 1; transform: translate(-50%, -50%); display: block; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-decoration: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .hub-hs.hub-still { cursor: default; }
+  .hub-hs:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+  .hub-badge { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); white-space: nowrap; font-size: clamp(10px, 1.1vw, 14px); line-height: 1; padding: .4em .75em; border-radius: 999px; background: rgba(20, 16, 12, .72); color: #fff; border: 1px solid rgba(255, 255, 255, .4); pointer-events: none; }
+  .hub-hs:not(.hub-still):hover .hub-badge { border-color: var(--accent); }
+  .hub-links { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 14px 2px 18px; }
+  .hub-link { background: none; border: 0; padding: 4px 0; font: inherit; font-size: 15px; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+  .hub-link.hub-soon { color: var(--ink-soft); text-decoration: none; cursor: default; }
+  .hub-band { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px 18px; margin-bottom: 18px; }
+  .hub-kpi { display: flex; flex-direction: column; gap: 4px; padding: 10px 2px; border-top: 1px solid var(--rule-strong); min-width: 0; }
+  .hub-kpi-l { font-size: 13px; color: var(--ink-soft); }
+  .hub-kpi-v { font-size: 18px; white-space: nowrap; }
+  @media (prefers-reduced-motion: reduce) { .hub-ramu { animation: none; } }
 </style>
 </head>
 <body>
@@ -1345,13 +1367,45 @@
         </div>
       </div>
       <div class="tab-bar" id="tabBar">
-        <button class="tab-btn active" data-tab="home"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>ホーム</button>
+        <button class="tab-btn active" data-tab="hub"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="6.5" height="6.5"/><rect x="13.5" y="4" width="6.5" height="6.5"/><rect x="4" y="13.5" width="6.5" height="6.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5"/></svg>ハブ</button>
+        <button class="tab-btn" data-tab="home"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>ホーム</button>
         <button class="tab-btn" data-tab="closing"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></svg>決算</button>
         <button class="tab-btn" data-tab="analysis"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>分析</button>
         <button class="tab-btn" data-tab="ledger"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>台帳</button>
       </div>
 
-      <div class="tab-page" id="tabOverview">
+      <div class="tab-page" id="tabHub">
+        <div class="hub-scene" id="hubScene">
+          <img class="hub-room" src="hub/room.webp" alt="" width="1920" height="1280">
+          <button type="button" class="hub-ramu" id="hubRamu" aria-label="ラム"><img src="hub/ramu.webp" alt="" width="1379" height="1451"></button>
+          <div class="hub-bubble hidden" id="hubBubble" role="status" aria-live="polite"></div>
+          <button type="button" class="hub-hs hub-still" style="left:32%;top:15%;" aria-label="エアコン"><span class="hub-badge">部屋は Phase 2</span></button>
+          <button type="button" class="hub-hs hub-still" style="left:10%;top:40%;" aria-label="ランプ"><span class="hub-badge">ライト</span></button>
+          <a class="hub-hs" href="tax-furusato.html" style="left:9%;top:75%;" aria-label="巻物"><span class="hub-badge">確定申告</span></a>
+          <button type="button" class="hub-hs" data-hub-tab="home" style="left:35%;top:55%;" aria-label="帳簿"><span class="hub-badge" id="hubBadgeAssets">総資産</span></button>
+          <a class="hub-hs" href="payslip.html" style="left:44%;top:44%;" aria-label="封筒"><span class="hub-badge" id="hubBadgePay">給料日</span></a>
+          <button type="button" class="hub-hs hub-still" style="left:70%;top:28%;" aria-label="窓"><span class="hub-badge" id="hubBadgeDate">今日</span></button>
+        </div>
+        <div class="hub-links">
+          <button type="button" class="hub-link" data-hub-tab="home">家計簿</button>
+          <a class="hub-link" href="tax-furusato.html">確定申告</a>
+          <a class="hub-link" href="payslip.html">給与</a>
+          <span class="hub-link hub-soon">部屋（準備中）</span>
+          <span class="hub-link hub-soon">外（準備中）</span>
+        </div>
+        <div class="hub-band" aria-label="今日の見出し">
+          <div class="hub-kpi"><span class="hub-kpi-l">総資産</span><span class="hub-kpi-v num" id="hubKpiAssets">—</span></div>
+          <div class="hub-kpi"><span class="hub-kpi-l">今月の現金増減</span><span class="hub-kpi-v num" id="hubKpiCash">—</span></div>
+          <div class="hub-kpi"><span class="hub-kpi-l">次の引落</span><span class="hub-kpi-v num" id="hubKpiDebit">—</span></div>
+          <div class="hub-kpi"><span class="hub-kpi-l">次の給料日</span><span class="hub-kpi-v num" id="hubKpiPay">—</span></div>
+        </div>
+        <div class="card panel" id="hubRecentCard">
+          <div class="panel-head"><div class="section-title serif">直近の取引</div></div>
+          <div id="hubRecentBody"></div>
+        </div>
+      </div>
+
+      <div class="tab-page hidden" id="tabOverview">
 
       <div class="fresh-strip" id="freshStrip"></div>
 
@@ -10436,6 +10490,99 @@ function svgEl(tag, attrs) {
   // 1回の描画の間だけ、定期支払いの検出結果を使い回す（各パネルが何度も全取引を走査して重くなるのを防ぐ）。
   // 描画が終われば捨てるので、設定変更後の描画では必ず計算し直される
   let subsCache = null, subsCacheOn = false;
+  // ===== ハブ（Phase 1）：入口の部屋・今日の見出し・直近の取引（表示専用。既存の集計関数を呼ぶだけで、既存関数からは typeof ガード経由でのみ呼ぶ） =====
+  const HUB_RAMU_LINES = ["苦しゅうない、近う寄れ", "余が見張っておる", "家計は帝国の礎ぞ", "ふふん、今日も上出来", "無駄遣いは許さぬ…たぶん", "給料日が待ち遠しいのう", "撫でてもよいぞ", "余は満足じゃ"];
+  let hubLastLine = -1, hubBubbleTimer = null;
+  function hubMD(d) { return (d.getMonth() + 1) + "/" + d.getDate(); }
+  function hubSigned(n) { return (n < 0 ? "−" : "+") + YEN(Math.abs(n)); }
+  // 次の給料日：毎月25日、土日祝なら前営業日（会計月の区切れと同じ adjustedCycleStart）。当日は当日を返す
+  function hubNextPayday(today) {
+    const t = startOfDay(today);
+    let d = adjustedCycleStart(t.getFullYear(), t.getMonth());
+    if (d < t) d = adjustedCycleStart(t.getMonth() === 11 ? t.getFullYear() + 1 : t.getFullYear(), (t.getMonth() + 1) % 12);
+    return d;
+  }
+  // 総資産：総資産ヒーローが描いた値をそのまま読む（同じ集計値）。未描画・算出不可（—）は null
+  function hubAssetsText() {
+    const e = document.getElementById("assetsHeroValue");
+    const t = e ? e.textContent.trim() : "";
+    return t && t !== "—" ? t : null;
+  }
+  // 今月（会計月）の現金・預金の正味増減。期間切替・絞り込みには依存しない。将来日付の行は含めない
+  function hubMonthCash() {
+    if (!state.transactions || !state.transactions.length) return null;
+    const range = periodRangeForMode("month", startOfDay(new Date()), 0);
+    return computeCashAccountNetChange(rowsInRange(range).filter((r) => !isFutureRow(r)));
+  }
+  // 次の引落：最も近い引落日と、その日にまとめて落ちる金額（nextCardPaymentsDigest の選択をそのまま使う）
+  function hubNextDebit() {
+    const pay = nextCardPaymentsDigest();
+    if (!pay || !pay.rows.length) return null;
+    const day = startOfDay(pay.rows[0].it.settle).getTime();
+    const amount = pay.rows.filter((x) => startOfDay(x.it.settle).getTime() === day).reduce((s, x) => s + x.it.amount, 0);
+    return { date: pay.rows[0].it.settle, amount };
+  }
+  function hubRecentRows(n) {
+    const out = [];
+    for (let i = txSorted.length - 1; i >= 0 && out.length < n; i--) {
+      const r = txSorted[i];
+      if (isFutureRow(r) || r.aggSetting === "exclude") continue;
+      out.push(r);
+    }
+    return out;
+  }
+  function hubSay() {
+    const b = document.getElementById("hubBubble");
+    if (!b) return;
+    let i = Math.floor(Math.random() * HUB_RAMU_LINES.length);
+    if (i === hubLastLine) i = (i + 1) % HUB_RAMU_LINES.length;
+    hubLastLine = i;
+    b.textContent = HUB_RAMU_LINES[i];
+    b.classList.remove("hidden");
+    clearTimeout(hubBubbleTimer);
+    hubBubbleTimer = setTimeout(() => b.classList.add("hidden"), 2800);
+  }
+  function renderHub() {
+    const page = document.getElementById("tabHub");
+    if (!page) return;
+    if (!page.dataset.bound) {
+      page.dataset.bound = "1";
+      page.addEventListener("click", (e) => {
+        const t = e.target.closest ? e.target.closest("[data-hub-tab]") : null;
+        if (t) { const b = document.querySelector('.tab-btn[data-tab="' + t.getAttribute("data-hub-tab") + '"]'); if (b) b.click(); return; }
+        if (e.target.closest && e.target.closest("#hubRamu")) hubSay();
+      });
+    }
+    if (page.classList.contains("hidden")) return;   // 非表示中は計算しない（開いたときのタブ切替が render を呼ぶ）
+    const set = (id, text) => { const e = document.getElementById(id); if (e) e.textContent = text; };
+    const today = startOfDay(new Date());
+    const MDW = hubMD(today) + "（" + "日月火水木金土"[today.getDay()] + "）";
+    set("hubBadgeDate", MDW);
+    try { const d = hubNextPayday(today); set("hubBadgePay", "給料日 " + hubMD(d)); set("hubKpiPay", hubMD(d) + "（" + "日月火水木金土"[d.getDay()] + "）"); } catch (e) { console.error("ハブ：給料日", e); }
+    let assets = null;
+    try { assets = hubAssetsText(); } catch (e) { assets = null; }
+    set("hubBadgeAssets", assets ? "総資産 " + assets : "総資産");
+    set("hubKpiAssets", assets || "—");
+    let cash = null;
+    try { cash = hubMonthCash(); } catch (e) { console.error("ハブ：今月の現金増減", e); }
+    set("hubKpiCash", cash == null ? "—" : hubSigned(cash));
+    let debit = null;
+    try { debit = hubNextDebit(); } catch (e) { console.error("ハブ：次の引落", e); }
+    set("hubKpiDebit", debit ? hubMD(debit.date) + " " + YEN(debit.amount) : "—");
+    const body = document.getElementById("hubRecentBody");
+    if (body) {
+      body.textContent = "";
+      let rows = [];
+      try { rows = state.transactions && state.transactions.length ? hubRecentRows(5) : []; } catch (e) { rows = []; }
+      if (!rows.length) body.appendChild(el("div", { class: "cash-note" }, ["取引なし"]));
+      rows.forEach((r) => {
+        const label = r.type === "transfer" ? (r.fromAccount || "") + "→" + (r.toAccount || "") : (r.store || r.item || r.category || "");
+        const amt = r.type === "income" ? "+" + YEN(r.amount) : r.type === "expense" ? "−" + YEN(r.amount) : YEN(r.amount);
+        body.appendChild(el("div", { class: "pt-row" }, [el("span", null, [hubMD(r.date) + " " + label]), el("span", { class: "num" }, [amt])]));
+      });
+    }
+  }
+
   // 期間（月・週など）を前後に動かしたとき、台帳のページをめくるように表示中のタブが立体的に切り替わる。「動きを減らす」設定のときは動かさない
   let lastPeriodKey = null;
   function turnPage() {
@@ -10458,6 +10605,7 @@ function svgEl(tag, attrs) {
     try { renderBody(); } finally { subsCacheOn = false; subsCache = null; }
     try { turnPage(); } catch (e) { console.error("ページめくりの動きに失敗", e); }
     try { updateAppBadge(); } catch (e) { /* 無言 */ }
+    try { if (typeof renderHub === "function") renderHub(); } catch (e) { console.error("ハブの表示に失敗", e); }
   }
   function renderBody() {
     if (!state.transactions) return;
@@ -11877,7 +12025,7 @@ function svgEl(tag, attrs) {
   }
 
   // タブ構成：ホーム（概要）／決算（月次チェック・税務集計）／分析（グラフ・財務三表）／台帳（取引明細・時間軸）
-  const TAB_PAGE_IDS = { home: "tabOverview", closing: "tabClosing", analysis: "tabAnalysis", ledger: "tabLedger" };
+  const TAB_PAGE_IDS = { hub: "tabHub", home: "tabOverview", closing: "tabClosing", analysis: "tabAnalysis", ledger: "tabLedger" };
   function activateTab(target, dir) {
     document.querySelectorAll(".tab-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === target));
     syncTabAria();
@@ -12735,7 +12883,7 @@ function svgEl(tag, attrs) {
   let cmdItemsShown = [], cmdSel = 0;
   const clickEl = (sel) => { const b = document.querySelector(sel); if (b) b.click(); };
   function cmdBuildItems(q) {
-    const tabs = [["ホーム", "home"], ["決算", "closing"], ["分析", "analysis"], ["台帳", "ledger"]];
+    const tabs = [["ハブ", "hub"], ["ホーム", "home"], ["決算", "closing"], ["分析", "analysis"], ["台帳", "ledger"]];
     const subs = [["貸借対照表（B/S）", "bs"], ["損益計算書（P/L）", "pl"], ["キャッシュフロー計算書（C/F）", "cf"], ["財務指標", "ratios"], ["資金繰り予測", "forecast"], ["仕訳・試算表", "journal"]];
     const modes = [["日次", "day"], ["週次", "week"], ["月次", "month"], ["年次", "year"], ["全期間", "all"]];
     const items = [];
@@ -12983,7 +13131,7 @@ function svgEl(tag, attrs) {
 <script>
 (function () {   // 公開版（HTTPS・PWA）向けの機能：永続ストレージ／画面指定リンク／オフライン表示／追加案内／トークン貼り付け
   const $ = (id) => document.getElementById(id);
-  const TABS = ["home", "closing", "analysis", "ledger"];
+  const TABS = ["hub", "home", "closing", "analysis", "ledger"];
   // 再編前のタブ名（#tx など）で開かれたときの読み替え：[新しいタブ, サブ切替の値]
   const LEGACY_TABS = { overview: ["home", null], timeline: ["ledger", "timeline"], charts: ["analysis", "charts"], statements: ["analysis", "statements"], tx: ["ledger", "tx"] };
 
