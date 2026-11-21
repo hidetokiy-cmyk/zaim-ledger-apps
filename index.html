@@ -1142,10 +1142,14 @@
   .hub-stage { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
   .hub-room { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
   .hub-ramu { position: absolute; left: 88%; bottom: 3%; height: 30%; aspect-ratio: 1379 / 1451; padding: 0; border: 0; background: none; cursor: pointer; z-index: 2; transform: translateX(-50%); transition: left 4.6s ease-in-out, bottom 4.6s ease-in-out, transform 4.6s ease-in-out; -webkit-tap-highlight-color: transparent; }
-  .hub-ramu img { width: 100%; height: 100%; display: block; pointer-events: none; animation: hubIdle 4.2s ease-in-out infinite; }
-  .hub-ramu.walking img { animation: hubWaddle .3s ease-in-out infinite; }
+  .hub-ramu img { width: 100%; height: 100%; display: block; pointer-events: none; object-fit: contain; animation: hubIdle 4.2s ease-in-out infinite; }
+  .hub-ramu.walking img { animation: none; }
+  .hub-ramu.settle img { animation: hubSettle .38s ease; }
   @keyframes hubIdle { 0%, 100% { transform: scale(1) translateY(0); } 50% { transform: scale(1.018) translateY(-.6%); } }
-  @keyframes hubWaddle { 0% { transform: rotate(-2.6deg) translateY(0); } 50% { transform: rotate(2.6deg) translateY(-2.4%); } 100% { transform: rotate(-2.6deg) translateY(0); } }
+  @keyframes hubSettle { 0% { transform: scale(1.05, .92); } 55% { transform: scale(.99, 1.02); } 100% { transform: scale(1, 1); } }
+  .hub-ramu-shadow { position: absolute; left: 50%; bottom: -1.5%; width: 74%; height: 8%; transform: translateX(-50%); background: radial-gradient(ellipse at center, rgba(35, 22, 8, .40), rgba(35, 22, 8, 0) 68%); filter: blur(3px); pointer-events: none; }
+  .hub-ramu.walking .hub-ramu-shadow { animation: hubShadowPulse .34s ease-in-out infinite alternate; }
+  @keyframes hubShadowPulse { from { transform: translateX(-50%) scaleX(.93); opacity: .8; } to { transform: translateX(-50%) scaleX(1.05); opacity: 1; } }
   @keyframes hubFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3%); } }
   .hub-bubble { position: absolute; z-index: 4; left: 50%; bottom: 104%; transform: translateX(-50%); display: block; width: max-content; max-width: 190px; padding: .5em .9em; border-radius: 12px; background: var(--paper-raised); color: var(--ink); border: 1px solid var(--rule-strong); font-size: 14px; line-height: 1.4; pointer-events: none; }
   .hub-bubble.hidden { display: none; }
@@ -1438,7 +1442,7 @@
             <div class="hub-amb hub-amb-sky"></div>
             <div class="hub-amb hub-amb-lampglow"></div>
             <div class="hub-motes" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
-            <button type="button" class="hub-ramu" id="hubRamu" aria-label="ラム"><img src="hub/ramu.webp" alt="" width="1379" height="1451"><span class="hub-bubble hidden" id="hubBubble" role="status" aria-live="polite"></span></button>
+            <button type="button" class="hub-ramu" id="hubRamu" aria-label="ラム"><span class="hub-ramu-shadow"></span><img id="hubRamuImg" src="hub/ramu.webp" alt="" width="1379" height="1451"><span class="hub-bubble hidden" id="hubBubble" role="status" aria-live="polite"></span></button>
             <button type="button" class="hub-hs hub-still" style="left:32%;top:15%;" aria-label="エアコン"><span class="hub-badge">部屋は Phase 2</span></button>
             <button type="button" class="hub-hs hub-still" style="left:10%;top:40%;" aria-label="ランプ"><span class="hub-badge">ライト</span></button>
             <a class="hub-hs" href="tax-furusato.html" style="left:9%;top:75%;" aria-label="巻物"><span class="hub-badge">確定申告</span></a>
@@ -10613,29 +10617,80 @@ function svgEl(tag, attrs) {
     requestAnimationFrame(() => d.classList.add("go"));
     setTimeout(() => d.remove(), 1500);
   }
-  // ラムの徘徊：部屋のアンカー間をよちよち歩く（浮遊はしない）。タップされたら少し止まる
+  // ラムの徘徊：部屋のアンカー間を歩く。横移動は横向きスプライト＋進行方向への傾き＋歩数に同期した上下動と速度の脈動、
+  // 足元には影。到着時は小さく沈んで戻る。静止中は時々まばたきする。タップされたら少し止まる
   const HUB_ANCHORS = [
     { x: 19, b: 3, s: 1 }, { x: 40, b: 2, s: 1 }, { x: 60, b: 3, s: 1 },
     { x: 74, b: 12, s: 0.82 }, { x: 88, b: 3, s: 1 }, { x: 13, b: 9, s: 0.85 }
   ];
-  let hubAnchorIdx = 4, hubRoamOn = false, hubRoamTimer = 0;
+  const RAMU_FRONT = "hub/ramu.webp", RAMU_BLINK = "hub/ramu-blink.webp", RAMU_SIDE = "hub/ramu-side.webp";
+  let hubAnchorIdx = 4, hubRoamOn = false, hubRoamTimer = 0, hubRafId = 0, hubBlinkTimer = 0, hubBlinkOn = false;
+  let hubPos = { x: 88, b: 3, s: 1 };
   function hubReducedMotion() { return !!(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches); }
+  function hubRamuImg() { return document.getElementById("hubRamuImg"); }
+  function hubSetSprite(src) { const im = hubRamuImg(); if (im && im.getAttribute("src") !== src) im.src = src; }
+  function hubWalkCleanup() {
+    cancelAnimationFrame(hubRafId);
+    const r = document.getElementById("hubRamu"), im = hubRamuImg();
+    if (r) { r.classList.remove("walking"); r.style.transition = ""; }
+    if (im) im.style.transform = "";
+    hubSetSprite(RAMU_FRONT);
+  }
+  function hubWalkArrive(r, a) {
+    hubPos = { x: a.x, b: a.b, s: a.s };
+    r.classList.remove("walking");
+    const im = hubRamuImg();
+    if (im) im.style.transform = "";
+    hubSetSprite(RAMU_FRONT);
+    r.style.transition = "";
+    r.classList.add("settle");
+    setTimeout(() => r.classList.remove("settle"), 420);
+    hubRoamTimer = setTimeout(hubRoamNext, 2600 + Math.random() * 2800);
+  }
   function hubWalkTo(idx) {
     const r = document.getElementById("hubRamu");
     if (!r) return;
-    const a = HUB_ANCHORS[idx], cur = HUB_ANCHORS[hubAnchorIdx];
+    const a = HUB_ANCHORS[idx], from = { x: hubPos.x, b: hubPos.b, s: hubPos.s };
     hubAnchorIdx = idx;
-    const dist = Math.max(Math.abs(a.x - cur.x), Math.abs(a.b - cur.b) * 1.4);
+    const dx = a.x - from.x;
+    const dist = Math.max(Math.abs(dx), Math.abs(a.b - from.b) * 1.4);
     const dur = Math.round(Math.min(6800, Math.max(2400, 1500 + dist * 95)));
-    r.style.transitionDuration = dur + "ms";
-    r.style.left = a.x + "%";
-    r.style.bottom = a.b + "%";
-    r.style.transform = "translateX(-50%) scale(" + a.s + ")";
+    const steps = Math.max(2, Math.round(dist / 6));
+    const side = Math.abs(dx) > 3;
+    const dir = dx < 0 ? -1 : 1;
+    if (side) hubSetSprite(RAMU_SIDE);
     r.classList.add("walking");
-    hubRoamTimer = setTimeout(() => {
-      r.classList.remove("walking");
-      hubRoamTimer = setTimeout(hubRoamNext, 2600 + Math.random() * 2800);
-    }, dur);
+    if (!window.requestAnimationFrame) {   // 念のためのフォールバック：直接置いて歩行だけ模す
+      hubPos = { x: a.x, b: a.b, s: a.s };
+      r.style.left = a.x + "%";
+      r.style.bottom = a.b + "%";
+      r.style.transform = "translateX(-50%) scale(" + a.s + ")";
+      hubRoamTimer = setTimeout(() => hubWalkArrive(r, a), 600);
+      return;
+    }
+    r.style.transition = "none";
+    const im = hubRamuImg();
+    const t0 = performance.now();
+    const frame = (now) => {
+      if (!hubRoamOn) return;   // 停止時は hubWalkCleanup 側で後片付けする
+      const t = Math.min(1, (now - t0) / dur);
+      const ease = t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      const pulse = Math.sin(t * steps * Math.PI * 2) * 0.014 * Math.sin(t * Math.PI);
+      const p = Math.max(0, Math.min(1, ease + pulse));
+      hubPos = { x: from.x + (a.x - from.x) * p, b: from.b + (a.b - from.b) * ease, s: from.s + (a.s - from.s) * ease };
+      r.style.left = hubPos.x + "%";
+      r.style.bottom = hubPos.b + "%";
+      r.style.transform = "translateX(-50%) scale(" + hubPos.s + ")";
+      if (im) {
+        const bob = Math.abs(Math.sin(t * steps * Math.PI * 2)) * 3.2 * Math.sin(t * Math.PI);
+        const lean = side ? dir * 3.5 * Math.sin(t * Math.PI) : 0;
+        const flip = side && dir < 0 ? " scaleX(-1)" : "";
+        im.style.transform = "translateY(-" + bob.toFixed(2) + "%) rotate(" + lean.toFixed(2) + "deg)" + flip;
+      }
+      if (t < 1) { hubRafId = requestAnimationFrame(frame); return; }
+      hubWalkArrive(r, a);
+    };
+    hubRafId = requestAnimationFrame(frame);
   }
   function hubRoamNext() {
     if (!hubRoamOn) return;
@@ -10643,21 +10698,33 @@ function svgEl(tag, attrs) {
     while (n === hubAnchorIdx) n = Math.floor(Math.random() * HUB_ANCHORS.length);
     hubWalkTo(n);
   }
+  function hubBlinkLoop() {
+    hubBlinkTimer = setTimeout(() => {
+      const r = document.getElementById("hubRamu");
+      if (hubRoamOn && r && !r.classList.contains("walking")) {
+        hubSetSprite(RAMU_BLINK);
+        setTimeout(() => { if (!r.classList.contains("walking")) hubSetSprite(RAMU_FRONT); }, 150);
+      }
+      if (hubBlinkOn) hubBlinkLoop();
+    }, 2800 + Math.random() * 3200);
+  }
   function hubRoamStart() {
     if (hubRoamOn || hubReducedMotion()) return;
     hubRoamOn = true;
+    [RAMU_BLINK, RAMU_SIDE].forEach((src) => { const i = new Image(); i.src = src; });
+    if (!hubBlinkOn) { hubBlinkOn = true; hubBlinkLoop(); }
     hubRoamTimer = setTimeout(hubRoamNext, 1400);
   }
   function hubRoamStop() {
     hubRoamOn = false;
+    hubBlinkOn = false;
     clearTimeout(hubRoamTimer);
-    const r = document.getElementById("hubRamu");
-    if (r) r.classList.remove("walking");
+    clearTimeout(hubBlinkTimer);
+    hubWalkCleanup();
   }
   function hubRoamPause(ms) {
     clearTimeout(hubRoamTimer);
-    const r = document.getElementById("hubRamu");
-    if (r) r.classList.remove("walking");
+    hubWalkCleanup();
     if (hubRoamOn) hubRoamTimer = setTimeout(hubRoamNext, ms);
   }
   function renderHub() {
