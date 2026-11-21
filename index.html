@@ -1168,6 +1168,14 @@
   /* ハブの ambient（部屋の空気感）：窓の光・ランプの灯り・舞う埃 */
   .hub-amb { position: absolute; z-index: 1; pointer-events: none; }
   .hub-amb-sky { left: 55%; top: 8%; width: 30%; height: 44%; border-radius: 46% 46% 6px 6px; background: linear-gradient(180deg, rgba(255, 244, 200, .22), rgba(255, 244, 200, 0) 75%); animation: hubSky 13s ease-in-out infinite alternate; }
+  .hub-skyfx { position: absolute; z-index: 1; left: 55%; top: 8%; width: 30%; height: 44%; border-radius: 46% 46% 6px 6px; pointer-events: none; overflow: hidden; }
+  .hub-skyfx[data-day="0"] { background: linear-gradient(180deg, rgba(16, 26, 58, .52), rgba(10, 14, 34, .36) 78%); }
+  .hub-skyfx[data-cond="cloud"][data-day="1"] { background: linear-gradient(180deg, rgba(148, 156, 160, .34), rgba(148, 156, 160, .10) 80%); }
+  .hub-skyfx[data-cond="rain"][data-day="1"] { background: linear-gradient(180deg, rgba(96, 116, 140, .38), rgba(96, 116, 140, .14) 80%); }
+  .hub-skyfx[data-cond="snow"][data-day="1"] { background: linear-gradient(180deg, rgba(226, 232, 238, .42), rgba(226, 232, 238, .12) 80%); }
+  .hub-skyfx .hub-rain { position: absolute; inset: 0; background-image: repeating-linear-gradient(102deg, rgba(214, 232, 248, 0) 0 9px, rgba(214, 232, 248, .5) 9px 10px, rgba(214, 232, 248, 0) 10px 19px); background-size: 100% 46px; opacity: 0; }
+  .hub-skyfx[data-cond="rain"] .hub-rain { opacity: 1; animation: hubRainFall .5s linear infinite; }
+  @keyframes hubRainFall { from { background-position: 0 -46px; } to { background-position: 0 0; } }
   @keyframes hubSky { from { opacity: .45; transform: translateX(-1.5%); } to { opacity: 1; transform: translateX(1.5%); } }
   .hub-amb-lampglow { left: -4%; top: 14%; width: 26%; height: 30%; background: radial-gradient(circle, rgba(255, 196, 96, .22), rgba(255, 196, 96, 0) 65%); animation: hubLampBreath 5.5s ease-in-out infinite; }
   @keyframes hubLampBreath { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
@@ -1442,6 +1450,7 @@
         <div class="hub-scene" id="hubScene">
           <div class="hub-stage" id="hubStage">
             <img class="hub-room" src="hub/room-base.webp" alt="" width="1920" height="1280">
+            <div class="hub-skyfx" id="hubSkyfx" data-day="1" data-cond="clear" aria-hidden="true"><div class="hub-rain"></div></div>
             <img class="hub-part" src="hub/part-ac.webp" alt="" style="left:18.54%;top:1.41%;width:27.55%;">
             <img class="hub-part" src="hub/part-lamp.webp" alt="" style="left:3.75%;top:23.91%;width:13.13%;">
             <img class="hub-part" src="hub/part-envelope.webp" alt="" style="left:45.05%;top:40.86%;width:11.98%;">
@@ -10605,6 +10614,31 @@ function svgEl(tag, attrs) {
       st.style.transform = "translate(-50%, -50%)";
     }
   }
+  // 窓の空：時刻で昼夜、気象庁の予報（神奈川県東部）で天気を窓ガラスへ薄く反映する。取得できなければ時刻のみ
+  let hubWx = { cond: null, at: 0 };
+  function hubSkyApply() {
+    const el = document.getElementById("hubSkyfx");
+    if (!el) return;
+    const h = new Date().getHours();
+    el.dataset.day = (h >= 6 && h < 18) ? "1" : "0";
+    if (hubWx.cond) el.dataset.cond = hubWx.cond;
+    const now = Date.now();
+    if (hubWx.at && now - hubWx.at < 30 * 60 * 1000) return;
+    hubWx.at = now;
+    if (!window.fetch) return;
+    fetch("https://www.jma.go.jp/bosai/forecast/data/forecast/140000.json").then(r => r.json()).then(j => {
+      try {
+        const ts = j[0].timeSeries[0];
+        const area = ts.areas.find(a => a.area && a.area.code === "140010") || ts.areas[0];
+        const code = String((area.weatherCodes || [])[0] || "");
+        if (!code) return;
+        const n = parseInt(code, 10);
+        hubWx.cond = n >= 400 ? "snow" : n >= 300 ? "rain" : n >= 200 ? "cloud" : "clear";
+        const el2 = document.getElementById("hubSkyfx");
+        if (el2) el2.dataset.cond = hubWx.cond;
+      } catch (e) { /* 予報の形が変わっても落とさない */ }
+    }).catch(() => {});
+  }
   // タップ演出：背景のオブジェそのものが動いて見えるよう、背景画像から切り出した実ピクセルを同じ位置に重ねて動かす
   let hubNavBusy = false;
   function hubFx(kind) {
@@ -10782,6 +10816,7 @@ function svgEl(tag, attrs) {
     const today = startOfDay(new Date());
     const MDW = hubMD(today) + "（" + "日月火水木金土"[today.getDay()] + "）";
     set("hubBadgeDate", MDW);
+    try { hubSkyApply(); } catch (e) { console.error("ハブ：窓の空", e); }
     try { const d = hubNextPayday(today); set("hubBadgePay", "給料日 " + hubMD(d)); } catch (e) { console.error("ハブ：給料日", e); }
     let assets = null;
     try { assets = hubAssetsText(); } catch (e) { assets = null; }
