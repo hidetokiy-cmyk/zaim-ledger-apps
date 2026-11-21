@@ -1141,6 +1141,7 @@
   .hub-scene { position: absolute; inset: 0; overflow: hidden; }
   .hub-stage { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
   .hub-room { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .hub-part { position: absolute; z-index: 1; display: block; pointer-events: none; }
   .hub-ramu { position: absolute; left: 88%; bottom: 3%; height: 30%; aspect-ratio: 1379 / 1451; padding: 0; border: 0; background: none; cursor: pointer; z-index: 2; transform: translateX(-50%); transition: left 4.6s ease-in-out, bottom 4.6s ease-in-out, transform 4.6s ease-in-out; -webkit-tap-highlight-color: transparent; }
   .hub-ramu img { position: relative; z-index: 1; width: 100%; height: 100%; display: block; pointer-events: none; object-fit: contain; animation: hubIdle 4.2s ease-in-out infinite; }
   .hub-ramu.walking img { animation: none; }
@@ -1181,11 +1182,11 @@
   /* ハブのタップ演出（実物スプライトをオブジェの上に重ねて動かす） */
   .hub-fx { position: absolute; z-index: 3; pointer-events: none; opacity: 0; }
   .hub-fx img { width: 100%; height: 100%; display: block; }
-  .hub-fx-scroll { width: 14%; aspect-ratio: 269 / 621; filter: drop-shadow(0 4px 10px rgba(20, 12, 4, .30)); }
+  .hub-fx-scroll { width: 11.5%; aspect-ratio: 269 / 621; filter: drop-shadow(0 4px 10px rgba(20, 12, 4, .30)); }
   .hub-fx-scroll.go { animation: hubUnroll .9s cubic-bezier(.25, .8, .3, 1) forwards; }
   @keyframes hubUnroll { 0% { opacity: 1; clip-path: inset(0 0 66% 0); } 100% { opacity: 1; clip-path: inset(0 0 0% 0); } }
-  .hub-fx-env { width: 10.8%; aspect-ratio: 207 / 312; overflow: hidden; opacity: 1; }
-  .hub-fx-env .fx-paper { position: absolute; left: 8%; bottom: -15%; width: 84%; height: auto; filter: drop-shadow(0 2px 5px rgba(20, 12, 4, .28)); transform: translateY(4%); opacity: 0; }
+  .hub-fx-env { width: 11.98%; aspect-ratio: 480 / 700; overflow: hidden; opacity: 1; }
+  .hub-fx-env .fx-paper { position: absolute; left: 17%; bottom: 12%; width: 66%; height: auto; filter: drop-shadow(0 2px 5px rgba(20, 12, 4, .28)); transform: translateY(4%); opacity: 0; }
   .hub-fx-env .fx-envimg { position: absolute; left: 0; bottom: 0; width: 100%; height: auto; }
   .hub-fx-env.go .fx-paper { animation: hubPaperOutReal .9s cubic-bezier(.25, .8, .3, 1) forwards; }
   @keyframes hubPaperOutReal { 0% { opacity: 0; transform: translateY(4%) rotate(-1.5deg); } 15% { opacity: 1; } 82% { opacity: 1; transform: translateY(-75%) rotate(-1.5deg); } 100% { opacity: 1; transform: translateY(-72%) rotate(-1.5deg); } }
@@ -1440,7 +1441,12 @@
       <div class="tab-page" id="tabHub">
         <div class="hub-scene" id="hubScene">
           <div class="hub-stage" id="hubStage">
-            <img class="hub-room" src="hub/room.webp" alt="" width="1920" height="1280">
+            <img class="hub-room" src="hub/room-base.webp" alt="" width="1920" height="1280">
+            <img class="hub-part" src="hub/part-ac.webp" alt="" style="left:18.54%;top:1.41%;width:27.55%;">
+            <img class="hub-part" src="hub/part-lamp.webp" alt="" style="left:3.75%;top:23.91%;width:13.13%;">
+            <img class="hub-part" src="hub/part-envelope.webp" alt="" style="left:45.05%;top:40.86%;width:11.98%;">
+            <img class="hub-part" src="hub/part-book.webp" alt="" style="left:22.60%;top:47.03%;width:34.11%;">
+            <img class="hub-part" src="hub/part-scroll.webp" alt="" style="left:6.82%;top:51.56%;width:10.05%;">
             <div class="hub-amb hub-amb-sky"></div>
             <div class="hub-amb hub-amb-lampglow"></div>
             <div class="hub-motes" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
@@ -1449,7 +1455,7 @@
             <button type="button" class="hub-hs hub-still" style="left:10%;top:40%;" aria-label="ランプ"><span class="hub-badge">ライト</span></button>
             <a class="hub-hs" href="tax-furusato.html" style="left:9%;top:75%;" aria-label="巻物"><span class="hub-badge">確定申告</span></a>
             <button type="button" class="hub-hs" data-hub-tab="home" style="left:35%;top:55%;" aria-label="帳簿"><span class="hub-badge" id="hubBadgeAssets">総資産</span></button>
-            <a class="hub-hs" href="payslip.html" style="left:44%;top:44%;" aria-label="封筒"><span class="hub-badge" id="hubBadgePay">給料日</span></a>
+            <a class="hub-hs" href="payslip.html" style="left:50%;top:47%;" aria-label="封筒"><span class="hub-badge" id="hubBadgePay">給料日</span></a>
             <button type="button" class="hub-hs hub-still" style="left:70%;top:28%;" aria-label="窓"><span class="hub-badge" id="hubBadgeDate">今日</span></button>
           </div>
         </div>
@@ -10610,7 +10616,7 @@ function svgEl(tag, attrs) {
     if (old) old.remove();
     const d = document.createElement("div");
     d.className = "hub-fx " + cls;
-    const pos = { scroll: [5.5, 51], paper: [38.6, 24], page: [30, 42], glow: [-3.5, 26.5], breeze: [23.5, 21], sweep: [58.5, 12.5] }[kind];
+    const pos = { scroll: [6.2, 51.3], paper: [45.05, 28.9], page: [30, 42], glow: [-3.5, 26.5], breeze: [23.5, 21], sweep: [58.5, 12.5] }[kind];
     d.style.left = pos[0] + "%";
     d.style.top = pos[1] + "%";
     if (kind === "scroll" || kind === "page") {
@@ -10619,7 +10625,7 @@ function svgEl(tag, attrs) {
       im.alt = "";
       d.appendChild(im);
     } else if (kind === "paper") {
-      d.innerHTML = '<img class="fx-paper" src="hub/fx-paper.webp" alt=""><img class="fx-envimg" src="hub/fx-env.webp" alt="">';
+      d.innerHTML = '<img class="fx-paper" src="hub/fx-paper.webp" alt=""><img class="fx-envimg" src="hub/part-envelope.webp" alt="">';
     } else if (kind === "breeze") {
       d.innerHTML = "<i></i><i></i><i></i>";
     }
