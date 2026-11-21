@@ -51,7 +51,9 @@ const ok = (cond, label) => { console.log((cond ? '  PASS ' : '  FAIL ') + label
   const btn = card && card.querySelector('.panel-collapse');
   ok(!!btn, 'B1: 90日の見通しに折り畳みボタンがある');
   const activeTab = () => doc.querySelector('.tab-btn.active') && doc.querySelector('.tab-btn.active').dataset.tab;
-  ok(activeTab() === 'home', 'B2: 初期タブはホーム');
+  ok(activeTab() === 'hub', 'B2: 初期タブはハブ');
+  doc.querySelector('.tab-btn[data-tab="home"]').click(); await sleep(300);
+  ok(activeTab() === 'home' && !doc.getElementById('tabOverview').classList.contains('hidden'), 'B2b: ホームタブへ切り替えできる');
 
   btn.click(); await sleep(300);
   ok(card.classList.contains('collapsed'), 'B3: クリックで折り畳まれる');
