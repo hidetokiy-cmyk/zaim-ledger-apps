@@ -1151,10 +1151,11 @@
   .hub-hs:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
   .hub-badge { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); white-space: nowrap; font-size: clamp(10px, 1.1vw, 14px); line-height: 1; padding: .4em .75em; border-radius: 999px; background: rgba(20, 16, 12, .72); color: #fff; border: 1px solid rgba(255, 255, 255, .4); pointer-events: none; }
   .hub-hs:not(.hub-still):hover .hub-badge { border-color: var(--accent); }
-  /* 縦長画面：見える範囲（左寄せ）の右端にラムを立たせる */
+  /* 縦長画面：舞台は高さに合わせ、横はスワイプで見渡す */
   @media (max-aspect-ratio: 1/1) {
-    .hub-ramu { right: 53%; height: 34%; }
-    .hub-bubble { right: 50%; bottom: 36%; max-width: 52%; }
+    .hub-scene { overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    .hub-scene::-webkit-scrollbar { display: none; }
+    .hub-stage { position: relative; }
   }
   /* ハブのタップ演出（各オブジェの上に重ねる効果レイヤー） */
   .hub-fx { position: absolute; z-index: 3; pointer-events: none; opacity: 0; }
@@ -1183,6 +1184,17 @@
   .hub-fx-sweep.go { animation: hubSweep .85s linear forwards; }
   @keyframes hubSweep { 0% { opacity: 1; background-position: 130% 0; } 100% { opacity: 1; background-position: -40% 0; } }
   @media (prefers-reduced-motion: reduce) { .hub-ramu { animation: none; } .hub-fx { display: none; } }
+  /* 世界観レイヤー：全タブに付き従うラムガイド＋見出しの金の標識 */
+  .section-title::before { content: "◆"; color: var(--gold); font-size: .6em; margin-right: .5em; vertical-align: .22em; }
+  .ramu-guide { position: fixed; right: 14px; bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 35; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  .ramu-guide.hidden { display: none; }
+  body.hub-on .ramu-guide { display: none; }
+  .ramu-guide-btn { width: 64px; height: 68px; padding: 0; border: 0; background: none; cursor: pointer; animation: hubFloat 5s ease-in-out infinite; -webkit-tap-highlight-color: transparent; filter: drop-shadow(0 3px 6px rgba(30, 27, 22, .35)); }
+  .ramu-guide-btn img { width: 100%; height: 100%; display: block; pointer-events: none; }
+  .ramu-guide-bubble { max-width: 190px; padding: .5em .85em; border-radius: 12px; background: var(--paper-raised); color: var(--ink); border: 1px solid var(--rule-strong); font-size: 14px; line-height: 1.45; box-shadow: 0 4px 14px rgba(30, 27, 22, .18); }
+  .ramu-guide-bubble.hidden { display: none; }
+  @media (max-width: 640px) { .ramu-guide { bottom: calc(74px + env(safe-area-inset-bottom)); } .ramu-guide-btn { width: 56px; height: 59px; } }
+  @media (prefers-reduced-motion: reduce) { .ramu-guide-btn { animation: none; } }
 </style>
 </head>
 <body>
@@ -2056,6 +2068,11 @@
 
     </div>
   </div>
+</div>
+
+<div id="ramuGuide" class="ramu-guide hidden no-print">
+  <div class="ramu-guide-bubble hidden" id="ramuGuideBubble" role="status" aria-live="polite"></div>
+  <button type="button" class="ramu-guide-btn" id="ramuGuideBtn" aria-label="ラム"><img src="hub/ramu.webp" alt="" width="1379" height="1451"></button>
 </div>
 
 <div id="cmdOverlay" class="modal-overlay hidden" style="z-index:80;align-items:flex-start;padding-top:12vh;">
@@ -10530,15 +10547,31 @@ function svgEl(tag, attrs) {
     clearTimeout(hubBubbleTimer);
     hubBubbleTimer = setTimeout(() => b.classList.add("hidden"), 2800);
   }
-  // シーンの舞台（1920×1280）を画面いっぱいに cover で合わせる。縦長画面では机まわりが見えるよう左寄せ
+  // シーンの舞台（1920×1280）を画面いっぱいに合わせる。横長は cover、縦長は高さ基準で横スクロール
   function hubFit() {
     const st = document.getElementById("hubStage");
     if (!st) return;
     const vw = window.innerWidth, vh = window.innerHeight;
-    const s = Math.max(vw / 1920, vh / 1280);
-    st.style.width = Math.round(1920 * s) + "px";
-    st.style.height = Math.round(1280 * s) + "px";
-    st.style.transform = vw < vh ? "translate(-32%, -50%)" : "translate(-50%, -50%)";
+    if (vw < vh) {
+      const s = vh / 1280;
+      st.style.width = Math.round(1920 * s) + "px";
+      st.style.height = Math.round(1280 * s) + "px";
+      st.style.left = "0px";
+      st.style.top = "0px";
+      st.style.transform = "none";
+      const sc = document.getElementById("hubScene");
+      if (sc && sc.dataset.panInit !== "1") {
+        sc.dataset.panInit = "1";
+        sc.scrollLeft = Math.round((1920 * s - vw) * 0.3);   // 初期表示は机まわり
+      }
+    } else {
+      const s = Math.max(vw / 1920, vh / 1280);
+      st.style.width = Math.round(1920 * s) + "px";
+      st.style.height = Math.round(1280 * s) + "px";
+      st.style.left = "50%";
+      st.style.top = "50%";
+      st.style.transform = "translate(-50%, -50%)";
+    }
   }
   // タップ演出：オブジェの位置に効果レイヤーを重ねてアニメーションさせる
   let hubNavBusy = false;
@@ -10585,6 +10618,7 @@ function svgEl(tag, attrs) {
       window.addEventListener("resize", hubFit);
     }
     document.body.classList.toggle("hub-on", !page.classList.contains("hidden"));
+    guideSync();
     if (page.classList.contains("hidden")) return;   // 非表示中は計算しない（開いたときのタブ切替が render を呼ぶ）
     hubFit();
     const set = (id, text) => { const e = document.getElementById(id); if (e) e.textContent = text; };
@@ -10595,6 +10629,43 @@ function svgEl(tag, attrs) {
     let assets = null;
     try { assets = hubAssetsText(); } catch (e) { assets = null; }
     set("hubBadgeAssets", assets ? "総資産 " + assets : "総資産");
+  }
+
+  // 世界観レイヤー：ハブ以外のタブに付き従うラムガイド。今いるタブ（部屋）の一言を出す
+  const GUIDE_LINES = {
+    home: ["家計の間だ。今日の数字はどうだ？", "総資産は帝国の礎ぞ", "もふもふでも計算は正確に"],
+    closing: ["決算の間。締めは厳しくいくぞ", "帳簿の乱れは国の乱れだ"],
+    analysis: ["分析の間。数字の森を眺めるぞ", "グラフは正直者が好きだ"],
+    ledger: ["台帳の間。一行ずつが歴史だ", "記録は帝王の務めぞ"],
+    other: ["我が名はラム", "バウムクーヘンは正義だ", "撫でてもよいぞ"]
+  };
+  let guideLast = -1, guideTimer = 0;
+  function guideSay() {
+    const b = document.getElementById("ramuGuideBubble");
+    if (!b) return;
+    const active = document.querySelector(".tab-btn.active");
+    const key = active && GUIDE_LINES[active.dataset.tab] ? active.dataset.tab : "other";
+    const lines = GUIDE_LINES[key];
+    let i = Math.floor(Math.random() * lines.length);
+    if (lines.length > 1 && i === guideLast) i = (i + 1) % lines.length;
+    guideLast = i;
+    b.textContent = lines[i];
+    b.classList.remove("hidden");
+    clearTimeout(guideTimer);
+    guideTimer = setTimeout(() => b.classList.add("hidden"), 3200);
+  }
+  function guideSync() {
+    const g = document.getElementById("ramuGuide");
+    if (!g) return;
+    const dash = document.getElementById("dashboardView");
+    const hubPage = document.getElementById("tabHub");
+    const show = !!(dash && !dash.classList.contains("hidden") && hubPage && hubPage.classList.contains("hidden"));
+    g.classList.toggle("hidden", !show);
+    if (!g.dataset.bound) {
+      g.dataset.bound = "1";
+      const btn = document.getElementById("ramuGuideBtn");
+      if (btn) btn.addEventListener("click", guideSay);
+    }
   }
 
   // 期間（月・週など）を前後に動かしたとき、台帳のページをめくるように表示中のタブが立体的に切り替わる。「動きを減らす」設定のときは動かさない
@@ -12049,6 +12120,7 @@ function svgEl(tag, attrs) {
       else document.getElementById(TAB_PAGE_IDS[t]).classList.add("hidden");
     });
     if (target === "ledger" && state.ledgerMode === "timeline") { try { tlRender(); } catch (e) { console.error("時間軸の表示に失敗", e); } }
+    if (typeof guideSync === "function") guideSync();
   }
 
   // 分析タブ内の切替（グラフ／財務三表）
