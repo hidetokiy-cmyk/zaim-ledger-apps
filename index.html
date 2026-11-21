@@ -1142,12 +1142,12 @@
   .hub-stage { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
   .hub-room { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
   .hub-ramu { position: absolute; left: 88%; bottom: 3%; height: 30%; aspect-ratio: 1379 / 1451; padding: 0; border: 0; background: none; cursor: pointer; z-index: 2; transform: translateX(-50%); transition: left 4.6s ease-in-out, bottom 4.6s ease-in-out, transform 4.6s ease-in-out; -webkit-tap-highlight-color: transparent; }
-  .hub-ramu img { width: 100%; height: 100%; display: block; pointer-events: none; object-fit: contain; animation: hubIdle 4.2s ease-in-out infinite; }
+  .hub-ramu img { position: relative; z-index: 1; width: 100%; height: 100%; display: block; pointer-events: none; object-fit: contain; animation: hubIdle 4.2s ease-in-out infinite; }
   .hub-ramu.walking img { animation: none; }
   .hub-ramu.settle img { animation: hubSettle .38s ease; }
   @keyframes hubIdle { 0%, 100% { transform: scale(1) translateY(0); } 50% { transform: scale(1.018) translateY(-.6%); } }
   @keyframes hubSettle { 0% { transform: scale(1.05, .92); } 55% { transform: scale(.99, 1.02); } 100% { transform: scale(1, 1); } }
-  .hub-ramu-shadow { position: absolute; left: 50%; bottom: -1.5%; width: 74%; height: 8%; transform: translateX(-50%); background: radial-gradient(ellipse at center, rgba(35, 22, 8, .40), rgba(35, 22, 8, 0) 68%); filter: blur(3px); pointer-events: none; }
+  .hub-ramu-shadow { position: absolute; z-index: 0; left: 50%; bottom: -1.5%; width: 74%; height: 8%; transform: translateX(-50%); background: radial-gradient(ellipse at center, rgba(35, 22, 8, .40), rgba(35, 22, 8, 0) 68%); filter: blur(3px); pointer-events: none; }
   .hub-ramu.walking .hub-ramu-shadow { animation: hubShadowPulse .34s ease-in-out infinite alternate; }
   @keyframes hubShadowPulse { from { transform: translateX(-50%) scaleX(.93); opacity: .8; } to { transform: translateX(-50%) scaleX(1.05); opacity: 1; } }
   @keyframes hubFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3%); } }
@@ -1181,15 +1181,17 @@
   /* ハブのタップ演出（実物スプライトをオブジェの上に重ねて動かす） */
   .hub-fx { position: absolute; z-index: 3; pointer-events: none; opacity: 0; }
   .hub-fx img { width: 100%; height: 100%; display: block; }
-  .hub-fx-scroll { width: 15%; aspect-ratio: 532 / 1000; transform-origin: 50% 0; filter: drop-shadow(0 4px 10px rgba(20, 12, 4, .35)); }
+  .hub-fx-scroll { width: 14%; aspect-ratio: 269 / 621; transform-origin: 50% 0; filter: drop-shadow(0 4px 10px rgba(20, 12, 4, .30)); }
   .hub-fx-scroll.go { animation: hubUnroll .85s ease forwards; }
-  @keyframes hubUnroll { 0% { opacity: 1; transform: scaleY(.13); } 100% { opacity: 1; transform: scaleY(1); } }
-  .hub-fx-paper { width: 11.5%; aspect-ratio: 661 / 800; filter: drop-shadow(0 3px 8px rgba(20, 12, 4, .3)); }
-  .hub-fx-paper.go { animation: hubPaperOut .85s ease forwards; }
-  @keyframes hubPaperOut { 0% { opacity: 0; transform: translateY(46%) rotate(2deg) scale(.92); } 22% { opacity: 1; } 100% { opacity: 1; transform: translateY(-38%) rotate(-2.5deg) scale(1); } }
-  .hub-fx-page { width: 13%; aspect-ratio: 757 / 800; transform-origin: 12% 88%; filter: drop-shadow(0 3px 8px rgba(20, 12, 4, .3)); }
-  .hub-fx-page.go { animation: hubPageFlip .8s ease forwards; }
-  @keyframes hubPageFlip { 0% { opacity: 0; transform: perspective(520px) rotateY(-72deg) rotateX(6deg); } 18% { opacity: 1; } 100% { opacity: 1; transform: perspective(520px) rotateY(0deg) rotateX(0deg); } }
+  @keyframes hubUnroll { 0% { opacity: 1; transform: scaleY(.30); } 100% { opacity: 1; transform: scaleY(1); } }
+  .hub-fx-env { width: 10.8%; aspect-ratio: 207 / 312; overflow: hidden; opacity: 1; }
+  .hub-fx-env .fx-paper { position: absolute; left: 8%; bottom: -15%; width: 84%; height: auto; filter: drop-shadow(0 2px 5px rgba(20, 12, 4, .28)); transform: translateY(4%); opacity: 0; }
+  .hub-fx-env .fx-envimg { position: absolute; left: 0; bottom: 0; width: 100%; height: auto; }
+  .hub-fx-env.go .fx-paper { animation: hubPaperOutReal .85s ease forwards; }
+  @keyframes hubPaperOutReal { 0% { opacity: 0; transform: translateY(4%) rotate(0deg); } 15% { opacity: 1; } 100% { opacity: 1; transform: translateY(-72%) rotate(-2deg); } }
+  .hub-fx-pageflip { width: 26%; aspect-ratio: 499 / 282; transform-origin: 44% 50%; }
+  .hub-fx-pageflip.go { animation: hubPageFlipReal .85s ease forwards; }
+  @keyframes hubPageFlipReal { 0% { opacity: 1; transform: perspective(900px) rotateY(0deg); filter: brightness(1); } 45% { filter: brightness(.88); } 100% { opacity: 1; transform: perspective(900px) rotateY(-158deg); filter: brightness(.97); } }
   .hub-fx-glow { width: 27%; height: 27%; background: radial-gradient(circle, rgba(255, 216, 130, .9), rgba(255, 216, 130, 0) 65%); border-radius: 50%; }
   .hub-fx-glow.go { animation: hubGlow .95s ease forwards; }
   @keyframes hubGlow { 0% { opacity: 0; transform: scale(.65); } 35% { opacity: 1; } 100% { opacity: 0; transform: scale(1.2); } }
@@ -10597,22 +10599,30 @@ function svgEl(tag, attrs) {
       st.style.transform = "translate(-50%, -50%)";
     }
   }
-  // タップ演出：オブジェの位置に実物スプライト（または光・風の効果）を重ねてアニメーションさせる
+  // タップ演出：背景のオブジェそのものが動いて見えるよう、背景画像から切り出した実ピクセルを同じ位置に重ねて動かす
   let hubNavBusy = false;
   function hubFx(kind) {
     const st = document.getElementById("hubStage");
     if (!st) return;
-    const old = st.querySelector(".hub-fx-" + kind);
+    const cls = { scroll: "hub-fx-scroll", paper: "hub-fx-env", page: "hub-fx-pageflip", glow: "hub-fx-glow", breeze: "hub-fx-breeze", sweep: "hub-fx-sweep" }[kind];
+    if (!cls) return;
+    const old = st.querySelector("." + cls);
     if (old) old.remove();
     const d = document.createElement("div");
-    d.className = "hub-fx hub-fx-" + kind;
-    const pos = { scroll: [3.6, 50.5], paper: [38.25, 27], page: [34, 40], glow: [-3.5, 26.5], breeze: [23.5, 21], sweep: [58.5, 12.5] }[kind];
-    if (!pos) return;
+    d.className = "hub-fx " + cls;
+    const pos = { scroll: [5.5, 51], paper: [38.6, 24], page: [30, 42], glow: [-3.5, 26.5], breeze: [23.5, 21], sweep: [58.5, 12.5] }[kind];
     d.style.left = pos[0] + "%";
     d.style.top = pos[1] + "%";
-    const img = { scroll: "hub/scroll-open.webp", paper: "hub/paper.webp", page: "hub/page.webp" }[kind];
-    if (img) { const im = document.createElement("img"); im.src = img; im.alt = ""; d.appendChild(im); }
-    if (kind === "breeze") d.innerHTML = "<i></i><i></i><i></i>";
+    if (kind === "scroll" || kind === "page") {
+      const im = document.createElement("img");
+      im.src = kind === "scroll" ? "hub/fx-scroll.webp" : "hub/fx-page.webp";
+      im.alt = "";
+      d.appendChild(im);
+    } else if (kind === "paper") {
+      d.innerHTML = '<img class="fx-paper" src="hub/fx-paper.webp" alt=""><img class="fx-envimg" src="hub/fx-env.webp" alt="">';
+    } else if (kind === "breeze") {
+      d.innerHTML = "<i></i><i></i><i></i>";
+    }
     st.appendChild(d);
     requestAnimationFrame(() => d.classList.add("go"));
     setTimeout(() => d.remove(), 1500);
