@@ -6,7 +6,7 @@ const FONTS = "ledger-fonts";
 // REQUIRED が1つでも取れなければインストールを失敗させる（画面が出ない版を有効にしないため）。
 // OPTIONAL はアイコンなど、無くても動くもの。取れなかったものは飛ばし、残りは保存する
 const REQUIRED = ["./", "index.html", "papaparse.min.js"];
-const OPTIONAL = ["tax-furusato.html", "payslip.html", "manifest.webmanifest", "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png", "favicon-32.png"];
+const OPTIONAL = ["tax-furusato.html", "payslip.html", "manifest.webmanifest", "icon-192.png", "icon-512.png", "icon-maskable-512.png", "apple-touch-icon.png", "favicon-32.png", "hub/room-base.webp", "hub/part-ac.webp", "hub/part-lamp.webp", "hub/part-envelope.webp", "hub/part-book.webp", "hub/part-scroll.webp", "hub/ramu.webp", "hub/ramu-side.webp", "hub/ramu-blink.webp", "hub/fx-page.webp", "hub/fx-paper.webp", "hub/fx-scroll.webp"];
 
 self.addEventListener("install", (e) => {
   // HTTPキャッシュ（GitHub Pagesは約10分）を通さず、常にサーバーの最新を取って保存する。待機状態で止め、画面の「更新」タップで有効化する
